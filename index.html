@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulso Urbano - Dados que Revelam a Cidade</title>
+  <!-- favicon do CRISP -->
+  <link rel="icon" href="https://cesecseguranca.com.br/wp-content/uploads/2020/10/logo-crisp.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif; line-height:1.6; background:#f8f9fa; color:#2c3e50; }
+    header { background:#1a242f; color:#fff; padding:1.5rem; text-align:center; }
+    header h1 { font-size:2rem; font-weight:800; }
+    nav { display:flex; justify-content:center; gap:1.5rem; background:#2c3e50; padding:1rem; flex-wrap:wrap; }
+    nav a { color:#fff; text-decoration:none; font-weight:600; }
+    nav a:hover { text-decoration:underline; }
+    .hero { background:#e9ecef; padding:2rem; text-align:center; transition: all 1s ease-in-out; }
+    .hero:hover { background-color: #dfe6e9; transform: scale(1.01); }
+    .hero h2 { font-size:1.8rem; margin-bottom:1rem; font-weight:700; }
+    .hero p { font-size:1rem; max-width:600px; margin:0 auto; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; padding:2rem; }
+    .card { background:#fff; border-radius:12px; padding:1.5rem; box-shadow:0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s ease; }
+    .card:hover { transform: translateY(-5px); }
+    .card h3 { font-size:1.2rem; margin-bottom:0.5rem; color:#1a242f; }
+    .card p { font-size:0.95rem; color:#444; }
+    main.crisp { background:#fff; padding:2rem; margin:2rem auto; max-width:800px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05); text-align: center; }
+    main.crisp h2 { font-size:1.6rem; margin-bottom:1rem; color:#1a242f; }
+    main.crisp p { margin-bottom:1rem; text-align: justify; }
+    .brazil-imgs { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 1rem; }
+    .brazil-imgs img { width: 300px; max-width: 100%; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.3s ease; }
+    .brazil-imgs img:hover { transform: scale(1.05); }
+    footer { background:#1a242f; color:#fff; text-align:center; padding:1rem; font-size:0.9rem; }
+    #loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #1a242f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      font-size: 1rem;
+    }
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #ffc107;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @media (max-width:600px) {
+      .hero h2 { font-size:1.5rem; }
+      main.crisp { padding:1rem; margin:1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="spinner"></div>
+    <p>Carregando dados urbanos...</p>
+  </div>
+
+  <header>
+    <h1>Pulso Urbano</h1>
+    <p>Dados que revelam a cidade – Uma iniciativa CRISP</p>
+  </header>
+
+  <nav>
+    <a href="#pesquisas">Pesquisas</a>
+    <a href="#analises">Análises</a>
+    <a href="#previsoes">Previsões</a>
+    <a href="#educacao">Educação</a>
+    <a href="#contato">Contato</a>
+  </nav>
+
+  <section class="hero">
+    <h2>Explore os dados que transformam o debate urbano</h2>
+    <p>O Pulso Urbano reúne estudos, painéis analíticos e previsões sobre segurança pública, juventude, violência e temas sociais relevantes, com base nas pesquisas do CRISP.</p>
+  </section>
+
+  <section class="cards">
+    <div class="card">
+      <h3>Banco de Pesquisas</h3>
+      <p>Acesse estudos organizados por tema, ano e localidade. Baixe relatórios e explore os dados com facilidade.</p>
+    </div>
+    <div class="card">
+      <h3>Painéis Interativos</h3>
+      <p>Visualize os dados em gráficos dinâmicos e mapas. Compare regiões e acompanhe tendências.</p>
+    </div>
+    <div class="card">
+      <h3>Previsões e Modelagens</h3>
+      <p>Confira análises preditivas com base em dados reais para subsidiar políticas públicas e debates.</p>
+    </div>
+    <div class="card">
+      <h3>Conteúdo para Estudantes</h3>
+      <p>Material didático, exercícios e bases de dados para ensino, pesquisa e iniciação científica.</p>
+    </div>
+  </section>
+
+  <main class="crisp">
+    <h2>Sobre o CRISP</h2>
+    <p><strong>O Centro de Estudos de Criminalidade e Segurança Pública (CRISP)</strong> é um núcleo da Universidade Federal de Minas Gerais (UFMG), vinculado ao Departamento de Sociologia. Desde a década de 1980, desenvolve pesquisas e forma especialistas em criminalidade, violência, policiamento e políticas de segurança pública.</p>
+    <p>Fundado em 1996, o CRISP reúne pesquisadores de diversas áreas — sociologia, estatística, ciência da computação, direito, saúde, entre outras — com participação de alunos de graduação, mestrado e doutorado.</p>
+    <p>Suas principais atividades incluem (i) produção de conhecimento acadêmico sobre violência e criminalidade e (ii) apoio à formulação, implementação e avaliação de políticas públicas em Minas Gerais e no Brasil.</p>
+    <div class="brazil-imgs">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Brasil_mapa.png/640px-Brasil_mapa.png" alt="Mapa do Brasil">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Minas_Gerais_in_Brazil.svg/640px-Minas_Gerais_in_Brazil.svg.png" alt="Minas Gerais no Brasil">
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Pulso Urbano | Desenvolvido com base no acervo CRISP</p>
+  </footer>
+
+  <script>
+  window.addEventListener("load", function () {
+    setTimeout(() => {
+      const loader = document.getElementById("loader");
+      loader.style.opacity = 0;
+      setTimeout(() => loader.style.display = "none", 500);
+    }, 3000); // Mínimo de 3 segundos
+  });
+</script>
+
+</body>
+</html>
