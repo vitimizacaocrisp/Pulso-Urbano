@@ -26,14 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-    // --- LÓGICA PARA O MENU MOBILE (HAMBURGER) ---
+    // --- LÓGICA PARA O MENU MOBILE ---
     const mobileMenuIcon = document.getElementById('mobileMenuIcon');
     const mainNavMenu = document.getElementById('mainNavMenu');
 
-    // Verifica se os elementos do menu existem na página
     if (mobileMenuIcon && mainNavMenu) {
         // Adiciona o 'escutador' de clique no ícone
-        mobileMenu-icon.addEventListener('click', () => {
+        mobileMenuIcon.addEventListener('click', () => {
             // Alterna a classe que mostra/esconde o menu
             mainNavMenu.classList.toggle('mobile-menu-open');
         });
