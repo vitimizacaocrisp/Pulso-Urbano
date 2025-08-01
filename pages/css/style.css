@@ -457,12 +457,11 @@ main {
     .nav-menu {
         display: none;
         position: absolute;
-        top: 80px; /* Altura do header */
+        top: 100px; /* Altura do header */
         left: 0;
         width: 100%;
         background-color: #1a242f;
         flex-direction: column;
-        align-items: center;
         padding: 1rem 0;
     }
 
@@ -474,5 +473,6 @@ main {
     /* Classe que o JS vai adicionar para mostrar o menu */
     .nav-menu.mobile-menu-open {
         display: flex;
+
     }
 }
