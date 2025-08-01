@@ -1,139 +1,149 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pulso Urbano - Dados que Revelam a Cidade</title>
-  <!-- favicon do CRISP -->
-  <link rel="icon" href="https://cesecseguranca.com.br/wp-content/uploads/2020/10/logo-crisp.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulso Urbano: Observatório Nacional de Segurança Pública e Justiça</title>
+  <link rel="shortcut icon" href="logo/crisp_logo.png" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Inter',sans-serif; line-height:1.6; background:#f8f9fa; color:#2c3e50; }
-    header { background:#1a242f; color:#fff; padding:1.5rem; text-align:center; }
-    header h1 { font-size:2rem; font-weight:800; }
-    nav { display:flex; justify-content:center; gap:1.5rem; background:#2c3e50; padding:1rem; flex-wrap:wrap; }
-    nav a { color:#fff; text-decoration:none; font-weight:600; }
-    nav a:hover { text-decoration:underline; }
-    .hero { background:#e9ecef; padding:2rem; text-align:center; transition: all 1s ease-in-out; }
-    .hero:hover { background-color: #dfe6e9; transform: scale(1.01); }
-    .hero h2 { font-size:1.8rem; margin-bottom:1rem; font-weight:700; }
-    .hero p { font-size:1rem; max-width:600px; margin:0 auto; }
-    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; padding:2rem; }
-    .card { background:#fff; border-radius:12px; padding:1.5rem; box-shadow:0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s ease; }
-    .card:hover { transform: translateY(-5px); }
-    .card h3 { font-size:1.2rem; margin-bottom:0.5rem; color:#1a242f; }
-    .card p { font-size:0.95rem; color:#444; }
-    main.crisp { background:#fff; padding:2rem; margin:2rem auto; max-width:800px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05); text-align: center; }
-    main.crisp h2 { font-size:1.6rem; margin-bottom:1rem; color:#1a242f; }
-    main.crisp p { margin-bottom:1rem; text-align: justify; }
-    .brazil-imgs { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 1rem; }
-    .brazil-imgs img { width: 300px; max-width: 100%; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.3s ease; }
-    .brazil-imgs img:hover { transform: scale(1.05); }
-    footer { background:#1a242f; color:#fff; text-align:center; padding:1rem; font-size:0.9rem; }
-    #loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #1a242f;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      color: #fff;
-      font-size: 1rem;
-    }
-    .spinner {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #ffc107;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @media (max-width:600px) {
-      .hero h2 { font-size:1.5rem; }
-      main.crisp { padding:1rem; margin:1rem; }
-    }
-  </style>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Titillium+Web:wght@600;700&display=swap"
+    rel="stylesheet">
 </head>
-<body>
-  <div id="loader">
-    <div class="spinner"></div>
-    <p>Carregando dados urbanos...</p>
-  </div>
 
-  <header>
-    <h1>Pulso Urbano</h1>
-    <p>Dados que revelam a cidade – Uma iniciativa CRISP</p>
+<body>
+
+  <header class="main-header">
+    <nav class="navbar">
+      <div class="logo-container">
+        <a href="index.html" class="logo">
+          <h1>Pulso Urbano</h1>
+          <p class="tagline">Observatório Nacional de Segurança Pública e Justiça</p>
+        </a>
+      </div>
+
+      <button id="mobileMenuIcon" class="mobile-menu-icon">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <ul class="nav-menu">
+        <li><a href="index.html" class="active">Início</a></li>
+
+        <li class="dropdown">
+          <a href="#painéis">Painéis & Dados</a>
+          <ul class="dropdown-content">
+            <li><a href="paineis/homicidios.html">Homicídios</a></li>
+            <li><a href="paineis/violencia-genero.html">Violência de Gênero</a></li>
+            <li><a href="paineis/vitimizacao.html">Vitimiação</a></li>
+            <li><a href="paineis/sistema-justica.html">Sistema de Justiça e Prisional</a></li>
+            <li><a href="paineis/atividade-policial.html">Atividade Policial e Crime Organizado</a></li>
+            <li><a href="paineis/crimes-economicos.html">Crimes Econômicos e Corrupção</a></li>
+          </ul>
+        </li>
+
+        <li><a href="publicacoes.html">Publicações</a></li>
+        <li><a href="analises.html">Análises & Cenários</a></li>
+        <li><a href="educacao.html">Educação</a></li>
+        <li><a href="sobre.html">Sobre</a></li>
+      </ul>
+    </nav>
   </header>
 
-  <nav>
-    <a href="#pesquisas">Pesquisas</a>
-    <a href="#analises">Análises</a>
-    <a href="#previsoes">Previsões</a>
-    <a href="#educacao">Educação</a>
-    <a href="#contato">Contato</a>
-  </nav>
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <h2>Democratizando dados e análises sobre segurança pública e justiça no Brasil.</h2>
+        <p>O Pulso Urbano integra dados de vitimização e registros administrativos para revelar um panorama completo
+          sobre a criminalidade e o acesso à justiça no país.</p>
+        <a href="#paineis" class="btn-primary">Explorar os Painéis</a>
+      </div>
+    </section>
 
-  <section class="hero">
-    <h2>Explore os dados que transformam o debate urbano</h2>
-    <p>O Pulso Urbano reúne estudos, painéis analíticos e previsões sobre segurança pública, juventude, violência e temas sociais relevantes, com base nas pesquisas do CRISP.</p>
-  </section>
+    <section class="featured-section" id="paineis">
+      <h2 class="section-title">Painéis em Destaque</h2>
+      <div class="card-container">
+        <article class="card">
+          <h3>Monitor do Homicídio</h3>
+          <p>Análise detalhada das taxas de homicídios dolosos, perfil das vítimas e o impacto do crime organizado.</p>
+          <a href="paineis/homicidios.html" class="card-link">Acessar Painel</a>
+        </article>
 
-  <section class="cards">
-    <div class="card">
-      <h3>Banco de Pesquisas</h3>
-      <p>Acesse estudos organizados por tema, ano e localidade. Baixe relatórios e explore os dados com facilidade.</p>
-    </div>
-    <div class="card">
-      <h3>Painéis Interativos</h3>
-      <p>Visualize os dados em gráficos dinâmicos e mapas. Compare regiões e acompanhe tendências.</p>
-    </div>
-    <div class="card">
-      <h3>Previsões e Modelagens</h3>
-      <p>Confira análises preditivas com base em dados reais para subsidiar políticas públicas e debates.</p>
-    </div>
-    <div class="card">
-      <h3>Conteúdo para Estudantes</h3>
-      <p>Material didático, exercícios e bases de dados para ensino, pesquisa e iniciação científica.</p>
-    </div>
-  </section>
+        <article class="card">
+          <h3>Observatório da Violência de Gênero</h3>
+          <p>Dados sobre feminicídio e violência doméstica, revelando o lar como um dos espaços mais perigosos para
+            mulheres.</p>
+          <a href="paineis/violencia-genero.html" class="card-link">Acessar Painel</a>
+        </article>
 
-  <main class="crisp">
-    <h2>Sobre o CRISP</h2>
-    <p><strong>O Centro de Estudos de Criminalidade e Segurança Pública (CRISP)</strong> é um núcleo da Universidade Federal de Minas Gerais (UFMG), vinculado ao Departamento de Sociologia. Desde a década de 1980, desenvolve pesquisas e forma especialistas em criminalidade, violência, policiamento e políticas de segurança pública.</p>
-    <p>Fundado em 1996, o CRISP reúne pesquisadores de diversas áreas — sociologia, estatística, ciência da computação, direito, saúde, entre outras — com participação de alunos de graduação, mestrado e doutorado.</p>
-    <p>Suas principais atividades incluem (i) produção de conhecimento acadêmico sobre violência e criminalidade e (ii) apoio à formulação, implementação e avaliação de políticas públicas em Minas Gerais e no Brasil.</p>
-    <div class="brazil-imgs">
-      <img src="https://static.poder360.com.br/2025/01/seguranca-publica-assassinatos-estupros-policial-17-jan-2025-2048x2048.png" alt="Registro assassinato Brasil 2024">
-      <img src="https://s2-g1.glbimg.com/CmlmRbTDEyjzGvP2rU_DVOrjUGk=/0x0:1200x1955/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_59edd422c0c84a879bd37670ae4f538a/internal_photos/bs/2025/V/4/hdi1zySq6x8s3AIi2wVw/250723-info-ranking-violencia-municipios-2024.jpg" alt="Ranking Violência">
-    </div>
+        <article class="card">
+          <h3>Atlas da Vitimização</h3>
+          <p>Explore dados sobre crimes reportados e não reportados à polícia, baseados em pesquisas de vitimização.</p>
+          <a href="paineis/vitimizacao.html" class="card-link">Acessar Painel</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="analysis-section">
+      <h2 class="section-title">Últimas Análises</h2>
+      <div class="card-container">
+        <article class="card card-analysis">
+          <div class="card-content">
+            <span class="analysis-tag">Prospecção de Cenários</span>
+            <h4>O impacto das mudanças climáticas na violência urbana</h4>
+            <p>Um estudo sobre como eventos climáticos extremos podem remodelar os padrões de criminalidade nas grandes
+              cidades brasileiras na próxima década.</p>
+            <a href="analises/artigo1.html" class="card-link">Ler mais</a>
+          </div>
+        </article>
+
+        <article class="card card-analysis">
+          <div class="card-content">
+            <span class="analysis-tag">Sistema de Justiça</span>
+            <h4>A superlotação carcerária e seus efeitos na reincidência</h4>
+            <p>Uma análise baseada em dados do sistema prisional sobre a correlação entre a superlotação e as taxas de
+              reincidência criminal.</p>
+            <a href="analises/artigo2.html" class="card-link">Ler mais</a>
+          </div>
+        </article>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    <p>&copy; 2025 Pulso Urbano | Desenvolvido com base no acervo CRISP</p>
+  <footer class="main-footer">
+    <div class="footer-content">
+      <div class="footer-logo">
+        <h3>Pulso Urbano</h3>
+        <p>Um projeto do <a href="https://www.crisp.ufmg.br" target="_blank">CRISP/UFMG</a></p>
+      </div>
+      <div class="footer-links">
+        <h4>Navegue</h4>
+        <ul>
+          <li><a href="#paineis">Painéis & Dados</a></li>
+          <li><a href="publicacoes.html">Publicações</a></li>
+          <li><a href="sobre.html">Sobre o Projeto</a></li>
+          <li><a href="educacao.html">Educação</a></li>
+        </ul>
+      </div>
+      <div class="footer-contact">
+        <h4>Contato</h4>
+        <p>Para parcerias, sugestões ou dúvidas, entre em contato conosco.</p>
+        <p>Email: <a href="mailto:contato@pulsourbano.org">contato@pulsourbano.org</a></p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 Pulso Urbano. Todos os direitos reservados.</p>
+    </div>
   </footer>
 
-  <script>
-  window.addEventListener("load", function () {
-    setTimeout(() => {
-      const loader = document.getElementById("loader");
-      loader.style.opacity = 0;
-      setTimeout(() => loader.style.display = "none", 500);
-    }, 3000); // Mínimo de 3 segundos
-  });
-</script>
+  <button id="backToTopBtn" title="Voltar ao topo">&uarr;</button>
+
+  <script src="script.js"></script>
 
 </body>
+
 </html>
