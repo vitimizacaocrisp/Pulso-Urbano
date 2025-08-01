@@ -4,6 +4,12 @@
 
 ---
 
+## 🌐 Página web
+
+https://vitimizacaocrisp.github.io/Pulso-Urbano/
+
+---
+
 ## 🎯 Objetivo
 
 Facilitar o acesso público aos dados e estudos produzidos pelo CRISP, promovendo o uso do conhecimento acadêmico para subsidiar debates públicos, projetos sociais, pesquisas escolares e políticas públicas.
@@ -78,6 +84,6 @@ Este projeto é fruto de uma colaboração entre estudantes, pesquisadores e des
 ## 📬 Contato
 
 Caso tenha interesse em contribuir, sugerir melhorias ou integrar o projeto a outros sistemas, envie um e-mail para:  
-**vitimizacaocrisp1@gmail.com** *(e-mail fictício – personalize conforme necessário)*
+**vitimizacaocrisp1@gmail.com**
 
 ---
