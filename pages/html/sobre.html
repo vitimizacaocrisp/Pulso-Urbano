@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sobre - Pulso Urbano</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -17,12 +17,18 @@
 
     <header class="main-header">
         <nav class="navbar">
-            <div class="logo-container"><a href="index.html" class="logo">
+            <div class="logo-container"><a href="../../index.html" class="logo">
                     <h1>Pulso Urbano</h1>
                     <p class="tagline">Observatório Nacional de Segurança Pública e Justiça</p>
-                </a></div>
-            <ul class="nav-menu">
-                <li><a href="index.html">Início</a></li>
+                </a>
+            </div>
+            <button id="mobileMenuIcon" class="mobile-menu-icon">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <ul class="nav-menu" id="mainNavMenu">
+                <li><a href="../../index.html">Início</a></li>
                 <li class="dropdown"><a href="#painéis">Painéis & Dados</a>
                     <ul class="dropdown-content">
                         <li><a href="paineis/homicidios.html">Homicídios</a></li>
@@ -97,7 +103,7 @@
 
     <button id="backToTopBtn" title="Voltar ao topo">&uarr;</button>
 
-    <script src="script.js"></script>
+    <script src="../js/script.js"></script>
 </body>
 
 </html>
