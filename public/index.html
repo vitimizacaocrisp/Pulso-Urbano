@@ -7,6 +7,57 @@
   <title>Pulso Urbano: Observatório Nacional de Segurança Pública e Justiça</title>
   <link rel="shortcut icon" href="src/logo/crisp_logo.png" type="image/x-icon">
   <link rel="stylesheet" href="css/style.css">
+<style>
+  /* --- Estilo Base para TODOS os cards --- */
+  .card {
+    padding: 20px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* --- Efeito de Interatividade no Hover --- */
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  /* --- Estilo para o Card em Destaque --- */
+  .card-data-highlight {
+    background: linear-gradient(135deg, #004d7a, #008793);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
+  .card-data-highlight h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+
+  /* --- Estilos para os Textos de Dados --- */
+  .data-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.2; 
+    margin: 8px 0;
+  }
+
+  .data-note {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
+  .card-data-highlight a {
+      color: white;
+      text-decoration: underline;
+  }
+</style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -87,26 +138,26 @@
         </article>
       </div>
     </section>
-    
+
     <section class="context-section">
       <h2 class="section-title">Contexto Nacional <span class="data-source">(IBGE, 2022)</span></h2>
       <div class="card-container" id="ibge-data-container">
         <article class="card card-data-highlight">
-            <h3 id="total-population-title">População Total do Brasil</h3>
-            <p id="total-population-value" class="data-value">Carregando...</p>
+          <h3 id="total-population-title">População Total do Brasil</h3>
+          <p id="total-population-value" class="data-value">Carregando...</p>
         </article>
 
         <article class="card">
-            <h3 id="top-state-1-name">Carregando...</h3>
-            <p id="top-state-1-value" class="data-value">&nbsp;</p>
+          <h3 id="top-state-1-name">Carregando...</h3>
+          <p id="top-state-1-value" class="data-value">&nbsp;</p>
         </article>
         <article class="card">
-            <h3 id="top-state-2-name">Carregando...</h3>
-            <p id="top-state-2-value" class="data-value">&nbsp;</p>
+          <h3 id="top-state-2-name">Carregando...</h3>
+          <p id="top-state-2-value" class="data-value">&nbsp;</p>
         </article>
         <article class="card">
-            <h3 id="top-state-3-name">Carregando...</h3>
-            <p id="top-state-3-value" class="data-value">&nbsp;</p>
+          <h3 id="top-state-3-name">Carregando...</h3>
+          <p id="top-state-3-value" class="data-value">&nbsp;</p>
         </article>
       </div>
     </section>
@@ -167,40 +218,121 @@
   <script src="js/script.js"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            // 1. Busca os dados da nossa API de população
-            const response = await fetch('/api/contexto/populacao');
-            if (!response.ok) throw new Error('Falha ao carregar dados');
-            
-            const data = await response.json();
+  document.addEventListener('DOMContentLoaded', async () => {
+    const dataContainer = document.getElementById('ibge-data-container');
 
-            // 2. Calcula a população total somando os valores de cada estado
-            const totalPopulation = data.reduce((sum, state) => sum + state.populacao, 0);
+    const renderErrorCard = (title) => {
+      const errorCard = document.createElement('article');
+      errorCard.className = 'card';
+      errorCard.innerHTML = `
+        <h3>${title}</h3>
+        <p style="color: #c55;">Não foi possível carregar este dado.</p>
+      `;
+      dataContainer.appendChild(errorCard);
+    };
 
-            // 3. Ordena os estados pela população (do maior para o menor) e pega os 3 primeiros
-            const top3States = data.sort((a, b) => b.populacao - a.populacao).slice(0, 3);
-            
-            // 4. Atualiza o card da população total
-            document.getElementById('total-population-value').textContent = totalPopulation.toLocaleString('pt-BR');
+    try {
+      const anoCorrente = new Date().getFullYear();
+      const anoAnterior = anoCorrente - 1;
 
-            // 5. Atualiza os cards dos 3 estados mais populosos
-            top3States.forEach((state, index) => {
-                document.getElementById(`top-state-${index + 1}-name`).textContent = state.uf;
-                document.getElementById(`top-state-${index + 1}-value`).textContent = state.populacao.toLocaleString('pt-BR');
-            });
+      const promises = [
+        fetch('/api/contexto/populacao'),
+        fetch(`/api/contexto/gastos-seguranca?ano=${anoAnterior}`),
+        fetch(`/api/contexto/legislacao-seguranca?ano=${anoAnterior}`)
+      ];
 
-        } catch (error) {
-            console.error("Erro ao carregar dados do IBGE para a página inicial:", error);
-            // Em caso de erro, exibe uma mensagem no card principal
-            const errorElement = document.getElementById('total-population-value');
-            if(errorElement) {
-                errorElement.textContent = 'Não foi possível carregar';
-                errorElement.style.color = '#c55';
-            }
+      const results = await Promise.allSettled(promises);
+      
+      dataContainer.innerHTML = '';
+
+      // --- Processa os resultados de População (IBGE) ---
+      if (results[0].status === 'fulfilled') {
+        const response = await results[0].value.json();
+        const totalPopulation = response.reduce((sum, state) => sum + state.populacao, 0);
+        
+        const popCard = document.createElement('article');
+        popCard.className = 'card card-data-highlight';
+        popCard.innerHTML = `
+            <h3>População Total do Brasil</h3>
+            <p class="data-value">${totalPopulation.toLocaleString('pt-BR')}</p>
+        `;
+        dataContainer.appendChild(popCard);
+      } else {
+        console.error("Erro ao buscar população:", results[0].reason);
+        renderErrorCard('População Total');
+      }
+
+      // --- Processa os resultados de Gastos com Segurança ---
+      if (results[1].status === 'fulfilled') {
+        const response = await results[1].value.json();
+        
+        // Verificamos se a resposta não é nula e se tem pelo menos um item.
+        if (response && response.length > 0) {
+          const gastoMaisRecente = response.sort((a, b) => b.ano - a.ano)[0];
+
+          const spendingCard = document.createElement('article');
+          spendingCard.className = 'card';
+          spendingCard.innerHTML = `
+            <h3>Gasto Federal em Segurança</h3>
+            <p class="data-value">R$ ${parseFloat(gastoMaisRecente.valorBRL).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <small class="data-note">Fonte: IPEA DATA (${gastoMaisRecente.ano})</small>
+          `;
+          dataContainer.appendChild(spendingCard);
+        } else {
+          // Se não houver dados, podemos mostrar uma mensagem ou simplesmente não renderizar o card.
+          console.log("Nenhum dado de gastos com segurança encontrado para o ano.");
+          const spendingCard = document.createElement('article');
+          spendingCard.className = 'card';
+          spendingCard.innerHTML = `
+            <h3>Gasto Federal em Segurança</h3>
+            <p>Dados não disponíveis para o ano.</p>
+          `;
+          dataContainer.appendChild(spendingCard);
         }
-    });
-  </script>
+        // ========== FIM DA CORREÇÃO ==========
+
+      } else {
+        console.error("Erro ao buscar gastos:", results[1].reason);
+        renderErrorCard('Gasto Federal');
+      }
+
+      // --- Processa os resultados de Legislação ---
+      if (results[2].status === 'fulfilled') {
+        const response = await results[2].value.json();
+        const legislacaoRecente = response.slice(0, 2);
+
+        const legislationCard = document.createElement('article');
+        legislationCard.className = 'card card-analysis';
+        legislationCard.innerHTML = `
+          <h3>Propostas Legislativas (${anoAnterior})</h3>
+          <ul class="legislation-list">
+            ${legislacaoRecente.length > 0 ? legislacaoRecente.map(lei => `
+              <li>
+                <a href="${lei.link}" target="_blank" title="${lei.resumo}">
+                  ${lei.sigla} ${lei.numero}/${lei.ano}
+                </a>
+              </li>
+            `).join('') : '<li>Nenhuma proposta encontrada.</li>'}
+          </ul>
+        `;
+        dataContainer.appendChild(legislationCard);
+      } else {
+        console.error("Erro ao buscar legislação:", results[2].reason);
+        renderErrorCard('Propostas de Lei');
+      }
+
+    } catch (error) {
+      console.error("Ocorreu um erro geral ao carregar os dados da página inicial:", error);
+      dataContainer.innerHTML = `
+        <article class="card error-card">
+          <h3>Erro geral</h3>
+          <p>Não foi possível obter as informações no momento.</p>
+        </article>
+      `;
+    }
+  });
+</script>
+
 
 </body>
 

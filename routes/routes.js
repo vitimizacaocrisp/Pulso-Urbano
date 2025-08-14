@@ -7,7 +7,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const { getIBGEPopulationData } = require('../api/connect_apis');
+const { getIBGEPopulationData, getVictimizationData, getPublicSecuritySpending, getSecurityLegislation  } = require('../api/connect_apis');
 
 // --- LÓGICA DO MIDDLEWARE ---
 const verifyToken = (req, res, next) => {
@@ -93,6 +93,37 @@ router.get('/api/contexto/populacao', async (req, res) => {
     }
 });
 
+router.get('/api/contexto/vitimizacao', async (req, res) => {
+    try {
+        const { uf, crime, ano, municipio, mes } = req.query; // parâmetros opcionais via query string
+        const dadosVitimizacao = await getVictimizationData({ uf, crime, ano, municipio, mes });
+        res.json(dadosVitimizacao);
+    } catch (error) {
+        console.error("Erro ao buscar dados de vitimização:", error);
+        res.status(500).json({ message: 'Erro ao buscar dados de vitimização.' });
+    }
+});
+
+// Rota para gastos com segurança pública
+router.get('/api/contexto/gastos-seguranca', async (req, res) => {
+    try {
+        const dados = await getPublicSecuritySpending(req.query.ano);
+        res.json(dados);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar dados de gastos.' });
+    }
+});
+
+// Rota para legislação de segurança pública
+router.get('/api/contexto/legislacao-seguranca', async (req, res) => {
+    try {
+        const dados = await getSecurityLegislation(req.query.ano);
+        res.json(dados);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar dados de legislação.' });
+    }
+});
+
 
 // --- ROTAS DE ADMINISTRAÇÃO ---
 // Rota para a página de login do admin
@@ -146,9 +177,9 @@ router.get('/api/admin/data', verifyToken, (req, res) => {
 
 
 // --- ROTA "CATCH-ALL" ---
-router.get('*', (req, res) => {
-    res.redirect('/');
-});
+// router.get('*', (req, res) => {
+//     res.status(404).sendFile(path.join(__dirname, '..', 'public', 'html', '404.html'));
+// });
 
 
 // Exportamos o router no final do arquivo
