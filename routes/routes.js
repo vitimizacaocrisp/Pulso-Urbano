@@ -1,40 +1,32 @@
+// Carrega as variáveis de ambiente do arquivo .env
+require('dotenv').config();
+
 const express = require('express');
 const router = express.Router();
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-// --- BANCO DE DADOS SIMULADO ---
-const adminUser = {
-    id: 1,
-    email: 'admin@pulsourbano.org',
-    passwordHash: '$2b$10$tcsA7lxGxATAkSVn8DSyeuUwcT4BgKSXrqUaJyZRANrCP2T7sWnL.' // Senha: admin123
-};
+const { getIBGEPopulationData } = require('../api/connect_apis');
 
-// --- LÓGICA DO MIDDLEWARE (AGORA DENTRO DESTE ARQUIVO) ---
-// Função para verificar o token JWT.
+// --- LÓGICA DO MIDDLEWARE ---
 const verifyToken = (req, res, next) => {
-    // Pega o token do cabeçalho de autorização (formato "Bearer TOKEN")
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    // Se não houver token, retorna um erro
     if (!token) {
         return res.status(403).json({ message: 'Acesso negado. Nenhum token fornecido.' });
     }
 
-    // Verifica se o token é válido
+    // Usa o segredo do JWT carregado do arquivo .env
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(401).json({ message: 'Token inválido ou expirado. Faça login novamente.' });
         }
-        // Se o token for válido, anexa os dados do usuário à requisição
         req.user = user;
-        // Continua para a rota que está sendo protegida
         next();
     });
 };
-
 
 // --- ROTAS PÚBLICAS (NÃO EXIGEM LOGIN) ---
 
@@ -43,21 +35,89 @@ router.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// ... (todas as outras rotas públicas como /paineis/*, /sobre, etc. permanecem as mesmas) ...
+router.get('/paineis/homicidios', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'homicidios.html'));
+});
+
+router.get('/paineis/violencia-genero', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'violencia-genero.html'));
+});
+
+router.get('/paineis/vitimizacao', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'vitimizacao.html'));
+});
+
+router.get('/paineis/sistema-justica', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'sistema-justica.html'));
+});
+
+router.get('/paineis/atividade-policial', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'atividade-policial.html'));
+});
+
+router.get('/paineis/crimes-economicos', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'paineis', 'crimes-economicos.html'));
+});
+
+router.get('/publicacoes', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'publicacoes.html'));
+});
+
+router.get('/analises', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'analises.html'));
+});
+
+router.get('/educacao', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'educacao.html'));
+});
+
+router.get('/sobre', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'html', 'sobre.html'));
+});
+
+// --- ROTAS DE API PARA DADOS ---
+
+// Rota antiga
+// router.get('/api/paineis/homicidios', ...);
+
+// Rota para dados de contexto do IBGE
+router.get('/api/contexto/populacao', async (req, res) => {
+    try {
+        // Chama a função que busca os dados do IBGE
+        const dadosPopulacao = await getIBGEPopulationData();
+        // Envia o JSON padronizado para o frontend
+        res.json(dadosPopulacao);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar os dados de população do IBGE.' });
+    }
+});
+
+
+// --- ROTAS DE ADMINISTRAÇÃO ---
 // Rota para a página de login do admin
 router.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'html', 'admin', 'admin_login.html'));
 });
 
-// Rota da API para o processo de login
+// Rota da API para o processo de login - MODIFICADA
 router.post('/admin-auth', async (req, res) => {
     try {
         const { email, password } = req.body;
-        if (adminUser.email !== email || !(await bcrypt.compare(password, adminUser.passwordHash))) {
+        
+        // Compara com as variáveis de ambiente
+        const isAdminEmail = (email === process.env.ADMIN_EMAIL);
+        const isPasswordCorrect = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
+
+        if (!isAdminEmail || !isPasswordCorrect) {
             return res.status(401).json({ message: 'Credenciais inválidas.' });
         }
-        const payload = { id: adminUser.id, email: adminUser.email };
+        
+        const payload = { email: process.env.ADMIN_EMAIL }; // O payload pode ser simplificado
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+        
         res.status(200).json({ message: 'Login bem-sucedido!', token: token });
+
     } catch (error) {
         console.error("Erro no /admin-auth:", error);
         res.status(500).json({ message: 'Erro no servidor.' });
@@ -68,14 +128,12 @@ router.post('/admin-auth', async (req, res) => {
 // --- ROTAS PROTEGIDAS (EXIGEM LOGIN E TOKEN VÁLIDO) ---
 
 // Rota para servir a página HTML do dashboard.
-router.get('/admin/dashboard-page', (req, res) => {
+router.get('/admin/dashboard-page', verifyToken, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'html', 'admin', 'admin-dashboard.html'));
 });
 
 // Rota de API protegida que será chamada pelo front-end do dashboard.
-// A função 'verifyToken' é chamada antes da função final da rota.
 router.get('/api/admin/data', verifyToken, (req, res) => {
-    // Como o token foi verificado, temos acesso a req.user
     res.json({
         message: `Dados secretos para o usuário ${req.user.email}`,
         data: [
@@ -87,7 +145,11 @@ router.get('/api/admin/data', verifyToken, (req, res) => {
 });
 
 
+// --- ROTA "CATCH-ALL" ---
+router.get('*', (req, res) => {
+    res.redirect('/');
+});
+
+
 // Exportamos o router no final do arquivo
 module.exports = router;
-
-
