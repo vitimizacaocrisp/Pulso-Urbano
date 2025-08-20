@@ -7,7 +7,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const { getIBGEPopulationData, getVictimizationData, getPublicSecuritySpending, getSecurityLegislation  } = require('../api/connect_apis');
+const { getIBGEPopulationData, getVictimizationData, getPublicSecuritySpending, getSecurityLegislation  } = require('../api/apiConnect');
 
 // --- LÓGICA DO MIDDLEWARE ---
 const verifyToken = (req, res, next) => {
@@ -32,7 +32,7 @@ const verifyToken = (req, res, next) => {
 
 // Rota para a página inicial (index.html)
 router.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    res.json({ message: 'Bem-vindo ao Pulso Urbano API!' });
 });
 
 // ... (todas as outras rotas públicas como /paineis/*, /sobre, etc. permanecem as mesmas) ...

@@ -13,7 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); // Middleware para arquivos estáticos
+//app.use(express.static(path.join(__dirname, 'public'))); // Middleware para arquivos estáticos
 
 // 4. Usa o arquivo de rotas
 // Todas as requisições serão gerenciadas pelo mainRoutes

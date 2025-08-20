@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de População - IBGE</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .data-item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; background-color: #f9f9f9; }
+        .loading { font-style: italic; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>População Estimada por Estado (2022)</h1>
+    <p>Dados carregados diretamente da API do <strong>SIDRA/IBGE</strong>.</p>
+
+    <div id="data-container">
+        <p class="loading">Buscando dados no IBGE. Isso pode levar um instante...</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const container = document.getElementById('data-container');
+
+            try {
+                // 1. Faz a requisição para a nossa NOVA API de população
+                const response = await fetch('/api/contexto/populacao');
+
+                if (!response.ok) {
+                    throw new Error(`Erro na requisição: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                container.innerHTML = ''; // Limpa a mensagem "Carregando..."
+
+                // 2. Itera sobre os dados de população e cria o HTML
+                data.forEach(item => {
+                    const dataElement = document.createElement('div');
+                    dataElement.className = 'data-item';
+                    // 3. Usa as novas chaves padronizadas: uf, ano, populacao
+                    dataElement.innerHTML = `
+                        <strong>UF:</strong> ${item.uf} <br>
+                        <strong>Ano:</strong> ${item.ano} <br>
+                        <strong>População Estimada:</strong> ${item.populacao.toLocaleString('pt-BR')}
+                    `;
+                    container.appendChild(dataElement);
+                });
+
+            } catch (error) {
+                console.error('Falha ao buscar e exibir os dados:', error);
+                container.innerHTML = '<p style="color: red;">Não foi possível carregar os dados do IBGE. Tente novamente mais tarde.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

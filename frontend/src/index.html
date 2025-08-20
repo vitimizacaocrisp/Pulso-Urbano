@@ -1,0 +1,870 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pulso Urbano: Observatório Nacional de Segurança Pública e Justiça</title><style>/* [SEUS ESTILOS EXISTENTES PERMANECEM EXATAMENTE OS MESMOS] */
+    /* ==========================================================================
+   1. Estilos Gerais e Reset
+   ========================================================================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      /* Fontes do Google Fonts importadas no HTML */
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.6;
+      background-color: #f8f9fa;
+      color: #34495e;
+    }
+
+    /* ==========================================================================
+   2. Cabeçalho e Barra de Navegação
+   ========================================================================== */
+    .main-header {
+      background-color: #1a242f;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      height: 80px;
+    }
+
+    .logo a {
+      text-decoration: none;
+      color: #ffffff;
+    }
+
+    .logo h1 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 1.8rem;
+      margin: 0;
+    }
+
+    .logo .tagline {
+      font-size: 0.8rem;
+      color: #bdc3c7;
+      margin: 0;
+    }
+
+    .nav-menu {
+      list-style: none;
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-menu a {
+      color: #ecf0f1;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 0;
+      position: relative;
+      transition: color 0.3s ease;
+    }
+
+    .nav-menu a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background-color: #ffc107;
+      transition: width 0.3s ease;
+    }
+
+    .nav-menu a:hover,
+    .nav-menu a.active {
+      color: #ffffff;
+    }
+
+    .nav-menu a:hover::after,
+    .nav-menu a.active::after {
+      width: 100%;
+    }
+
+
+    /* ==========================================================================
+   3. Estilos do Menu Dropdown
+   ========================================================================== */
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: #2c3e50;
+      list-style: none;
+      min-width: 250px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      border-radius: 0 0 8px 8px;
+      padding: 0.5rem 0;
+    }
+
+    .dropdown-content a {
+      color: #ecf0f1;
+      padding: 0.8rem 1.5rem;
+      display: block;
+      white-space: nowrap;
+    }
+
+    .dropdown-content a::after {
+      display: none;
+      /* Remove a linha do submenu */
+    }
+
+    .dropdown-content a:hover {
+      background-color: #34495e;
+    }
+
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    /* ==========================================================================
+   4. Conteúdo Principal e Seções
+   ========================================================================== */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Hero Section (Página Inicial) */
+    .hero {
+      background-color: #e9ecef;
+      text-align: center;
+      padding: 4rem 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+
+    .hero h2 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 2.5rem;
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto 2rem auto;
+    }
+
+    /* Cabeçalho das Páginas Internas */
+    .page-header {
+      border-bottom: 2px solid #e0e0e0;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+    }
+
+    .page-header h2 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 2.2rem;
+    }
+
+    .section-title {
+      font-family: 'Titillium Web', sans-serif;
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ==========================================================================
+   5. Cards e Containers de Conteúdo
+   ========================================================================== */
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h3 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 1.3rem;
+      color: #1a242f;
+      margin-bottom: 0.5rem;
+    }
+
+    .card p {
+      font-size: 0.95rem;
+      flex-grow: 1;
+      /* Faz o parágrafo ocupar o espaço para alinhar os links */
+    }
+
+    .card-link {
+      display: inline-block;
+      margin-top: 1rem;
+      color: #2980b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .card-analysis .analysis-tag {
+      display: inline-block;
+      background-color: #ffc107;
+      color: #1a242f;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+
+    /* ==========================================================================
+   6. Componentes Específicos (Painéis, Filtros, Botões)
+   ========================================================================== */
+    /* KPIs do Painel */
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    }
+
+    .kpi-card h4 {
+      font-size: 1rem;
+      color: #7f8c8d;
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-card p {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #1a242f;
+    }
+
+    /* Filtros */
+    .filters {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filters input,
+    .filters select {
+      padding: 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    /* Botões */
+    .btn-primary {
+      display: inline-block;
+      background-color: #ffc107;
+      color: #1a242f;
+      padding: 0.8rem 1.5rem;
+      border-radius: 30px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: #e0a800;
+    }
+
+    /* ==========================================================================
+   7. Rodapé
+   ========================================================================== */
+    .main-footer {
+      background-color: #1a242f;
+      color: #ecf0f1;
+      padding-top: 2rem;
+    }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem 2rem 2rem;
+    }
+
+    .footer-content h4 {
+      font-family: 'Titillium Web', sans-serif;
+      margin-bottom: 1rem;
+      color: #ffc107;
+    }
+
+    .footer-logo h3 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 1.5rem;
+    }
+
+    .footer-content a {
+      color: #bdc3c7;
+      text-decoration: none;
+    }
+
+    .footer-content a:hover {
+      color: #fff;
+    }
+
+    .footer-links ul {
+      list-style: none;
+    }
+
+    .footer-links li {
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-bottom {
+      background-color: #111a22;
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+    }
+
+    /* ==========================================================================
+   8. Responsividade
+   ========================================================================== */
+    @media (max-width: 900px) {
+      .navbar {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem;
+      }
+
+      .nav-menu {
+        margin-top: 1rem;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .dropdown-content {
+        position: static;
+        background: transparent;
+        box-shadow: none;
+        padding-left: 2rem;
+        text-align: center;
+      }
+
+      .dropdown:hover .dropdown-content {
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h2 {
+        font-size: 1.8rem;
+      }
+
+      main {
+        padding: 1rem;
+      }
+
+      .card-container,
+      .kpi-container {
+        grid-template-columns: 1fr;
+        /* Stacks cards on small screens */
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+    }
+
+    /* ==========================================================================
+   9. Botão Voltar ao Topo
+   ========================================================================== */
+    #backToTopBtn {
+      display: none;
+      /* Oculto por padrão */
+      position: fixed;
+      bottom: 20px;
+      right: 30px;
+      z-index: 99;
+      border: none;
+      outline: none;
+      background-color: #ffc107;
+      color: #1a242f;
+      cursor: pointer;
+      padding: 10px 15px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.3s, opacity 0.5s;
+    }
+
+    #backToTopBtn:hover {
+      background-color: #e0a800;
+    }
+
+
+    /* ==========================================================================
+   10. Estilos do Menu Mobile
+   ========================================================================== */
+    .mobile-menu-icon {
+      display: none;
+      /* Oculto em telas grandes */
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.5rem;
+      z-index: 1100;
+      /* Garante que fique acima de outros elementos */
+    }
+
+    .icon-bar {
+      display: block;
+      width: 25px;
+      height: 3px;
+      background-color: #fff;
+      margin: 5px 0;
+      transition: 0.4s;
+    }
+
+    /* Regra de Mídia para Responsividade */
+    @media (max-width: 900px) {
+
+      /* Esconde o menu de navegação por padrão em telas pequenas */
+      .nav-menu {
+        display: none;
+        position: absolute;
+        top: 100px;
+        /* Altura do header */
+        left: 0;
+        width: 100%;
+        background-color: #1a242f;
+        flex-direction: column;
+        padding: 1rem 0;
+      }
+
+      /* Exibe o ícone do menu mobile */
+      .mobile-menu-icon {
+        display: block;
+      }
+
+      /* Classe que o JS vai adicionar para mostrar o menu */
+      .nav-menu.mobile-menu-open {
+        display: flex;
+
+      }
+    }
+
+    /* ==========================================================================
+   11. Estilos da Página de Login de Administrador
+   ========================================================================== */
+
+    /* Estilo para o corpo da página de login, para centralizar o conteúdo */
+    .login-page-body {
+      background-color: #e9ecef;
+      /* Um fundo ligeiramente diferente */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .login-container {
+      background-color: #ffffff;
+      padding: 2.5rem 3rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 450px;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-header h2 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 1.8rem;
+      color: #1a242f;
+    }
+
+    .login-header p {
+      color: #7f8c8d;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      color: #34495e;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border: 1px solid #bdc3c7;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #ffc107;
+      box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 0.9rem;
+      border: none;
+      border-radius: 6px;
+      background-color: #1a242f;
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn-login:hover {
+      background-color: #2c3e50;
+    }
+
+    .back-to-site {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .back-to-site a {
+      color: #7f8c8d;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-to-site a:hover {
+      text-decoration: underline;
+    }
+
+    /* ==========================================================================
+   12. Estilos do Painel Administrativo
+   ========================================================================== */
+    .dashboard-body {
+      background-color: #f0f2f5;
+      color: #333;
+    }
+
+    .dashboard-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Barra Lateral */
+    .dashboard-sidebar {
+      width: 260px;
+      background-color: #1a242f;
+      color: #ecf0f1;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+    }
+
+    .sidebar-header {
+      padding: 0 0.5rem 1.5rem 0.5rem;
+      border-bottom: 1px solid #34495e;
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-header h3 {
+      font-family: 'Titillium Web', sans-serif;
+    }
+
+    .sidebar-nav ul {
+      list-style: none;
+    }
+
+    .sidebar-nav li a {
+      display: block;
+      color: #bdc3c7;
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .sidebar-nav li a:hover,
+    .sidebar-nav li a.active {
+      background-color: #ffc107;
+      color: #1a242f;
+      font-weight: bold;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      /* Empurra o rodapé para o final */
+    }
+
+    .btn-logout {
+      width: 100%;
+      background: #34495e;
+      color: #fff;
+      border: none;
+      padding: 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    .btn-logout:hover {
+      background: #c0392b;
+    }
+
+    /* Conteúdo Principal */
+    .dashboard-main {
+      flex: 1;
+      padding: 2rem 3rem;
+      overflow-y: auto;
+    }
+
+    .main-header-bar {
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+    }
+
+    .main-header-bar h1 {
+      font-family: 'Titillium Web', sans-serif;
+      font-size: 2rem;
+    }
+
+    .content-section {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .content-section h2 {
+      font-family: 'Titillium Web', sans-serif;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-container .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-container textarea {
+      resize: vertical;
+    }</style><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Titillium+Web:wght@600;700&display=swap" rel="stylesheet"><link rel="icon" href="/crisp_logo.png"><script defer="defer" src="/bundle.js"></script></head><body><header class="main-header"><nav class="navbar"><div class="logo-container"><a href="/" data-navigo class="logo"><h1>Pulso Urbano</h1><p class="tagline">Observatório Nacional de Segurança Pública e Justiça</p></a></div><button id="mobileMenuIcon" class="mobile-menu-icon"><span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button><ul class="nav-menu" id="mainNavMenu"><li><a href="/" data-navigo class="active">Início</a></li><li class="dropdown"><a href="#">Painéis & Dados</a><ul class="dropdown-content"><li><a data-navigo href="/paineis/homicidios">Homicídios</a></li><li><a data-navigo href="/paineis/violencia-genero">Violência de Gênero</a></li><li><a data-navigo href="/paineis/vitimizacao">Vitimiação</a></li><li><a data-navigo href="/paineis/sistema-justica">Sistema de Justiça e Prisional</a></li><li><a data-navigo href="/paineis/atividade-policial">Atividade Policial e Crime Organizado</a></li><li><a data-navigo href="/paineis/crimes-economicos">Crimes Econômicos e Corrupção</a></li></ul></li><li><a data-navigo href="/publicacoes">Publicações</a></li><li><a data-navigo href="/analises">Análises & Cenários</a></li><li><a data-navigo href="/educacao">Educação</a></li><li><a data-navigo href="/sobre">Sobre</a></li></ul></nav></header><div id="app"><main><section class="hero"><h2>Bem-vindo ao Pulso Urbano</h2><p>Observatório Nacional de Segurança Pública e Justiça</p><p>Carregando conteúdo...</p></section></main></div><footer class="main-footer"><div class="footer-content"><div class="footer-logo"><h3>Pulso Urbano</h3><p>Um projeto do <a href="https://www.crisp.ufmg.br" target="_blank">CRISP/UFMG</a></p></div><div class="footer-links"><h4>Navegue</h4><ul><li><a href="#paineis">Painéis & Dados</a></li><li><a href="/publicacoes" data-navigo>Publicações</a></li><li><a href="/sobre" data-navigo>Sobre o Projeto</a></li><li><a href="/educacao" data-navigo>Educação</a></li></ul></div><div class="footer-contact"><h4>Contato</h4><p>Para parcerias, sugestões ou dúvidas, entre em contato conosco.</p><p>Email: <a href="mailto:contato@pulsourbano.org">contato@pulsourbano.org</a></p></div></div><div class="footer-bottom"><p>&copy; 2025 Pulso Urbano. Todos os direitos reservados.</p></div></footer><button id="backToTopBtn" title="Voltar ao topo">&uarr;</button><script src="https://unpkg.com/navigo@8.11.1/lib/navigo.min.js"></script><script>// Garante que o script só rode após o carregamento completo do HTML
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // --- LÓGICA PARA O BOTÃO "VOLTAR AO TOPO" ---
+      const backToTopButton = document.getElementById('backToTopBtn');
+
+      // Verifica se o botão existe na página antes de continuar
+      if (backToTopButton) {
+        // Função para mostrar/ocultar o botão
+        const scrollFunction = () => {
+          if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+            backToTopButton.style.display = 'block';
+          } else {
+            backToTopButton.style.display = 'none';
+          }
+        };
+
+        // Função para rolar para o topo
+        const scrollToTop = () => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // Adiciona os 'escutadores' de eventos
+        window.onscroll = scrollFunction;
+        backToTopButton.addEventListener('click', scrollToTop);
+      }
+
+      // --- LÓGICA PARA O MENU MOBILE ---
+      const mobileMenuIcon = document.getElementById('mobileMenuIcon');
+      const mainNavMenu = document.getElementById('mainNavMenu');
+
+      if (mobileMenuIcon && mainNavMenu) {
+        // Adiciona o 'escutador' de clique no ícone
+        mobileMenuIcon.addEventListener('click', () => {
+          // Alterna a classe que mostra/esconde o menu
+          mainNavMenu.classList.toggle('mobile-menu-open');
+        });
+      }
+
+      // --- SISTEMA DE ROTAS NAVIGO ---
+      console.log('🚀 Iniciando sistema de rotas...');
+      
+      const router = new Navigo('/', { hash: false });
+      const appDiv = document.getElementById('app');
+
+      // Função para carregar HTML com fallbacks
+      const loadHtml = async (relativePath, routeName) => {
+          console.log(`🔄 Tentando carregar: ${routeName}`);
+          
+          const pathsToTry = [
+              relativePath, // ./html/home.html
+              relativePath.replace('./', '/'), // /html/home.html
+              relativePath.replace('./', '') // html/home.html
+          ];
+
+          for (const path of pathsToTry) {
+              try {
+                  console.log(`   Tentando path: ${path}`);
+                  const response = await fetch(path);
+                  
+                  if (response.ok) {
+                      const html = await response.text();
+                      appDiv.innerHTML = html;
+                      window.scrollTo(0, 0);
+                      console.log(`✅ Sucesso: ${routeName} via ${path}`);
+                      
+                      // Re-inicializa scripts após carregar novo conteúdo
+                      initializePageScripts();
+                      return;
+                  }
+              } catch (error) {
+                  console.log(`   ❌ Falha com ${path}:`, error.message);
+                  continue;
+              }
+          }
+
+          // Se todos os paths falharem
+          console.error(`❌ Todos os paths falharam para: ${routeName}`);
+          appDiv.innerHTML = `
+              <div style="padding: 20px; color: red;">
+                  <h2>Erro ao carregar ${routeName}</h2>
+                  <p>Nenhum dos paths funcionou. Verifique se o arquivo existe.</p>
+                  <button onclick="location.reload()">Recarregar</button>
+                  <button onclick="router.navigate('/')">Home</button>
+              </div>
+          `;
+      };
+
+      // Função para inicializar scripts específicos de cada página
+      function initializePageScripts() {
+          // Re-inicializa o menu mobile para o novo conteúdo
+          const newMobileMenuIcon = document.getElementById('mobileMenuIcon');
+          const newMainNavMenu = document.getElementById('mainNavMenu');
+          
+          if (newMobileMenuIcon && newMainNavMenu) {
+              newMobileMenuIcon.addEventListener('click', () => {
+                  newMainNavMenu.classList.toggle('mobile-menu-open');
+              });
+          }
+
+          // Re-inicializa o botão voltar ao topo
+          const newBackToTopButton = document.getElementById('backToTopBtn');
+          if (newBackToTopButton) {
+              window.onscroll = function() {
+                  if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+                      newBackToTopButton.style.display = 'block';
+                  } else {
+                      newBackToTopButton.style.display = 'none';
+                  }
+              };
+              newBackToTopButton.addEventListener('click', () => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+              });
+          }
+      }
+
+      // Configuração das rotas
+      router
+          .on({
+              '/': () => loadHtml('./html/home.html', 'Home'),
+              '/publicacoes': () => loadHtml('./html/publicacoes.html', 'Publicações'),
+              '/analises': () => loadHtml('./html/analises.html', 'Análises'),
+              '/educacao': () => loadHtml('./html/educacao.html', 'Educação'),
+              '/sobre': () => loadHtml('./html/sobre.html', 'Sobre'),
+              '/paineis/homicidios': () => loadHtml('./html/paineis/homicidios.html', 'Homicídios'),
+              '/paineis/violencia-genero': () => loadHtml('./html/paineis/violencia-genero.html', 'Violência de Gênero'),
+              '/paineis/vitimizacao': () => loadHtml('./html/paineis/vitimizacao.html', 'Vitimização'),
+              '/paineis/sistema-justica': () => loadHtml('./html/paineis/sistema-justica.html', 'Sistema de Justiça'),
+              '/paineis/atividade-policial': () => loadHtml('./html/paineis/atividade-policial.html', 'Atividade Policial'),
+              '/paineis/crimes-economicos': () => loadHtml('./html/paineis/crimes-economicos.html', 'Crimes Econômicos'),
+              '/paineis/populacao_ibge': () => loadHtml('./html/paineis/populacao_ibge.html', 'População IBGE'),
+              '/admin/dashboard-page': () => loadHtml('./html/admin/admindashboard.html', 'Admin Dashboard'),
+              '/admin': () => loadHtml('./html/admin/adminlogin.html', 'Admin Login')
+          })
+          .notFound(() => {
+              console.error('❌ Rota não encontrada');
+              appDiv.innerHTML = `
+                  <div style="padding: 20px; text-align: center;">
+                      <h1>404 - Página Não Encontrada</h1>
+                      <p>A página que você está procurando não existe.</p>
+                      <button onclick="router.navigate('/')">Voltar para Home</button>
+                  </div>
+              `;
+          });
+
+      // Hooks para debug
+      router.hooks({
+          before: (done, match) => {
+              console.log('📍 Navegando para:', match.url);
+              done();
+          },
+          after: (match) => {
+              console.log('✅ Navegação concluída para:', match.url);
+          }
+      });
+
+      // Inicializar o router após um pequeno delay
+      setTimeout(() => {
+          console.log('🚀 Resolvendo rota inicial...');
+          router.resolve();
+      }, 100);
+
+      // Atualizar links para usar o Navigo
+      router.updatePageLinks();
+
+      // Export para debug (opcional)
+      window.router = router;
+
+      console.log('✅ Sistema de rotas configurado e pronto');
+
+    });</script></body></html>

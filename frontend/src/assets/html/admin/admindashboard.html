@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Pulso Urbano</title>
+    <link rel="stylesheet" href="../../css/style.css">
+
+    <script>
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            // Se não houver token, redireciona para a página de login
+            window.location.href = 'admin_login.html';
+        }
+    </script>
+</head>
+<body class="dashboard-body">
+
+    <div class="dashboard-container">
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <h3>Pulso Urbano</h3>
+                <span>Painel Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#" class="active">Dashboard</a></li>
+                    <li><a href="#">Gerenciar Pesquisas</a></li>
+                    <li><a href="#">Gerenciar Dados</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn-logout">Sair &rarr;</button>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <header class="main-header-bar">
+                <h1>Dashboard</h1>
+                <p>Bem-vindo, Administrador!</p>
+            </header>
+            
+            <section class="content-section">
+                <h2>Adicionar Nova Pesquisa</h2>
+                <div class="form-container">
+                    <form id="newResearchForm">
+                        <div class="form-group">
+                            <label for="researchTitle">Título da Pesquisa</label>
+                            <input type="text" id="researchTitle" name="researchTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="researchAuthor">Autor / Instituição</label>
+                            <input type="text" id="researchAuthor" name="researchAuthor" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="researchYear">Ano</label>
+                            <input type="number" id="researchYear" name="researchYear" min="1900" max="2100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="researchSummary">Resumo</label>
+                            <textarea id="researchSummary" name="researchSummary" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="researchFile">Arquivo (PDF)</label>
+                            <input type="file" id="researchFile" name="researchFile" accept=".pdf">
+                        </div>
+                        <button type="submit" class="btn-primary">Salvar Pesquisa</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            // Remove o token do armazenamento
+            localStorage.removeItem('authToken');
+            // Redireciona para a página de login
+            window.location.href = '/admin';
+        });
+    </script>
+</body>
+</html>
