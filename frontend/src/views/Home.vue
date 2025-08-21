@@ -1,59 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pulso Urbano: Observatório Nacional de Segurança Pública e Justiça</title>
-  <link rel="shortcut icon" href="src/logo/crisp_logo.png" type="image/x-icon">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Titillium+Web:wght@600;700&display=swap"
-    rel="stylesheet">
-</head>
-
-<body>
-
-  <header class="main-header">
-    <nav class="navbar">
-      <div class="logo-container">
-        <a href="#" class="logo">
-          <h1>Pulso Urbano</h1>
-          <p class="tagline">Observatório Nacional de Segurança Pública e Justiça</p>
-        </a>
-      </div>
-
-      <button id="mobileMenuIcon" class="mobile-menu-icon">
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <ul class="nav-menu" id="mainNavMenu">
-        <li><a href="#" class="active">Início</a></li>
-
-        <li class="dropdown">
-          <a href="#painéis">Painéis & Dados</a>
-          <ul class="dropdown-content">
-            <li><a href="/paineis/homicidios">Homicídios</a></li>
-            <li><a href="/paineis/violencia-genero">Violência de Gênero</a></li>
-            <li><a href="/paineis/vitimizacao">Vitimiação</a></li>
-            <li><a href="/paineis/sistema-justica">Sistema de Justiça e Prisional</a></li>
-            <li><a href="/paineis/atividade-policial">Atividade Policial e Crime Organizado</a></li>
-            <li><a href="/paineis/crimes-economicos">Crimes Econômicos e Corrupção</a></li>
-          </ul>
-        </li>
-
-        <li><a href="/publicacoes">Publicações</a></li>
-        <li><a href="/analises">Análises & Cenários</a></li>
-        <li><a href="/educacao">Educação</a></li>
-        <li><a href="/sobre">Sobre</a></li>
-      </ul>
-    </nav>
-  </header>
-
+<template>
   <main>
     <section class="hero">
       <div class="hero-content">
@@ -135,42 +80,13 @@
       </div>
     </section>
   </main>
+</template>
 
-  <footer class="main-footer">
-    <div class="footer-content">
-      <div class="footer-logo">
-        <h3>Pulso Urbano</h3>
-        <p>Um projeto do <a href="https://www.crisp.ufmg.br" target="_blank">CRISP/UFMG</a></p>
-      </div>
-      <div class="footer-links">
-        <h4>Navegue</h4>
-        <ul>
-          <li><a href="#paineis">Painéis & Dados</a></li>
-          <li><a href="/publicacoes">Publicações</a></li>
-          <li><a href="/sobre">Sobre o Projeto</a></li>
-          <li><a href="/educacao">Educação</a></li>
-        </ul>
-      </div>
-      <div class="footer-contact">
-        <h4>Contato</h4>
-        <p>Para parcerias, sugestões ou dúvidas, entre em contato conosco.</p>
-        <p>Email: <a href="mailto:contato@pulsourbano.org">contato@pulsourbano.org</a></p>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>&copy; 2025 Pulso Urbano. Todos os direitos reservados.</p>
-    </div>
-  </footer>
-
-  <button id="backToTopBtn" title="Voltar ao topo">&uarr;</button>
-
-  <script src="js/script.js"></script>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
         try {
             // 1. Busca os dados da nossa API de população
-            const response = await fetch('/api/contexto/populacao');
+            const response = await fetch('http://localhost:3000/api/contexto/populacao');
             if (!response.ok) throw new Error('Falha ao carregar dados');
             
             const data = await response.json();
@@ -200,8 +116,4 @@
             }
         }
     });
-  </script>
-
-</body>
-
-</html>
+</script>
