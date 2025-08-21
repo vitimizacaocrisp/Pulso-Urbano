@@ -93,7 +93,7 @@ export default {
       
       try {
         // Faz a requisição para a rota protegida, enviando o token no header
-        const response = await axios.get('http://localhost:3000/api/admin/data', {
+        const response = await axios.get('https://pulso-urbano-backend.onrender.com/api/admin/data', {
           headers: {
             'Authorization': `Bearer ${token}` // O formato é 'Bearer SEU_TOKEN'
           }

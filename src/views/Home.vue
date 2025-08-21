@@ -132,11 +132,11 @@ export default {
   methods: {
     async fetchAllData() {
       const requests = {
-        population: axios.get('/api/contexto/populacao'),
-        victimization: axios.get('/api/paineis/vitimizacao'),
-        homicides: axios.get('/api/paineis/homicidios'),
-        spending: axios.get('/api/contexto/gastos-seguranca'),
-        legislation: axios.get('/api/contexto/legislacao-seguranca'),
+        population: axios.get('https://pulso-urbano-backend.onrender.com/api/contexto/populacao'),
+        victimization: axios.get('https://pulso-urbano-backend.onrender.com/api/paineis/vitimizacao'),
+        homicides: axios.get('https://pulso-urbano-backend.onrender.com/api/paineis/homicidios'),
+        spending: axios.get('https://pulso-urbano-backend.onrender.com/api/contexto/gastos-seguranca'),
+        legislation: axios.get('https://pulso-urbano-backend.onrender.com/api/contexto/legislacao-seguranca'),
       };
 
       const results = await Promise.allSettled(Object.values(requests));

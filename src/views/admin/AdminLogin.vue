@@ -65,7 +65,7 @@ export default {
 
       try {
         // 6. Fazemos a requisição POST para o backend com os dados
-        const response = await axios.post('http://localhost:3000/admin-auth', { // Use uma URL de API, ex: /api/...
+        const response = await axios.post('https://pulso-urbano-backend.onrender.com/admin-auth', { // Use uma URL de API, ex: /api/...
           email: this.email,
           password: this.password,
         });
