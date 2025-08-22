@@ -121,7 +121,7 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 
 // ================= ROTAS PRIVADAS =================
 
-app.post('/api/sql-query', authenticateToken, async (req, res) => {
+router.post('/api/sql-query', verifyToken, async (req, res) => {
   const { query } = req.body;
 
   if (!query) {
