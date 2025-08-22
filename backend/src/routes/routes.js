@@ -121,14 +121,13 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 
 // ================= ROTAS PRIVADAS =================
 
-app.post('/api/sql-query', verifyTokenToken, async (req, res) => {
+app.post('/api/sql-query', authenticateToken, async (req, res) => {
   const { query } = req.body;
 
   if (!query) {
-      return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
+    return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
   }
   
-  // Medida de segurança básica
   if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
     return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
   }
@@ -137,10 +136,26 @@ app.post('/api/sql-query', verifyTokenToken, async (req, res) => {
 
   try {
     const result = await pool.query(query);
-    res.json({
-      success: true,
-      data: result.rows,
-    });
+
+    // [MODIFICADO] Lógica melhorada para lidar com diferentes tipos de comandos
+    if (result.command === 'SELECT') {
+      // Se for uma consulta, retorna as linhas de dados
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } else {
+      // Se for um comando como CREATE, INSERT, UPDATE, DELETE, etc.
+      // Retorna uma mensagem de sucesso com o número de linhas afetadas.
+      res.json({
+        success: true,
+        // Envolvemos a mensagem num array para manter o formato de dados esperado pelo frontend
+        data: [{ 
+          status: `Comando '${result.command}' executado com sucesso.`,
+          linhas_afetadas: result.rowCount === null ? 'N/A' : result.rowCount 
+        }],
+      });
+    }
   } catch (err) {
     console.error('Erro na query SQL:', err.message);
     res.status(500).json({

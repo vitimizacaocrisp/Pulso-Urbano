@@ -25,10 +25,15 @@
               <span class="prompt">&gt;</span>
               <span class="command-text">{{ item.command }}</span>
             </div>
+
             <div v-if="item.loading" class="result-loading">
               <div class="spinner"></div>
               <span>Executando...</span>
+              <p v-if="item.showColdStartMessage" class="cold-start-warning">
+                O servidor pode estar a "acordar". A primeira consulta do dia pode demorar até 1 minuto. Por favor, aguarde.
+              </p>
             </div>
+
             <div v-else-if="item.error" class="result-error">
               <pre>{{ item.error }}</pre>
             </div>
@@ -67,13 +72,14 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
 
+// [MODIFICADO] O seu URL do backend
+const API_URL = 'https://pulso-urbano-backend.onrender.com/api/sql-query';
+
 const currentQuery = ref('');
 const history = ref([]);
 const isLoading = ref(false);
 const output = ref(null);
 const input = ref(null);
-
-// [NOVO] Refs para controlar o estado do modal
 const isConfirmationModalVisible = ref(false);
 const queryToConfirm = ref('');
 
@@ -81,30 +87,25 @@ onMounted(() => {
   input.value.focus();
 });
 
-// [MODIFICADO] Esta função agora apenas abre o modal de confirmação
 const triggerConfirmation = () => {
   const command = currentQuery.value.trim();
   if (!command || isLoading.value) return;
-
   queryToConfirm.value = command;
   isConfirmationModalVisible.value = true;
 };
 
-// [NOVO] Função chamada quando o utilizador clica em "Cancelar" no modal
 const handleCancel = () => {
   isConfirmationModalVisible.value = false;
   queryToConfirm.value = '';
   input.value.focus();
 };
 
-// [NOVO] Função chamada quando o utilizador clica em "Executar" no modal
 const handleConfirm = () => {
   isConfirmationModalVisible.value = false;
   executeQuery(queryToConfirm.value);
   queryToConfirm.value = '';
 };
 
-// [MODIFICADO] A lógica de execução foi movida para esta função
 async function executeQuery(command) {
   const token = localStorage.getItem('authToken');
   if (!token) {
@@ -118,15 +119,29 @@ async function executeQuery(command) {
 
   isLoading.value = true;
   const historyId = Date.now();
-  history.value.push({ id: historyId, command, loading: true });
+  // [MODIFICADO] Adicionamos uma propriedade para controlar a mensagem de "cold start"
+  history.value.push({ id: historyId, command, loading: true, showColdStartMessage: false });
   currentQuery.value = '';
 
   await nextTick();
   output.value.scrollTop = output.value.scrollHeight;
 
+  // [NOVO] Lógica para exibir a mensagem de "cold start" após 4 segundos
+  const coldStartTimer = setTimeout(() => {
+    const historyEntry = history.value.find(h => h.id === historyId);
+    if (historyEntry && historyEntry.loading) {
+      historyEntry.showColdStartMessage = true;
+    }
+  }, 4000);
+
+  // [NOVO] Lógica de timeout para o fetch
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90000); // Timeout de 90 segundos
+
   try {
-    const response = await fetch('https://pulso-urbano-backend.onrender.com/api/sql-query', {
+    const response = await fetch(API_URL, {
       method: 'POST',
+      signal: controller.signal, // Adiciona o controller de timeout
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -144,8 +159,14 @@ async function executeQuery(command) {
     }
   } catch (err) {
     const historyEntry = history.value.find(h => h.id === historyId);
-    historyEntry.error = err.message;
+    if (err.name === 'AbortError') {
+      historyEntry.error = 'Erro: O pedido demorou demasiado tempo a responder (timeout). O servidor pode estar offline ou sobrecarregado.';
+    } else {
+      historyEntry.error = err.message;
+    }
   } finally {
+    clearTimeout(coldStartTimer); // Limpa o timer da mensagem
+    clearTimeout(timeoutId);     // Limpa o timer do timeout
     const historyEntry = history.value.find(h => h.id === historyId);
     if(historyEntry) historyEntry.loading = false;
     isLoading.value = false;
@@ -158,70 +179,23 @@ async function executeQuery(command) {
 </script>
 
 <style scoped>
-/* [NOVO] Estilos para o Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-.modal-content {
-  background-color: #2d2d2d;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 550px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  border: 1px solid #444;
-  color: #d4d4d4;
-}
-.modal-content h4 {
-  margin-top: 0;
-  color: white;
-  font-size: 1.5rem;
-}
-.query-preview {
-  background-color: #1e1e1e;
-  padding: 1rem;
-  border-radius: 4px;
-  font-family: 'Courier New', Courier, monospace;
-  color: #9cdcfe;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 150px;
-  overflow-y: auto;
-  border: 1px solid #333;
-}
-.modal-actions {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-.modal-actions button {
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 0.9rem;
-}
-.btn-cancel {
-  background-color: #555;
-  color: white;
-}
-.btn-confirm {
-  background-color: #e53935;
-  color: white;
+/* Adicione este novo estilo */
+.cold-start-warning {
+  font-size: 0.8em;
+  color: #f1c40f; /* amarelo */
+  margin-top: 5px;
+  padding-left: 0;
 }
 
-/* Estilos existentes */
+/* O resto dos seus estilos permanece igual */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background-color: #2d2d2d; padding: 2rem; border-radius: 8px; width: 90%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid #444; color: #d4d4d4; }
+.modal-content h4 { margin-top: 0; color: white; font-size: 1.5rem; }
+.query-preview { background-color: #1e1e1e; padding: 1rem; border-radius: 4px; font-family: 'Courier New', Courier, monospace; color: #9cdcfe; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; border: 1px solid #333; }
+.modal-actions { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; }
+.modal-actions button { padding: 0.6rem 1.2rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+.btn-cancel { background-color: #555; color: white; }
+.btn-confirm { background-color: #e53935; color: white; }
 .main-header-bar { background-color: white; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; }
 .content-section { padding: 2rem; }
 .sql-terminal { font-family: 'Courier New', Courier, monospace; background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 600px; margin-top: 1rem; }
@@ -235,8 +209,8 @@ async function executeQuery(command) {
 .terminal-input-area button { background-color: #0e639c; color: white; border: none; padding: 5px 10px; margin-left: 10px; cursor: pointer; }
 .terminal-input-area button:disabled { background-color: #555; cursor: not-allowed; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.result-loading { display: flex; align-items: center; padding-left: 20px; color: #f1c40f; }
-.spinner { width: 16px; height: 16px; border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: #f1c40f; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+.result-loading { display: flex; flex-direction: column; align-items: flex-start; padding-left: 20px; color: #f1c40f; }
+.spinner { width: 16px; height: 16px; border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: #f1c40f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px; }
 .result-error { color: #f44747; padding-left: 20px; }
 .result-error pre { margin: 0; white-space: pre-wrap; }
 .result-data table { width: 100%; border-collapse: collapse; margin-top: 5px; background-color: #252526; font-size: 0.9em; }

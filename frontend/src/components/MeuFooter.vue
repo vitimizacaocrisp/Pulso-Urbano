@@ -17,7 +17,7 @@
       <div class="footer-contact">
         <h4>Contato</h4>
         <p>Para parcerias, sugestões ou dúvidas, entre em contato conosco.</p>
-        <p>Email: <a href="mailto:contato@pulsourbano.org">contato@pulsourbano.org</a></p>
+        <p>Email: <a href="vitimizacaocrisp1@gmail.com">contato@pulsourbano.org</a></p>
       </div>
     </div>
     <div class="footer-bottom">
