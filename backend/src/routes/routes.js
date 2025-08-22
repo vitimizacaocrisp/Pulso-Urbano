@@ -17,7 +17,7 @@ const {
     getHomicideData
 } = require('../api/apiConnect');
 
-const { testConnection } = require('../db/dbConnect');
+const { testConnection, pool } = require('../db/dbConnect');
 
 // --- Middleware para tratar async/await sem repetir try/catch ---
 const asyncHandler = fn => (req, res, next) =>
@@ -120,6 +120,35 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 }));
 
 // ================= ROTAS PRIVADAS =================
+
+app.post('/api/sql-query', verifyTokenToken, async (req, res) => {
+  const { query } = req.body;
+
+  if (!query) {
+      return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
+  }
+  
+  // Medida de segurança básica
+  if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
+    return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
+  }
+
+  console.log('Executando query:', query);
+
+  try {
+    const result = await pool.query(query);
+    res.json({
+      success: true,
+      data: result.rows,
+    });
+  } catch (err) {
+    console.error('Erro na query SQL:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
 
 router.get('/api/admin/data', verifyToken, (req, res) => {
     res.json({

@@ -1,135 +1,93 @@
 <template>
-  <div class="dashboard-body">
-    <div class="dashboard-container">
-      <aside class="dashboard-sidebar">
-        <div class="sidebar-header">
-          <h3>Pulso Urbano</h3>
-          <span>Painel Admin</span>
-        </div>
-        <nav class="sidebar-nav">
-          <ul>
-            <li><a href="#" class="active">Dashboard</a></li>
-            <li><a href="#">Gerenciar Pesquisas</a></li>
-          </ul>
-        </nav>
-        <div class="sidebar-footer">
-          <button @click="logout" class="btn-logout">Sair &rarr;</button>
-        </div>
-      </aside>
+  <div>
+    <header class="main-header-bar">
+      <h1>Visão Geral</h1>
+      <p>Bem-vindo ao painel de administração do Pulso Urbano.</p>
+    </header>
 
-      <main class="dashboard-main">
-        <header class="main-header-bar">
-          <h1>Dashboard</h1>
-          <p v-if="adminUser">Bem-vindo, {{ adminUser.email }}!</p>
-          <p v-else>Bem-vindo, Administrador!</p>
-        </header>
-
-        <section class="content-section">
-          <h2>Pesquisas Recentes</h2>
-          
-          <div v-if="isLoading" class="loading-message">Carregando dados...</div>
-          
-          <div v-if="error" class="error-message">{{ error }}</div>
-          
-          <div v-if="!isLoading && !error && adminData" class="data-table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Título da Pesquisa</th>
-                  <th>Ano</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in adminData" :key="item.id">
-                  <td>{{ item.id }}</td>
-                  <td>{{ item.pesquisa }}</td>
-                  <td>{{ item.ano }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
-    </div>
+    <section class="content-section">
+      <h2>Pesquisas Recentes</h2>
+      
+      <div v-if="isLoading" class="loading-message">Carregando dados...</div>
+      <div v-if="error" class="error-message">{{ error }}</div>
+      
+      <div v-if="!isLoading && !error && adminData" class="data-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Título da Pesquisa</th>
+              <th>Ano</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in adminData" :key="item.id">
+              <td>{{ item.id }}</td>
+              <td>{{ item.pesquisa }}</td>
+              <td>{{ item.ano }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useRouter } from 'vue-router';
 
-export default {
-  name: 'AdminDashboardView',
-  data() {
-    return {
-      adminUser: null,    // Para guardar informações do usuário (vindo do token)
-      adminData: [],      // Para guardar os dados da API
-      isLoading: true,    // Para controlar o estado de carregamento
-      error: null,        // Para guardar mensagens de erro
-    };
-  },
-  methods: {
-    // 2. Método para fazer logout
-    logout() {
-      // Remove o token do armazenamento
-      localStorage.removeItem('authToken');
-      // Redireciona para a página de login usando o Vue Router
-      this.$router.push({ name: 'AdminLogin' });
-    },
-    
-    // 3. Método para buscar dados da API protegida
-    async fetchAdminData() {
-      this.isLoading = true;
-      this.error = null;
-      
-      // Pega o token salvo no localStorage
-      const token = localStorage.getItem('authToken');
-      
-      if (!token) {
-        // Se por algum motivo não houver token, faz logout
-        this.logout();
-        return;
-      }
-      
-      try {
-        // Faz a requisição para a rota protegida, enviando o token no header
-        const response = await axios.get('http://localhost:3000/api/admin/data', {
-          headers: {
-            'Authorization': `Bearer ${token}` // O formato é 'Bearer SEU_TOKEN'
-          }
-        });
-        
-        // Atualiza os dados do componente com a resposta da API
-        this.adminData = response.data.data;
-        this.adminUser = { email: response.data.message.split(' ').pop() }; // Pega o email da mensagem
+const router = useRouter();
+const adminData = ref([]);
+const isLoading = ref(true);
+const error = ref(null);
 
-      } catch (err) {
-        // Se a API retornar um erro (ex: 401 Unauthorized - token expirado/inválido)
-        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-          // O token é inválido, então deslogamos o usuário
-          this.error = 'Sua sessão expirou. Por favor, faça login novamente.';
-          this.logout();
-        } else {
-          // Outro tipo de erro (ex: servidor fora do ar)
-          this.error = 'Não foi possível carregar os dados do painel.';
-          console.error('Erro ao buscar dados do admin:', err);
-        }
-      } finally {
-        this.isLoading = false;
-      }
-    }
-  },
-  // 4. Lifecycle Hook: é executado assim que o componente é criado
-  created() {
-    // Chama o método para buscar os dados assim que a página do dashboard carrega
-    this.fetchAdminData();
+const logout = () => {
+  localStorage.removeItem('authToken');
+  router.push({ name: 'AdminLogin' });
+};
+
+const fetchAdminData = async () => {
+  isLoading.value = true;
+  error.value = null;
+  const token = localStorage.getItem('authToken');
+  
+  if (!token) {
+    logout();
+    return;
   }
-}
+  
+  try {
+    const response = await axios.get('https://pulso-urbano-backend.onrender.com/api/admin/data', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    adminData.value = response.data.data;
+  } catch (err) {
+    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+      error.value = 'Sua sessão expirou. Por favor, faça login novamente.';
+      setTimeout(logout, 3000);
+    } else {
+      error.value = 'Não foi possível carregar os dados do painel.';
+      console.error('Erro ao buscar dados do admin:', err);
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(fetchAdminData);
 </script>
 
 <style scoped>
-.dashboard-body {
-  /* ... */
+/* Estilos específicos para esta página de conteúdo */
+.main-header-bar {
+  background-color: white;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #dee2e6;
+}
+.content-section {
+  padding: 2rem;
 }
 .loading-message, .error-message {
   text-align: center;
@@ -145,15 +103,15 @@ export default {
 .data-table-container table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .data-table-container th, .data-table-container td {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 12px;
   text-align: left;
 }
 .data-table-container th {
   background-color: #f2f2f2;
 }
-/* ... outros estilos ... */
 </style>

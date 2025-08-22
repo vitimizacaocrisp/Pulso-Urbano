@@ -1,21 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-// Importa as views
+// --- Layouts Principais ---
+import AdminLayout from '../views/admin/AdminLayout.vue';
+import AnalisesLayout from '../views/AnalisesLayout.vue';
+
+// --- Views Públicas (ou que não precisam de layout aninhado) ---
 import Home from "../views/Home.vue";
 import SobreView from "../views/Sobre.vue";
 import NotFound from "../views/NotFound.vue";
 import Educacao from "@/views/Educacao.vue";
 import Publicacoes from "@/views/Publicacoes.vue";
-import Analises from "@/views/Analises.vue";
+import AdminLogin from "@/views/admin/AdminLogin.vue";
 
-import AtividadePolicial from "@/views/paineis/AtividadePolicial.vue";
-import CrimesEconomicos from "@/views/paineis/CrimesEconomicos.vue";
-import Homicidios from "@/views/paineis/Homicidios.vue";
-import SistemaJustica from "@/views/paineis/SistemaJustica.vue";
-import ViolenciaGenero from "@/views/paineis/ViolenciaGenero.vue";
-import Vitimizacao from "@/views/paineis/Vitimizacao.vue";
-
-// Rotas Analises
+// --- Views aninhadas de "Análises" ---
+import Analises from "@/views/Analises.vue"; // A página principal que lista as análises
 import AnalisePNAD2009 from '../views/analises/AnalisePNAD2009.vue';
 import AnaliseDatafolha2010 from '../views/analises/AnaliseDatafolha2010.vue';
 import AnaliseEscolas2006 from '../views/analises/AnaliseEscolas2006.vue';
@@ -24,81 +22,139 @@ import HomicidiosMG from '../views/analises/HomicidiosMG.vue';
 import ViolenciaUrbana from '../views/analises/ViolenciaUrbana.vue';
 import DemografiaPopulacional from '../views/analises/DemografiaPopulacional.vue';
 
-import AdminLogin from "@/views/admin/AdminLogin.vue";
-import AdminDashboard from "@/views/admin/AdminDashboard.vue";
+// --- Views aninhadas de "Admin" ---
+import AdminDashboardView from '../views/admin/AdminDashboard.vue';
+import SqlTerminalView from '../views/admin/SqlTerminalView.vue';
+import ContentManagerView from '../views/admin/ContentManagerView.vue';
 
 const routes = [
-  { path: "/", name: "Home", component: Home },
-  { path: "/sobre", name: "Sobre", component: SobreView },
-  { path: "/educacao", name: "Educacao", component: Educacao },
-  { path: "/publicacoes", name: "Publicacoes", component: Publicacoes },
-  { path: "/analises", name: "Analises", component: Analises },
-
-  { path: "/paineis/atividade-policial", name: "AtividadePolicial", component: AtividadePolicial },
-  { path: "/paineis/crimes-economicos", name: "CrimesEconomicos", component: CrimesEconomicos },
-  { path: "/paineis/homicidios", name: "Homicidios", component: Homicidios },
-  { path: "/paineis/sistema-justica", name: "SistemaJustica", component: SistemaJustica },
-  { path: "/paineis/violencia-genero", name: "ViolenciaGenero", component: ViolenciaGenero },
-  { path: "/paineis/vitimizacao", name: "Vitimizacao", component: Vitimizacao },
-
-  // Rotas das Análises
+  // --- Rota de Login (Pública) ---
   {
-    path: '/analises/pnad-2009',
-    name: 'AnalisePNAD2009',
-    component: AnalisePNAD2009,
+    path: '/admin/login',
+    name: 'AdminLogin',
+    component: AdminLogin,
+    meta: { requiresAuth: false, hideLayout: true } // Esta rota NÃO exige autenticação
+  },
+  
+  // --- Rotas Protegidas ---
+  {
+    path: "/",
+    name: "Home",
+    component: Home,
+    meta: { requiresAuth: true }
   },
   {
-    path: '/analises/datafolha-2010',
-    name: 'AnaliseDatafolha2010',
-    component: AnaliseDatafolha2010,
+    path: "/sobre",
+    name: "Sobre",
+    component: SobreView,
+    meta: { requiresAuth: true }
   },
   {
-    path: '/analises/escolas-2006',
-    name: 'AnaliseEscolas2006',
-    component: AnaliseEscolas2006,
+    path: "/educacao",
+    name: "Educacao",
+    component: Educacao,
+    meta: { requiresAuth: true }
   },
   {
-    path: '/analises/percepcao-social-mg',
-    name: 'PercepcaoSocialMG',
-    component: PercepcaoSocialMG,
-  },
-  {
-    path: '/analises/homicidios-mg',
-    name: 'HomicidiosMG',
-    component: HomicidiosMG,
-  },
-  {
-    path: '/analises/violencia-urbana',
-    name: 'ViolenciaUrbana',
-    component: ViolenciaUrbana,
-  },
-  {
-    path: '/analises/demografia-populacional',
-    name: 'DemografiaPopulacional',
-    component: DemografiaPopulacional,
+    path: "/publicacoes",
+    name: "Publicacoes",
+    component: Publicacoes,
+    meta: { requiresAuth: true }
   },
 
-  // Rotas do Admin
+  // [MODIFICADO] Estrutura aninhada para as Análises
+  {
+    path: '/analises',
+    component: AnalisesLayout, // Usa o novo layout como componente pai
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '', // URL: /analises
+        name: 'Analises',
+        component: Analises, // Página que lista todas as análises
+      },
+      {
+        path: 'pnad-2009', // URL: /analises/pnad-2009
+        name: 'AnalisePNAD2009',
+        component: AnalisePNAD2009,
+      },
+      {
+        path: 'datafolha-2010',
+        name: 'AnaliseDatafolha2010',
+        component: AnaliseDatafolha2010,
+      },
+      {
+        path: 'escolas-2006',
+        name: 'AnaliseEscolas2006',
+        component: AnaliseEscolas2006,
+      },
+      {
+        path: 'percepcao-social-mg',
+        name: 'PercepcaoSocialMG',
+        component: PercepcaoSocialMG,
+      },
+      {
+        path: 'homicidios-mg',
+        name: 'HomicidiosMG',
+        component: HomicidiosMG,
+      },
+      {
+        path: 'violencia-urbana',
+        name: 'ViolenciaUrbana',
+        component: ViolenciaUrbana,
+      },
+      {
+        path: 'demografia-populacional',
+        name: 'DemografiaPopulacional',
+        component: DemografiaPopulacional,
+      },
+    ]
+  },
 
-  { path: "/admin/login", name: "AdminLogin", component: AdminLogin, meta: { hideLayout: true } },
-  { path: "/admin/dashboard", name: "AdminDashboard", component: AdminDashboard, meta: { hideLayout: true, requiresAuth: true } },
+  // --- Rotas de Administração (já estavam aninhadas) ---
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAuth: true, hideLayout: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: AdminDashboardView,
+      },
+      {
+        path: 'sql-terminal',
+        name: 'SqlTerminal',
+        component: SqlTerminalView,
+      },
+      {
+        path: 'content-manager',
+        name: 'ContentManager',
+        component: ContentManagerView,
+      },
+      {
+        path: '',
+        redirect: { name: 'AdminDashboard' },
+      }
+    ],
+  },
 
-  // Rota para 404 - deve ser a última rota
+  // --- Rota 404 (deve ser a última) ---
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound }
 ];
 
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
-})
+});
 
-// 2. Navigation Guard Global
+// O seu "navigation guard" global, que agora protegerá quase todas as rotas
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('authToken'); // Verifica se o token existe
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const token = localStorage.getItem('authToken');
 
-  // Se a rota requer autenticação e o usuário NÃO está autenticado
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    // Redireciona para a página de login
+  if (requiresAuth && !token) {
+    // Se a rota exige autenticação e não há token, redireciona para o login
     next({ name: 'AdminLogin' });
   } else {
     // Caso contrário, permite o acesso
