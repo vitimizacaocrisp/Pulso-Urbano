@@ -17,7 +17,7 @@ const {
     getHomicideData
 } = require('../api/apiConnect');
 
-const { testConnection, pool } = require('../db/dbConnect');
+const { testConnection, sql } = require('../db/dbConnect');
 
 // --- Middleware para tratar async/await sem repetir try/catch ---
 const asyncHandler = fn => (req, res, next) =>
@@ -44,8 +44,8 @@ const verifyToken = (req, res, next) => {
 // ================= ROTAS PÚBLICAS =================
 
 // Status da API
-router.get('/', (req, res) => {
-    testConnection(); // testa conexão ao iniciar
+router.get('/', async (req, res) => {
+    await testConnection();
     res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' });
 });
 
@@ -104,6 +104,7 @@ router.get('/api/paineis/vitimizacao', async (req, res) => {
 
 // Login do admin
 router.post('/admin-auth', asyncHandler(async (req, res) => {
+    testConnection(); // testa conexão ao iniciar
     const { email, password } = req.body;
 
     const isAdminEmail = email === process.env.ADMIN_EMAIL;
@@ -121,49 +122,40 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 
 // ================= ROTAS PRIVADAS =================
 
-router.post('/api/sql-query', verifyToken, async (req, res) => {
-  const { query } = req.body;
+router.post('/api/sql-query', verifyToken, asyncHandler(async (req, res) => {
+    const { query } = req.body;
 
-  if (!query) {
-    return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
-  }
-  
-  if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
-    return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
-  }
-
-  console.log('Executando query:', query);
-
-  try {
-    const result = await pool.query(query);
-
-    // [MODIFICADO] Lógica melhorada para lidar com diferentes tipos de comandos
-    if (result.command === 'SELECT') {
-      // Se for uma consulta, retorna as linhas de dados
-      res.json({
-        success: true,
-        data: result.rows,
-      });
-    } else {
-      // Se for um comando como CREATE, INSERT, UPDATE, DELETE, etc.
-      // Retorna uma mensagem de sucesso com o número de linhas afetadas.
-      res.json({
-        success: true,
-        // Envolvemos a mensagem num array para manter o formato de dados esperado pelo frontend
-        data: [{ 
-          status: `Comando '${result.command}' executado com sucesso.`,
-          linhas_afetadas: result.rowCount === null ? 'N/A' : result.rowCount 
-        }],
-      });
+    if (!query) {
+        return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
     }
-  } catch (err) {
-    console.error('Erro na query SQL:', err.message);
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
-  }
-});
+
+    if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
+        return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
+    }
+
+    console.log(`Executando query pelo usuário ${req.user.email}:`, query);
+
+    try {
+        const result = await sql(query);
+
+        // SELECT retorna rows
+        if (/^\s*select/i.test(query)) {
+            res.json({ success: true, data: result });
+        } else {
+            res.json({
+                success: true,
+                data: [{
+                    status: `Comando executado com sucesso.`,
+                    linhas_afetadas: result.length ?? 'N/A'
+                }],
+            });
+        }
+    } catch (err) {
+        console.error('Erro ao executar query:', err);
+        res.status(500).json({ success: false, error: 'Erro ao executar query.' });
+    }
+}));
+
 
 router.get('/api/admin/data', verifyToken, (req, res) => {
     res.json({

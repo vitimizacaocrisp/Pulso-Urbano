@@ -1,65 +1,22 @@
-require('dotenv').config();
+import { neon } from '@netlify/neon';
 
-const { Pool } = require('pg');
+// Inicializa o cliente Neon. Ele usa a connection string da variável de ambiente.
+const sql = neon();
 
-// Configuração da conexão com o PostgreSQL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-// Event listeners para debugging
-pool.on('connect', (client) => {
-  console.log('📦 Novo cliente conectado ao pool');
-});
-
-pool.on('error', (err, client) => {
-  console.error('❌ Erro inesperado no cliente do pool:', err);
-  process.exit(-1);
-});
-
-// Testar conexão ao inicializar
+// [MODIFICADO] A nova forma de testar a conexão é executar uma query simples.
 const testConnection = async () => {
   try {
-    const client = await pool.connect();
-    console.log('✅ Conectado ao PostgreSQL com sucesso!');
-    client.release();
+    // `SELECT 1` é uma query inofensiva e rápida para verificar a conexão.
+    await sql`SELECT 1;`;
+    console.log('✅ Conectado ao Netlify Neon PostgreSQL com sucesso!');
   } catch (error) {
-    console.error('❌ Erro ao conectar com PostgreSQL:', error.message);
+    console.error('❌ Erro ao conectar com o Netlify Neon PostgreSQL:', error.message);
+    // Em produção, você pode querer um tratamento de erro mais robusto aqui.
     process.exit(1);
   }
 };
 
-// Função para executar queries
-const query = async (text, params) => {
-  const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log(`📊 Query executada em ${duration}ms:`, text);
-    return res;
-  } catch (error) {
-    console.error('❌ Erro na query:', error.message);
-    throw error;
-  }
-};
-
-// Função para obter um cliente do pool
-const getClient = async () => {
-  try {
-    const client = await pool.connect();
-    return client;
-  } catch (error) {
-    console.error('❌ Erro ao obter cliente:', error.message);
-    throw error;
-  }
-};
-
-module.exports = {
-  pool,
-  query,
-  getClient,
+export {
+  sql,
   testConnection
 };
