@@ -1,8 +1,5 @@
 // --- Carrega variáveis de ambiente ---
 require('dotenv').config();
-if (!process.env.JWT_SECRET) {
-    throw new Error("⚠️ Defina JWT_SECRET no arquivo .env");
-}
 
 const express = require('express');
 const router = express.Router();
