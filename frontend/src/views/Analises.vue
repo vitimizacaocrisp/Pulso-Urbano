@@ -6,43 +6,79 @@
         </header>
 
         <section class="analysis-list">
-             <article class="card card-analysis">
-                <div class="card-content">
-                    <span class="analysis-tag">Prospecção de Cenários</span>
-                    <h4>O impacto das mudanças climáticas na violência urbana</h4>
-                    <p>Um estudo sobre como eventos climáticos extremos podem remodelar os padrões de criminalidade nas grandes cidades brasileiras na próxima década.</p>
-                    <a href="#" class="card-link">Ler Análise Completa</a>
-                </div>
-            </article>
-            <article class="card card-analysis">
-                <div class="card-content">
-                    <span class="analysis-tag">Sistema de Justiça</span>
-                    <h4>A superlotação carcerária e seus efeitos na reincidência</h4>
-                    <p>Uma análise baseada em dados do sistema prisional sobre a correlação entre a superlotação e as taxas de reincidência criminal.</p>
-                    <a href="#" class="card-link">Ler Análise Completa</a>
-                </div>
-            </article>
             <article class="card card-analysis">
                 <div class="card-content">
                     <span class="analysis-tag">Vitimiação</span>
-                    <h4>Por que as pessoas não reportam crimes? Entendendo a cifra oculta.</h4>
-                    <p>Análise dos principais motivos de subnotificação de crimes no Brasil, com base em pesquisas de vitimização.</p>
-                    <a href="#" class="card-link">Ler Análise Completa</a>
+                    <h4>PNAD 2009: A Confiabilidade das Estatísticas de Vitimização</h4>
+                    <p>Análise sobre a variabilidade e precisão dos dados de criminalidade no Brasil, explorando perfis de sexo, raça e os motivos para não registrar ocorrências.</p>
+                    <router-link to="/analises/pnad-2009" class="card-link">Ler Análise Completa</router-link>
                 </div>
             </article>
+
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Percepção Social</span>
+                    <h4>Datafolha 2010: Confiança na Polícia e Medo do Crime</h4>
+                    <p>Relatório sobre a percepção de segurança, confiança na Polícia Militar e o ranking de crimes mais temidos pela população em 2010.</p>
+                    <router-link to="/analises/datafolha-2010" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Educação & Sociedade</span>
+                    <h4>Cenário Escolar 2006: Um Retrato de Alunos e Professores</h4>
+                    <p>Perfil detalhado do ambiente escolar no ano de 2006, com dados demográficos sobre estudantes e a experiência do corpo docente.</p>
+                    <router-link to="/analises/escolas-2006" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Análise Regional</span>
+                    <h4>O Medo em Minas Gerais: Risco por Bairro, Sexo e Idade</h4>
+                    <p>Estudo focado na sensação de insegurança em Minas Gerais, correlacionando o medo de crimes como roubo e agressão com o perfil demográfico.</p>
+                    <router-link to="/analises/percepcao-social-mg" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Violência Letal</span>
+                    <h4>Homicídios em Minas Gerais: Análise Geográfica do Crime</h4>
+                    <p>Investigação sobre a distribuição de homicídios tentados e consumados em cidades-chave de Minas Gerais, como Juiz de Fora e Uberaba.</p>
+                    <router-link to="/analises/homicidios-mg" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Tendências Criminais</span>
+                    <h4>A Dinâmica da Violência Urbana no Brasil</h4>
+                    <p>Um panorama sobre a evolução dos índices de criminalidade e a proporção entre diferentes tipos de crimes, como furtos, roubos e agressões.</p>
+                    <router-link to="/analises/violencia-urbana" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+            
+            <article class="card card-analysis">
+                <div class="card-content">
+                    <span class="analysis-tag">Contexto Demográfico</span>
+                    <h4>A Estrutura da População e sua Relação com a Vitimização</h4>
+                    <p>Análise da distribuição populacional por sexo e idade, um fator essencial para o cálculo de taxas de criminalidade e a compreensão de perfis de vítimas.</p>
+                    <router-link to="/analises/demografia-populacional" class="card-link">Ler Análise Completa</router-link>
+                </div>
+            </article>
+
         </section>
     </main>
 </template>
+
 <script>
 export default {
   name: 'AnalisesView',
-  data() {
-    return {
-      // Dados específicos da view podem ser adicionados aqui
-    };
-  },
-  methods: {
-    // Métodos específicos da view podem ser adicionados aqui
-  }
-}
+};
 </script>
+
+<style scoped>
+
+</style>

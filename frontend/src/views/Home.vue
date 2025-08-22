@@ -9,7 +9,6 @@
       </div>
     </section>
 
-    <!-- 2. NOVA SEÇÃO DE DESTAQUE DO DIA -->
     <section class="highlight-section">
       <h2 class="section-title">Destaque do Dia</h2>
       <div v-if="dailyHighlight.isLoading" class="status-message">
@@ -35,7 +34,6 @@
           <p>Análise detalhada das taxas de homicídios dolosos, perfil das vítimas e o impacto do crime organizado.</p>
           <div class="card-footer">
             <a href="/paineis/homicidios" class="card-link">Acessar Painel</a>
-            <!-- 1. ÍCONE DE CARREGAMENTO NO BADGE -->
             <span v-if="apiStatus.homicides.isLoading" class="status-badge loading"><div class="spinner-badge"></div></span>
             <span v-else-if="apiStatus.homicides.error" class="status-badge error">Offline</span>
             <span v-else class="status-badge online">Online</span>
@@ -45,7 +43,7 @@
         <article class="card">
           <h3>Atlas da Vitimização</h3>
           <p>Explore dados sobre crimes reportados e não reportados à polícia, baseados em pesquisas de vitimização.</p>
-           <div class="card-footer">
+            <div class="card-footer">
             <a href="/paineis/vitimizacao" class="card-link">Acessar Painel</a>
             <span v-if="apiStatus.victimization.isLoading" class="status-badge loading"><div class="spinner-badge"></div></span>
             <span v-else-if="apiStatus.victimization.error" class="status-badge error">Offline</span>
@@ -56,7 +54,7 @@
         <article class="card disabled">
           <h3>Observatório da Violência de Gênero</h3>
           <p>Dados sobre feminicídio e violência doméstica, revelando o lar como um dos espaços mais perigosos para mulheres.</p>
-           <div class="card-footer">
+            <div class="card-footer">
             <a href="#" class="card-link">Em breve</a>
             <span class="status-badge neutral">Pendente</span>
           </div>
@@ -67,7 +65,6 @@
     <section class="context-section">
       <h2 class="section-title">Contexto Nacional <span class="data-source">(IBGE, {{ population.ano || '...' }})</span></h2>
       
-      <!-- 1. ÍCONE DE CARREGAMENTO NA SEÇÃO -->
       <div v-if="apiStatus.population.isLoading" class="status-message">
         <div class="spinner-large"></div>
         <p>Carregando dados populacionais...</p>
@@ -100,8 +97,6 @@
 </template>
 
 <script>
-import axios from 'axios';
-
 export default {
   name: 'HomeView',
   data() {
@@ -118,7 +113,6 @@ export default {
         top3States: [],
         ano: null,
       },
-      // 2. NOVO ESTADO PARA O DESTAQUE DO DIA
       dailyHighlight: {
         isLoading: true,
         error: null,
@@ -130,13 +124,138 @@ export default {
     };
   },
   methods: {
+    /**
+     * Função robusta para fazer requisições HTTP com tentativas e timeout.
+     */
+    async fetchWithRetries(url, retries = 3, delay = 1000, timeout = 15000) {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeout);
+
+          const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+          });
+
+          clearTimeout(id);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+          }
+          
+          const json = await response.json();
+          return json;
+
+        } catch (err) {
+          console.warn(`⚠️ Tentativa ${attempt} falhou [${url}]: ${err.message}`);
+          if (attempt === retries) {
+            throw new Error(`❌ Falha após ${retries} tentativas em ${url}: ${err.message}`);
+          }
+          await new Promise(r => setTimeout(r, delay * attempt));
+        }
+      }
+    },
+
+    // --- MÉTODOS DE API ---
+
+    async getIBGEPopulationData() {
+      const ano = new Date().getFullYear() - 1;
+      const url = `https://apisidra.ibge.gov.br/values/t/6579/n3/all/v/9324/p/${ano}/h/n`;
+      const rawData = await this.fetchWithRetries(url);
+
+      if (!Array.isArray(rawData) || rawData.length < 2) {
+        throw new Error("Formato de resposta inesperado do IBGE.");
+      }
+
+      return rawData.slice(1).map(item => ({
+        uf: item.D3N,
+        ano: Number(item.D1N) || ano,
+        populacao: Number(item.V) || null,
+        fonte: "IBGE - SIDRA"
+      }));
+    },
+
+    /**
+     * [MODIFICADO] Usando um proxy CORS para contornar o bloqueio de requisição
+     * do navegador e conseguir acessar os dados reais da API de demonstração.
+     */
+    async getVictimizationData() {
+        const originalUrl = 'http://ec2-54-174-4-15.compute-1.amazonaws.com/api?per_page=1000&page=1';
+        // Um proxy público. Adiciona-se o URL original no final.
+        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        
+        const url = proxyUrl + encodeURIComponent(originalUrl);
+        
+        console.log(`[getVictimizationData] Buscando dados via proxy em: ${url}`);
+        const rawData = await this.fetchWithRetries(url);
+        
+        // A API allorigins pode encapsular a resposta. Precisamos pegar o conteúdo.
+        const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+        
+        const results = data?.data || data?.results || [];
+        if (!Array.isArray(results)) {
+            throw new Error("Formato de resposta inesperado da API de Vitimização.");
+        }
+        
+        return results.map(item => ({ ...item, fonte: "API Vitimização (demo)" }));
+    },
+    
+    async getHomicideData() {
+        const indicator = "VC.IHR.PSRC.P5";
+        const url = `https://api.worldbank.org/v2/country/BR/indicator/${indicator}?format=json&per_page=100&source=2`;
+        const rawData = await this.fetchWithRetries(url);
+
+        if (!Array.isArray(rawData) || !rawData[1]) {
+          throw new Error("Formato de resposta inesperado da API do Banco Mundial.");
+        }
+
+        return rawData[1]
+          .filter(item => item.value !== null)
+          .map(item => ({
+            ano: Number(item.date),
+            taxa_por_100k: parseFloat(parseFloat(item.value).toFixed(2)),
+            fonte: "Banco Mundial / UNODC"
+          }));
+    },
+    
+    getPublicSecuritySpending() {
+        console.warn("⚠️ AVISO: A API do IPEADATA está offline. Usando dados de exemplo.");
+        return Promise.resolve([
+            { ano: 2020, valorBRL: 95.8 * 1e9, fonte: "IPEA Data (Exemplo)" },
+            { ano: 2021, valorBRL: 106.1 * 1e9, fonte: "IPEA Data (Exemplo)" },
+            { ano: 2022, valorBRL: 115.3 * 1e9, fonte: "IPEA Data (Exemplo)" }
+        ]);
+    },
+    
+    async getSecurityLegislation() {
+        const ano = new Date().getFullYear();
+        const keywords = "segurança pública";
+        const url = `https://dadosabertos.camara.leg.br/api/v2/proposicoes?ano=${ano}&keywords=${encodeURIComponent(keywords)}&ordem=DESC&ordenarPor=ano`;
+        const rawData = await this.fetchWithRetries(url);
+
+        if (!rawData?.dados) throw new Error("Formato de resposta inesperado da Câmara.");
+
+        return rawData.dados.map(item => ({
+          id: item.id,
+          sigla: item.siglaTipo,
+          numero: item.numero,
+          ano: item.ano,
+          resumo: item.ementa,
+          link: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${item.id}`,
+          fonte: "Câmara dos Deputados"
+        }));
+    },
+
+    // --- LÓGICA DE ORQUESTRAÇÃO E PROCESSAMENTO ---
+
     async fetchAllData() {
       const requests = {
-        population: axios.get('/api/contexto/populacao'),
-        victimization: axios.get('/api/paineis/vitimizacao'),
-        homicides: axios.get('/api/paineis/homicidios'),
-        spending: axios.get('/api/contexto/gastos-seguranca'),
-        legislation: axios.get('/api/contexto/legislacao-seguranca'),
+        population: this.getIBGEPopulationData(),
+        victimization: this.getVictimizationData(),
+        homicides: this.getHomicideData(),
+        spending: this.getPublicSecuritySpending(),
+        legislation: this.getSecurityLegislation(),
       };
 
       const results = await Promise.allSettled(Object.values(requests));
@@ -147,9 +266,9 @@ export default {
         const key = keys[index];
         this.apiStatus[key].isLoading = false;
         
-        if (result.status === 'fulfilled' && result.value.data) {
-          const data = result.value.data;
-          successfulData[key] = data; // Guarda dados para o Destaque do Dia
+        if (result.status === 'fulfilled' && result.value) {
+          const data = result.value;
+          successfulData[key] = data;
 
           if (key === 'population' && data.length > 0) {
             this.processPopulationData(data);
@@ -159,20 +278,19 @@ export default {
           console.error(`Erro ao buscar dados para ${key}:`, result.reason);
         }
       });
-
-      // 2. CHAMA A FUNÇÃO PARA GERAR O DESTAQUE
+      
       this.generateDailyHighlight(successfulData);
     },
+
     processPopulationData(data) {
       this.population.total = data.reduce((sum, state) => sum + state.populacao, 0);
-      this.population.top3States = data.sort((a, b) => b.populacao - a.populacao).slice(0, 3);
+      this.population.top3States = [...data].sort((a, b) => b.populacao - a.populacao).slice(0, 3);
       this.population.ano = data[0]?.ano || new Date().getFullYear() - 2;
     },
-    // 2. NOVA FUNÇÃO PARA GERAR O DESTAQUE DO DIA
+    
     generateDailyHighlight(allData) {
       const highlightPool = [];
 
-      // Adiciona destaques de Homicídios, se disponíveis
       if (allData.homicides && allData.homicides.length > 0) {
         const latest = [...allData.homicides].sort((a, b) => b.ano - a.ano)[0];
         highlightPool.push({
@@ -182,17 +300,17 @@ export default {
           source: 'Banco Mundial / UNODC'
         });
       }
-      // Adiciona destaques de Vitimização, se disponíveis
+      
       if (allData.victimization && allData.victimization.length > 0) {
-        const total = allData.victimization.reduce((sum, item) => sum + (item.ocorrencias || 0), 0);
+        const total = allData.victimization.length;
         highlightPool.push({
-          title: 'Total de Ocorrências de Vitimização',
+          title: 'Total de Ocorrências (Amostra)',
           value: this.formatNumber(total),
           unit: 'registros na amostra de dados',
-          source: 'API Vitimização (Demo)'
+          source: 'API Vitimização (demo)'
         });
       }
-      // Adiciona destaques de Legislação, se disponíveis
+
       if (allData.legislation && allData.legislation.length > 0) {
         const latest = allData.legislation[0];
         highlightPool.push({
@@ -208,10 +326,10 @@ export default {
         return;
       }
 
-      // Seleciona um destaque aleatório do pool
       const randomIndex = Math.floor(Math.random() * highlightPool.length);
       this.dailyHighlight = { ...highlightPool[randomIndex], isLoading: false, error: null };
     },
+
     formatNumber(num) {
       if (typeof num !== 'number') return '...';
       return num.toLocaleString('pt-BR');
@@ -222,6 +340,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 /* 1. ESTILOS PARA O SPINNER DE CARREGAMENTO */
