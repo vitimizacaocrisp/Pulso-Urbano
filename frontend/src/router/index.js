@@ -26,6 +26,7 @@ import DemografiaPopulacional from '../views/analises/DemografiaPopulacional.vue
 import AdminDashboardView from '../views/admin/AdminDashboard.vue';
 import SqlTerminalView from '../views/admin/SqlTerminalView.vue';
 import ContentManagerView from '../views/admin/ContentManagerView.vue';
+import EditAnalysisView from '../views/admin/EditAnalysisView.vue';
 
 const routes = [
   // --- Rota de Login (Pública) ---
@@ -35,7 +36,7 @@ const routes = [
     component: AdminLogin,
     meta: { requiresAuth: false, hideLayout: true } // Esta rota NÃO exige autenticação
   },
-  
+
   // --- Rotas Protegidas ---
   {
     path: "/",
@@ -131,6 +132,11 @@ const routes = [
         path: 'content-manager',
         name: 'ContentManager',
         component: ContentManagerView,
+      },
+      {
+        path: 'edit-analysis',
+        name: 'EditAnalysis',
+        component: EditAnalysisView,
       },
       {
         path: '',

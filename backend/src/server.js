@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 // 1. Importa o nosso novo arquivo de rotas
 const mainRoutes = require('./routes/routes');
+const multer = require('multer');
 
 // 2. Cria a aplicação Express
 const app = express();
@@ -17,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 // 4. Usa o arquivo de rotas
 // Todas as requisições serão gerenciadas pelo mainRoutes
 app.use('/', mainRoutes);
+
 
 
 // 5. Inicia o Servidor

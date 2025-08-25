@@ -1,6 +1,6 @@
-// --- Carrega variáveis de ambiente ---
-require('dotenv').config();
+const {asyncHandler, verifyToken, upload} = require('../middleware/middlewares.js');
 
+require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -16,27 +16,8 @@ const {
 
 const { testConnection, sql } = require('../db/dbConnect');
 
-// --- Middleware para tratar async/await sem repetir try/catch ---
-const asyncHandler = fn => (req, res, next) =>
-    Promise.resolve(fn(req, res, next)).catch(next);
 
-// --- Middleware de autenticação ---
-const verifyToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1];
 
-    if (!token) {
-        return res.status(403).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(401).json({ success: false, message: 'Token inválido ou expirado. Faça login novamente.' });
-        }
-        req.user = user;
-        next();
-    });
-};
 
 // ================= ROTAS PÚBLICAS =================
 
@@ -118,6 +99,137 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 }));
 
 // ================= ROTAS PRIVADAS =================
+
+// --- Rota para Criar Análises ---
+router.post(
+  '/api/admin/analyses',
+  verifyToken,
+  // O middleware da Multer processa os ficheiros ANTES da sua lógica
+  upload.fields([
+    { name: 'coverImage', maxCount: 1 },
+    { name: 'documentFile', maxCount: 1 },
+    { name: 'dataFile', maxCount: 1 }
+  ]),
+  asyncHandler(async (req, res) => {
+
+    testConnection(); // testa conexão ao iniciar
+
+    // --- [DEBUG] Log inicial para verificar os dados recebidos ---
+    console.log('----------------------------------------------------');
+    console.log('[DEBUG] Nova requisição para /api/admin/analyses');
+    console.log('[DEBUG] Dados de Texto (req.body):', req.body);
+    console.log('[DEBUG] Dados dos Ficheiros (req.files):', req.files);
+    console.log('----------------------------------------------------');
+
+    // Os dados de texto estão em `req.body`
+    const { title, tag, description, content, externalLink } = req.body;
+    
+    // As informações dos ficheiros estão em `req.files`
+    // Usamos `?.` (optional chaining) para evitar erros se um ficheiro não for enviado
+    const coverImagePath = req.files?.coverImage?.[0]?.path || null;
+    const documentFilePath = req.files?.documentFile?.[0]?.path || null;
+    const dataFilePath = req.files?.dataFile?.[0]?.path || null;
+
+    // [NOVO] Lógica para guardar as informações na base de dados
+    try {
+      console.log('[DEBUG] A preparar para inserir os seguintes dados na DB:');
+      console.table({ 
+          title, tag, description, content, externalLink, 
+          coverImagePath, documentFilePath, dataFilePath 
+      });
+
+      // Usamos a sintaxe de tagged template literals para uma query parametrizada e segura
+      const result = await sql`
+        INSERT INTO analyses (
+          title, tag, description, content, external_link, 
+          cover_image_path, document_file_path, data_file_path
+        ) VALUES (
+          ${title}, ${tag}, ${description}, ${content}, ${externalLink}, 
+          ${coverImagePath}, ${documentFilePath}, ${dataFilePath}
+        )
+        RETURNING id; 
+      `;
+
+      // [DEBUG] Log de sucesso da inserção
+      const newId = result[0]?.id;
+      console.log(`[DEBUG] ✅ Dados inseridos com sucesso! Novo ID da análise: ${newId}`);
+
+      res.status(201).json({ 
+        success: true, 
+        message: `Análise "${title}" publicada com sucesso!`,
+        analysisId: newId 
+      });
+
+    } catch (dbError) {
+      // [DEBUG] Log de erro específico da base de dados
+      console.error('[DEBUG] ❌ Erro ao inserir na base de dados:', dbError);
+      // O asyncHandler irá capturar este erro e enviar uma resposta 500,
+      // mas podemos lançar um erro mais específico se quisermos.
+      throw new Error('Falha ao guardar a análise na base de dados.');
+    }
+  })
+);
+
+// Rota para BUSCAR uma análise específica por ID
+router.get('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  
+  if (result.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+  
+  res.json({ success: true, data: result[0] });
+}));
+
+
+// Rota para ATUALIZAR uma análise
+// (Esta é uma versão simplificada. Uma versão completa lidaria com a exclusão de ficheiros antigos)
+router.put(
+  '/api/admin/analyses/:id', 
+  verifyToken, 
+  upload.fields([ /* ... mesma config da Multer ... */ ]), 
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { title, tag, description, content, externalLink } = req.body;
+    
+    // NOTA: Para uma implementação profissional, aqui você adicionaria a lógica
+    // para verificar se novos ficheiros foram enviados, apagar os antigos do servidor
+    // e só então atualizar os caminhos na base de dados.
+    
+    await sql`
+      UPDATE analyses 
+      SET 
+        title = ${title}, 
+        tag = ${tag}, 
+        description = ${description}, 
+        content = ${content}, 
+        external_link = ${externalLink}
+      WHERE id = ${id}
+    `;
+    
+    res.json({ success: true, message: 'Análise atualizada com sucesso!' });
+}));
+
+
+// Rota para EXCLUIR uma análise
+router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  // Opcional, mas recomendado: antes de excluir do DB, apague os ficheiros associados do servidor.
+  // const analysis = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  // if (analysis[0].cover_image_path) { fs.unlinkSync(analysis[0].cover_image_path); }
+  
+  const result = await sql`DELETE FROM analyses WHERE id = ${id} RETURNING title`;
+  
+  if (result.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada para exclusão.' });
+  }
+  
+  res.json({ success: true, message: `Análise "${result[0].title}" foi excluída com sucesso.` });
+}));
+
+// --- Rota para executar queries SQL arbitrárias (CUIDADO!) ---
 
 router.post('/api/sql-query', verifyToken, asyncHandler(async (req, res) => {
     const { query } = req.body;

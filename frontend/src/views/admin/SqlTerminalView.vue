@@ -73,7 +73,7 @@
 import { ref, nextTick, onMounted } from 'vue';
 
 // [MODIFICADO] O seu URL do backend
-const API_URL = 'https://pulso-urbano-backend.onrender.com/api/sql-query';
+const API_URL = 'http://localhost:3000/api/sql-query';
 
 const currentQuery = ref('');
 const history = ref([]);
