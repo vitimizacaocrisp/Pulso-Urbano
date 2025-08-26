@@ -179,7 +179,6 @@ async function executeQuery(command) {
 </script>
 
 <style scoped>
-/* Adicione este novo estilo */
 .cold-start-warning {
   font-size: 0.8em;
   color: #f1c40f; /* amarelo */
@@ -187,7 +186,6 @@ async function executeQuery(command) {
   padding-left: 0;
 }
 
-/* O resto dos seus estilos permanece igual */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background-color: #2d2d2d; padding: 2rem; border-radius: 8px; width: 90%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid #444; color: #d4d4d4; }
 .modal-content h4 { margin-top: 0; color: white; font-size: 1.5rem; }

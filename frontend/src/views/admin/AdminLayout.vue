@@ -1,21 +1,23 @@
 <template>
   <div class="dashboard-body">
     <div class="dashboard-container">
+      
       <aside class="dashboard-sidebar">
         <div class="sidebar-header">
-          <h3>Pulso Urbano</h3>
           <span>Painel Admin</span>
         </div>
-        <nav class="sidebar-nav">
+
+        <nav class="sidebar-nav" id="mainNavMenu">
           <ul>
-            <li><router-link :to="{ name: 'AdminDashboard' }">Visão Geral</router-link></li>
+            <li><router-link :to="{ name: 'AdminDashboard' }">Início</router-link></li>
             <li><router-link :to="{ name: 'ContentManager' }">Nova Análise</router-link></li>
             <li><router-link :to="{ name: 'EditAnalysis' }">Editar / Excluir Análise</router-link></li>
             <li><router-link :to="{ name: 'SqlTerminal' }">Terminal SQL</router-link></li>
           </ul>
         </nav>
+
         <div class="sidebar-footer">
-          <button @click="logout" class="btn-logout">Sair &rarr;</button>
+          <button @click="logout" class="btn-logout">Sair</button>
         </div>
       </aside>
 
@@ -23,10 +25,27 @@
         <router-view />
       </main>
     </div>
+
+    <div class="mobile-floating-menu" id="mobileFloatingMenu">
+      <button id="mobileMenuToggle" class="menu-toggle-btn">
+        <span class="icon">&#9881;</span>
+      </button>
+      <div class="menu-items-wrapper">
+        <router-link :to="{ name: 'AdminDashboard' }" class="menu-item" title="Início" @click="closeMobileMenu"><span class="icon">🏠</span></router-link>
+        <router-link :to="{ name: 'ContentManager' }" class="menu-item" title="Nova Análise" @click="closeMobileMenu"><span class="icon">➕</span></router-link>
+        <router-link :to="{ name: 'EditAnalysis' }" class="menu-item" title="Editar Análise" @click="closeMobileMenu"><span class="icon">📝</span></router-link>
+        <router-link :to="{ name: 'SqlTerminal' }" class="menu-item" title="Terminal SQL" @click="closeMobileMenu"><span class="icon">💻</span></router-link>
+        <button @click="logoutAndCloseMenu" class="menu-item" title="Sair"><span class="icon">🚪</span></button>
+      </div>
+    </div>
+
+    <!-- <button id="backToTopBtn" class="btn btn-primary back-to-top" title="Voltar ao topo">&uarr;</button> -->
   </div>
 </template>
 
 <script setup>
+import '../../assets/css/adminStyle.css';
+import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -35,9 +54,59 @@ const logout = () => {
   localStorage.removeItem('authToken');
   router.push({ name: 'AdminLogin' });
 };
+
+// --- Funções para controlar o menu mobile ---
+const closeMobileMenu = () => {
+  const mobileMenu = document.getElementById('mobileFloatingMenu');
+  if (mobileMenu) {
+    mobileMenu.classList.remove('is-open');
+  }
+};
+
+const logoutAndCloseMenu = () => {
+  closeMobileMenu();
+  logout();
+};
+
+// --- Lógica que executa após o componente ser montado ---
+onMounted(() => {
+  // LÓGICA PARA O BOTÃO "VOLTAR AO TOPO"
+  const backToTopButton = document.getElementById('backToTopBtn');
+  const mainContent = document.querySelector('.dashboard-main');
+
+  if (backToTopButton && mainContent) {
+    const scrollFunction = () => {
+      backToTopButton.style.display = mainContent.scrollTop > 100 ? 'block' : 'none';
+    };
+    const scrollToTop = () => {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    mainContent.addEventListener('scroll', scrollFunction);
+    backToTopButton.addEventListener('click', scrollToTop);
+  }
+
+  // LÓGICA PARA ABRIR/FECHAR O MENU MOBILE (ENGRENAGEM)
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const mobileFloatingMenu = document.getElementById('mobileFloatingMenu');
+
+  if (mobileMenuToggle && mobileFloatingMenu) {
+    mobileMenuToggle.addEventListener('click', (event) => {
+      event.stopPropagation(); // Impede que o clique se propague para o document
+      mobileFloatingMenu.classList.toggle('is-open');
+    });
+
+    // Fechar o menu ao clicar fora dele
+    document.addEventListener('click', (event) => {
+      if (mobileFloatingMenu.classList.contains('is-open') && !mobileFloatingMenu.contains(event.target)) {
+        closeMobileMenu();
+      }
+    });
+  }
+});
 </script>
 
-<style scoped>
+<!-- <style scoped>
 /* Estilo para o link ativo na barra lateral */
 .sidebar-nav .router-link-exact-active {
   background-color: #0056b3;
@@ -116,4 +185,4 @@ const logout = () => {
   flex-grow: 1;
   overflow-y: auto; /* Permite scroll apenas no conteúdo principal */
 }
-</style>
+</style> -->

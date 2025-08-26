@@ -158,7 +158,7 @@ onMounted(fetchAdminData);
 
 <style scoped>
 /* Estilos existentes */
-.main-header-bar { background-color: white; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; }
+.main-header-bar { background-color: white; color: #212529; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; }
 .content-section { padding: 2rem; }
 .loading-message, .error-message { text-align: center; padding: 2rem; font-size: 1.2rem; }
 .error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; }
@@ -166,7 +166,6 @@ onMounted(fetchAdminData);
 .data-table-container th, .data-table-container td { border: 1px solid #ddd; padding: 12px; text-align: left; }
 .data-table-container th { background-color: #f2f2f2; }
 
-/* [NOVO] Estilos para os novos elementos */
 .quick-actions {
     display: flex;
     gap: 1rem;
