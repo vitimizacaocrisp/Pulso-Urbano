@@ -104,71 +104,60 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 router.post(
   '/api/admin/analyses',
   verifyToken,
-  // O middleware da Multer processa os ficheiros ANTES da sua lógica
-  upload.fields([
-    { name: 'coverImage', maxCount: 1 },
-    { name: 'documentFile', maxCount: 1 },
-    { name: 'dataFile', maxCount: 1 }
-  ]),
+  upload.any(),
   asyncHandler(async (req, res) => {
-
-    testConnection(); // testa conexão ao iniciar
-
-    // --- [DEBUG] Log inicial para verificar os dados recebidos ---
-    console.log('----------------------------------------------------');
-    console.log('[DEBUG] Nova requisição para /api/admin/analyses');
-    console.log('[DEBUG] Dados de Texto (req.body):', req.body);
-    console.log('[DEBUG] Dados dos Ficheiros (req.files):', req.files);
-    console.log('----------------------------------------------------');
-
-    // Os dados de texto estão em `req.body`
-    const { title, tag, description, content, externalLink } = req.body;
+    // [MODIFICADO] Extrai os novos campos do req.body
+    let { title, tag, author, researchDate, description, content, referenceLinks } = req.body;
     
-    // As informações dos ficheiros estão em `req.files`
-    // Usamos `?.` (optional chaining) para evitar erros se um ficheiro não for enviado
-    const coverImagePath = req.files?.coverImage?.[0]?.path || null;
-    const documentFilePath = req.files?.documentFile?.[0]?.path || null;
-    const dataFilePath = req.files?.dataFile?.[0]?.path || null;
+    // ... (lógica de processamento dos ficheiros permanece a mesma) ...
+    const coverImageFile = req.files.find(f => f.fieldname === 'coverImage');
+    const documentFileFile = req.files.find(f => f.fieldname === 'documentFile');
+    const dataFileFile = req.files.find(f => f.fieldname === 'dataFile');
 
-    // [NOVO] Lógica para guardar as informações na base de dados
-    try {
-      console.log('[DEBUG] A preparar para inserir os seguintes dados na DB:');
-      console.table({ 
-          title, tag, description, content, externalLink, 
-          coverImagePath, documentFilePath, dataFilePath 
-      });
+    const coverImagePath = coverImageFile ? coverImageFile.path.replace(/\\/g, '/') : null;
+    const documentFilePath = documentFileFile ? documentFileFile.path.replace(/\\/g, '/') : null;
+    const dataFilePath = dataFileFile ? dataFileFile.path.replace(/\\/g, '/') : null;
 
-      // Usamos a sintaxe de tagged template literals para uma query parametrizada e segura
-      const result = await sql`
-        INSERT INTO analyses (
-          title, tag, description, content, external_link, 
-          cover_image_path, document_file_path, data_file_path
-        ) VALUES (
-          ${title}, ${tag}, ${description}, ${content}, ${externalLink}, 
-          ${coverImagePath}, ${documentFilePath}, ${dataFilePath}
-        )
-        RETURNING id; 
-      `;
-
-      // [DEBUG] Log de sucesso da inserção
-      const newId = result[0]?.id;
-      console.log(`[DEBUG] ✅ Dados inseridos com sucesso! Novo ID da análise: ${newId}`);
-
-      res.status(201).json({ 
-        success: true, 
-        message: `Análise "${title}" publicada com sucesso!`,
-        analysisId: newId 
-      });
-
-    } catch (dbError) {
-      // [DEBUG] Log de erro específico da base de dados
-      console.error('[DEBUG] ❌ Erro ao inserir na base de dados:', dbError);
-      // O asyncHandler irá capturar este erro e enviar uma resposta 500,
-      // mas podemos lançar um erro mais específico se quisermos.
-      throw new Error('Falha ao guardar a análise na base de dados.');
+    const contentImageFiles = req.files.filter(f => f.fieldname.startsWith('contentImage_'));
+    if (contentImageFiles.length > 0) {
+      for (const file of contentImageFiles) {
+        const placeholder = file.fieldname;
+        const publicUrl = `/${file.path.replace(/\\/g, '/')}`;
+        content = content.replace(placeholder, publicUrl);
+      }
     }
+    
+    // [MODIFICADO] Query de INSERT atualizada com as novas colunas
+    const result = await sql`
+      INSERT INTO analyses (
+        title, tag, author, research_date, description, content, reference_links, 
+        cover_image_path, document_file_path, data_file_path
+      ) VALUES (
+        ${title}, ${tag}, ${author}, ${researchDate}, ${description}, ${content}, ${referenceLinks}, 
+        ${coverImagePath}, ${documentFilePath}, ${dataFilePath}
+      )
+      RETURNING id; 
+    `;
+
+    const newId = result[0]?.id;
+    res.status(201).json({ 
+      success: true, 
+      message: `Análise "${title}" publicada com sucesso!`,
+      analysisId: newId 
+    });
   })
 );
+
+router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res) => {
+  // Selecionamos apenas os campos necessários para a lista de pesquisa
+  const result = await sql`
+    SELECT id, title, tag, author, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date 
+    FROM analyses 
+    ORDER BY created_at DESC
+  `;
+  
+  res.json({ success: true, data: result });
+}));
 
 // Rota para BUSCAR uma análise específica por ID
 router.get('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
@@ -265,6 +254,64 @@ router.post('/api/sql-query', verifyToken, asyncHandler(async (req, res) => {
     }
 }));
 
+// Rota para fornecer todos os dados agregados para o dashboard
+router.get('/api/admin/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
+  console.log('[DEBUG] A buscar dados para o dashboard...');
+
+  // Executa todas as consultas em paralelo para máxima eficiência
+  const [
+    statsResult,
+    recentAnalysesResult,
+    chartDataResult
+  ] = await Promise.all([
+    // Consulta para os KPIs (cards de resumo)
+    sql`
+      SELECT
+        (SELECT COUNT(*) FROM analyses) AS "totalAnalyses",
+        (SELECT COUNT(*) FROM analyses WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS "newThisMonth",
+        (SELECT COUNT(DISTINCT tag) FROM analyses WHERE tag IS NOT NULL AND tag != '') AS "uniqueTags"
+    `,
+    // Consulta para a tabela de análises recentes
+    sql`
+      SELECT id, title, tag, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date 
+      FROM analyses 
+      ORDER BY created_at DESC 
+      LIMIT 5
+    `,
+    // Consulta para o gráfico de publicações mensais (últimos 6 meses)
+    sql`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', CURRENT_DATE) - interval '5 months',
+          date_trunc('month', CURRENT_DATE),
+          '1 month'::interval
+        ) AS month
+      )
+      SELECT
+        TO_CHAR(months.month, 'Mon') AS month_name,
+        COUNT(analyses.id) AS publication_count
+      FROM months
+      LEFT JOIN analyses ON date_trunc('month', analyses.created_at) = months.month
+      GROUP BY months.month
+      ORDER BY months.month;
+    `
+  ]);
+
+  // Formata os dados do gráfico para o Chart.js
+  const chartData = {
+    labels: chartDataResult.map(row => row.month_name),
+    data: chartDataResult.map(row => row.publication_count)
+  };
+
+  const responseData = {
+    stats: statsResult[0],
+    recentAnalyses: recentAnalysesResult,
+    chartData: chartData
+  };
+
+  console.log('[DEBUG] Dados do dashboard enviados com sucesso.');
+  res.json({ success: true, data: responseData });
+}));
 
 router.get('/api/admin/data', verifyToken, (req, res) => {
     res.json({

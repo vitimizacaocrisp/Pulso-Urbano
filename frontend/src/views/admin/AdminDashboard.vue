@@ -15,48 +15,51 @@
         </router-link>
       </div>
 
-      <div class="stats-cards">
+      <!-- Cards de Resumo (KPIs) com dados reais -->
+      <div v-if="!isLoading" class="stats-cards">
         <div class="card">
           <h3>{{ stats.totalAnalyses }}</h3>
           <p>Análises Publicadas</p>
         </div>
         <div class="card">
           <h3>{{ stats.newThisMonth }}</h3>
-          <p>Novas Publicações (Mês)</p>
+          <p>Novas este Mês</p>
         </div>
         <div class="card">
-          <h3>{{ stats.sqlQueriesToday }}</h3>
-          <p>Consultas SQL (Hoje)</p>
+          <h3>{{ stats.uniqueTags }}</h3>
+          <p>Tags Únicas</p>
         </div>
       </div>
       
       <div class="dashboard-grid">
         <div class="grid-item">
-            <h2>Publicações por Mês</h2>
+            <h2>Publicações nos Últimos 6 Meses</h2>
             <div class="chart-container">
                 <canvas id="monthlyPublicationsChart"></canvas>
             </div>
         </div>
         <div class="grid-item">
-          <h2>Pesquisas Recentes</h2>
+          <h2>Análises Recentes</h2>
           <div v-if="isLoading" class="loading-message">Carregando dados...</div>
           <div v-if="error" class="error-message">{{ error }}</div>
           
-          <div v-if="!isLoading && !error && adminData" class="data-table-container">
+          <div v-if="!isLoading && !error && recentAnalyses.length > 0" class="data-table-container">
             <table>
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Título da Pesquisa</th>
-                  <th>Ano</th>
+                  <th>Título</th>
+                  <th>Tag</th>
+                  <th>Publicado em</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in adminData" :key="item.id">
+                <tr v-for="item in recentAnalyses" :key="item.id">
                   <td>{{ item.id }}</td>
-                  <td>{{ item.pesquisa }}</td>
-                  <td>{{ item.ano }}</td>
+                  <td>{{ item.title }}</td>
+                  <td><span class="tag-badge">{{ item.tag }}</span></td>
+                  <td>{{ item.created_date }}</td>
                   <td>
                     <router-link :to="{ name: 'EditAnalysis', query: { id: item.id } }" class="btn-edit">
                       Editar
@@ -66,6 +69,9 @@
               </tbody>
             </table>
           </div>
+           <div v-if="!isLoading && !error && recentAnalyses.length === 0" class="no-data-message">
+              Nenhuma análise encontrada. Comece por <router-link :to="{ name: 'ContentManager' }">criar uma nova</router-link>.
+            </div>
         </div>
       </div>
     </section>
@@ -73,24 +79,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import Chart from 'chart.js/auto';
 
 const router = useRouter();
-const adminData = ref([]);
+const recentAnalyses = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
+let chartInstance = null; // Para destruir o gráfico ao sair da página
 
-// [NOVO] Dados de exemplo para os KPIs e Gráfico
 const stats = ref({
   totalAnalyses: 0,
   newThisMonth: 0,
-  sqlQueriesToday: 0
+  uniqueTags: 0
 });
 
-const fetchAdminData = async () => {
+const fetchDashboardData = async () => {
   isLoading.value = true;
   error.value = null;
   const token = localStorage.getItem('authToken');
@@ -101,59 +106,88 @@ const fetchAdminData = async () => {
   }
   
   try {
-    const response = await axios.get('http://localhost:3000/api/admin/data', {
+    // Chama a nova rota do backend
+    const response = await fetch('http://localhost:3000/api/admin/dashboard-data', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    adminData.value = response.data.data;
 
-    // [NOVO] Preencher KPIs com dados (aqui usamos dados de exemplo)
-    stats.value = {
-        totalAnalyses: response.data.data.length,
-        newThisMonth: 1, // Exemplo
-        sqlQueriesToday: 15 // Exemplo
-    };
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erro HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    const data = result.data;
+
+    // Preenche os refs com os dados reais do backend
+    recentAnalyses.value = data.recentAnalyses;
+    stats.value = data.stats;
     
-    // [NOVO] Criar o gráfico após os dados serem carregados
-    createChart();
+    // Cria o gráfico com os dados do backend
+    createChart(data.chartData);
 
   } catch (err) {
-    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+    if (err.message.includes('Token')) {
       error.value = 'A sua sessão expirou. Por favor, faça login novamente.';
       setTimeout(() => router.push({ name: 'AdminLogin' }), 3000);
     } else {
       error.value = 'Não foi possível carregar os dados do painel.';
-      console.error('Erro ao buscar dados do admin:', err);
+      console.error('Erro ao buscar dados do dashboard:', err);
     }
   } finally {
     isLoading.value = false;
   }
 };
 
-const createChart = () => {
+const createChart = (chartData) => {
     const ctx = document.getElementById('monthlyPublicationsChart');
-    if(!ctx) return;
+    if (!ctx) return;
     
-    new Chart(ctx, {
+    // Destrói o gráfico anterior se ele existir, para evitar bugs de renderização
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+    
+    chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Maio', 'Junho', 'Julho', 'Agosto'],
+            labels: chartData.labels,
             datasets: [{
                 label: 'Nº de Publicações',
-                data: [2, 1, 3, 5], // Dados de exemplo
-                backgroundColor: '#007bff',
+                data: chartData.data,
+                backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                borderColor: 'rgba(0, 123, 255, 1)',
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true }
+                y: { 
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1 // Garante que o eixo Y só mostre números inteiros
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
             }
         }
     });
 };
 
-onMounted(fetchAdminData);
+onMounted(fetchDashboardData);
+
+// Limpa o gráfico ao sair do componente para libertar memória
+onBeforeUnmount(() => {
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+});
 </script>
 
 <style scoped>

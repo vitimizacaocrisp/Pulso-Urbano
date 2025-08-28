@@ -1,10 +1,16 @@
 <template>
   <div>
+    <!-- Modal de Confirmação -->
     <div v-if="isConfirmationModalVisible" class="modal-overlay" @click="handleCancel">
       <div class="modal-content" @click.stop>
-        <h4>Confirmar Execução</h4>
-        <p>Tem a certeza de que deseja executar a seguinte query diretamente na base de dados?</p>
+        <h4>⚠️ Confirmar Execução</h4>
+        <p>Tem certeza que deseja executar a seguinte query diretamente na base de dados?</p>
         <pre class="query-preview">{{ queryToConfirm }}</pre>
+
+        <p v-if="isDangerousQuery" class="danger-warning">
+          🚨 Atenção: Esta query pode <strong>alterar ou excluir dados</strong>. Execute apenas se tiver certeza.
+        </p>
+
         <div class="modal-actions">
           <button class="btn-cancel" @click="handleCancel">Cancelar</button>
           <button class="btn-confirm" @click="handleConfirm">Executar</button>
@@ -12,13 +18,16 @@
       </div>
     </div>
 
+    <!-- Cabeçalho -->
     <header class="main-header-bar">
       <h1>Terminal de Banco de Dados</h1>
-      <p>Execute consultas diretamente no banco de dados. Use com responsabilidade.</p>
+      <p>Execute consultas diretamente no banco de dados. ⚠️ Use com responsabilidade.</p>
     </header>
 
+    <!-- Terminal -->
     <section class="content-section">
       <div class="sql-terminal">
+        <!-- Histórico -->
         <div class="terminal-output" ref="output">
           <div v-for="item in history" :key="item.id" class="history-item">
             <div class="command-line">
@@ -26,6 +35,7 @@
               <span class="command-text">{{ item.command }}</span>
             </div>
 
+            <!-- Loading -->
             <div v-if="item.loading" class="result-loading">
               <div class="spinner"></div>
               <span>Executando...</span>
@@ -34,9 +44,12 @@
               </p>
             </div>
 
+            <!-- Erro -->
             <div v-else-if="item.error" class="result-error">
               <pre>{{ item.error }}</pre>
             </div>
+
+            <!-- Resultado -->
             <div v-else-if="item.result" class="result-data">
               <p v-if="item.result.length === 0" class="no-rows">Consulta executada com sucesso. Nenhuma linha retornada.</p>
               <table v-else>
@@ -54,12 +67,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Input -->
         <div class="terminal-input-area">
           <span class="prompt">&gt;</span>
           <textarea
             v-model="currentQuery"
-            placeholder="Escreva seu comando SQL aqui e pressione Ctrl+Enter para executar"
+            placeholder="Escreva seu comando SQL aqui. Ctrl+Enter para executar."
             @keydown.enter.ctrl.prevent="triggerConfirmation"
+            @keydown.up.prevent="navigateHistory(-1)"
+            @keydown.down.prevent="navigateHistory(1)"
             ref="input"
           ></textarea>
           <button @click="triggerConfirmation" :disabled="isLoading">Executar</button>
@@ -72,7 +89,6 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
 
-// [MODIFICADO] O seu URL do backend
 const API_URL = 'http://localhost:3000/api/sql-query';
 
 const currentQuery = ref('');
@@ -82,6 +98,9 @@ const output = ref(null);
 const input = ref(null);
 const isConfirmationModalVisible = ref(false);
 const queryToConfirm = ref('');
+const isDangerousQuery = ref(false);
+
+let historyIndex = -1;
 
 onMounted(() => {
   input.value.focus();
@@ -91,6 +110,11 @@ const triggerConfirmation = () => {
   const command = currentQuery.value.trim();
   if (!command || isLoading.value) return;
   queryToConfirm.value = command;
+
+  // Verifica se a query é perigosa
+  const dangerousPatterns = /(DROP|DELETE|TRUNCATE|ALTER|UPDATE)(?!.*WHERE)/i;
+  isDangerousQuery.value = dangerousPatterns.test(command);
+
   isConfirmationModalVisible.value = true;
 };
 
@@ -109,24 +133,23 @@ const handleConfirm = () => {
 async function executeQuery(command) {
   const token = localStorage.getItem('authToken');
   if (!token) {
-      history.value.push({
-          id: Date.now(),
-          command,
-          error: 'Erro de Autenticação: Token não encontrado. Por favor, faça login novamente.'
-      });
-      return;
+    history.value.push({
+      id: Date.now(),
+      command,
+      error: '❌ Erro de Autenticação: Token não encontrado. Por favor, faça login novamente.'
+    });
+    return;
   }
 
   isLoading.value = true;
   const historyId = Date.now();
-  // [MODIFICADO] Adicionamos uma propriedade para controlar a mensagem de "cold start"
   history.value.push({ id: historyId, command, loading: true, showColdStartMessage: false });
   currentQuery.value = '';
+  historyIndex = -1; // reseta navegação do histórico
 
   await nextTick();
   output.value.scrollTop = output.value.scrollHeight;
 
-  // [NOVO] Lógica para exibir a mensagem de "cold start" após 4 segundos
   const coldStartTimer = setTimeout(() => {
     const historyEntry = history.value.find(h => h.id === historyId);
     if (historyEntry && historyEntry.loading) {
@@ -134,14 +157,13 @@ async function executeQuery(command) {
     }
   }, 4000);
 
-  // [NOVO] Lógica de timeout para o fetch
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000); // Timeout de 90 segundos
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
 
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
-      signal: controller.signal, // Adiciona o controller de timeout
+      signal: controller.signal,
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -160,13 +182,13 @@ async function executeQuery(command) {
   } catch (err) {
     const historyEntry = history.value.find(h => h.id === historyId);
     if (err.name === 'AbortError') {
-      historyEntry.error = 'Erro: O pedido demorou demasiado tempo a responder (timeout). O servidor pode estar offline ou sobrecarregado.';
+      historyEntry.error = '⏳ Timeout: O pedido demorou demasiado tempo a responder.';
     } else {
-      historyEntry.error = err.message;
+      historyEntry.error = `❌ ${err.message}`;
     }
   } finally {
-    clearTimeout(coldStartTimer); // Limpa o timer da mensagem
-    clearTimeout(timeoutId);     // Limpa o timer do timeout
+    clearTimeout(coldStartTimer);
+    clearTimeout(timeoutId);
     const historyEntry = history.value.find(h => h.id === historyId);
     if(historyEntry) historyEntry.loading = false;
     isLoading.value = false;
@@ -176,14 +198,41 @@ async function executeQuery(command) {
     input.value.focus();
   }
 }
+
+// Navegação pelo histórico com setas ↑ ↓
+function navigateHistory(direction) {
+  if (history.value.length === 0) return;
+
+  if (historyIndex === -1) {
+    historyIndex = history.value.length;
+  }
+
+  historyIndex += direction;
+
+  if (historyIndex < 0) historyIndex = 0;
+  if (historyIndex >= history.value.length) {
+    historyIndex = history.value.length;
+    currentQuery.value = '';
+    return;
+  }
+
+  currentQuery.value = history.value[historyIndex].command;
+}
 </script>
 
 <style scoped>
 .cold-start-warning {
   font-size: 0.8em;
-  color: #f1c40f; /* amarelo */
+  color: #f1c40f;
   margin-top: 5px;
-  padding-left: 0;
+}
+.danger-warning {
+  font-size: 0.9em;
+  color: #ff6b6b;
+  margin-top: 10px;
+  background: rgba(255,0,0,0.1);
+  padding: 8px;
+  border-radius: 4px;
 }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
@@ -195,9 +244,9 @@ async function executeQuery(command) {
 .btn-cancel { background-color: #555; color: white; }
 .btn-confirm { background-color: #e53935; color: white; }
 .main-header-bar { background-color: white; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; }
-.content-section { padding: 2rem; }
-.sql-terminal { font-family: 'Courier New', Courier, monospace; background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 600px; margin-top: 1rem; }
-.terminal-output { flex-grow: 1; overflow-y: auto; padding: 10px; }
+/* .content-section { padding: 2rem; height: 60%;} */
+.sql-terminal { font-family: 'Courier New', Courier, monospace; background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #333; border-radius: 4px; display: flex; flex-direction: column; height: 400px; margin-top: 1rem;  }
+.terminal-output { flex-grow: 1; overflow-y: auto; padding: 10px;} 
 .history-item { margin-bottom: 15px; }
 .prompt { color: #6a9955; margin-right: 8px; }
 .command-text { color: #9cdcfe; }
