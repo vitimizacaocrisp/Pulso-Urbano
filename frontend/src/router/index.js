@@ -14,6 +14,8 @@ import AdminLogin from "@/views/admin/AdminLogin.vue";
 
 // --- Views aninhadas de "Análises" ---
 import Analises from "@/views/Analises.vue"; // A página principal que lista as análises
+import AnalysisDetailView from "../views/analises/AnalysisDetailView.vue"; // Detalhes de uma análise específica
+
 import AnalisePNAD2009 from '../views/analises/AnalisePNAD2009.vue';
 import AnaliseDatafolha2010 from '../views/analises/AnaliseDatafolha2010.vue';
 import AnaliseEscolas2006 from '../views/analises/AnaliseEscolas2006.vue';
@@ -69,6 +71,11 @@ const routes = [
     component: AnalisesLayout, // Usa o novo layout como componente pai
     meta: { requiresAuth: true },
     children: [
+      {
+        path: ':id', // URL: /analises/1, /analises/2, etc.
+        name: 'AnalysisDetail',
+        component: AnalysisDetailView,
+      },
       {
         path: '', // URL: /analises
         name: 'Analises',

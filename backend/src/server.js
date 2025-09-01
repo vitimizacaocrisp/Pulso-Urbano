@@ -12,8 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
-//app.use(express.static(path.join(__dirname, 'public'))); // Middleware para arquivos estáticos
+app.use('/src/uploads', express.static('src/uploads')); // Serve arquivos estáticos da pasta 'uploads'
+app.use('/uploads', express.static('src/uploads')); // Serve arquivos estáticos da pasta 'uploads'
 
 // 4. Usa o arquivo de rotas
 // Todas as requisições serão gerenciadas pelo mainRoutes

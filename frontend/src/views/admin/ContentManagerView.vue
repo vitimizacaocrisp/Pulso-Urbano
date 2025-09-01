@@ -139,7 +139,9 @@ import { marked } from 'marked';
 const isPreviewMode = ref(false);
 const imageUploader = ref(null);
 const contentTextArea = ref(null);
-const isUploadingImage = ref(false);
+
+// [REMOVIDO] Já não precisamos de um estado de loading para o upload individual
+// const isUploadingImage = ref(false);
 
 const newAnalysis = ref({
   title: '',
@@ -153,6 +155,9 @@ const newAnalysis = ref({
   documentFile: null,
   dataFile: null,
 });
+
+// [MODIFICADO] Esta variável irá agora guardar os ficheiros de imagem do conteúdo para serem enviados mais tarde
+const contentImages = ref(new Map());
 
 const imagePreviewUrl = ref('');
 const isLoading = ref(false);
@@ -169,7 +174,6 @@ const isFormInvalid = computed(() => {
   return !newAnalysis.value.title || !newAnalysis.value.tag || !newAnalysis.value.description || !newAnalysis.value.content || !newAnalysis.value.author || !newAnalysis.value.researchDate;
 });
 
-// Esta função agora será chamada corretamente pelo template
 const handleFileSelection = (event, fieldName) => {
     const file = event.target.files[0];
     if (!file) {
@@ -183,62 +187,64 @@ const handleFileSelection = (event, fieldName) => {
 
 const triggerImageUpload = () => { imageUploader.value.click(); };
 
-const uploadAndInsertImage = async (event) => {
+// [CORRIGIDO] Esta função foi totalmente reescrita. Agora ela NÃO faz o upload.
+const uploadAndInsertImage = (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    isUploadingImage.value = true;
-    const formData = new FormData();
-    formData.append('image', file);
-    try {
-        const token = localStorage.getItem('authToken');
-        const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/api/admin/upload-image`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData,
-        });
-        if (!response.ok) throw new Error('Falha no upload da imagem.');
-        const result = await response.json();
-        const imageUrl = `${apiUrl}${result.url}`;
-        const imageMarkdown = `\n![Descrição da imagem](${imageUrl})\n`;
-        const textarea = contentTextArea.value;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = newAnalysis.value.content;
-        newAnalysis.value.content = text.substring(0, start) + imageMarkdown + text.substring(end);
-    } catch (err) {
-        feedback.value = { message: err.message, type: 'error' };
-        setTimeout(() => { feedback.value = { message: '', type: '' } }, 5000);
-    } finally {
-        isUploadingImage.value = false;
-        event.target.value = null;
-    }
+
+    // 1. Criar um placeholder único para a imagem
+    const placeholderId = `contentImage_${Date.now()}_${file.name}`;
+    
+    // 2. Guardar o ficheiro no nosso Map, associado ao seu placeholder
+    contentImages.value.set(placeholderId, file);
+
+    // 3. Criar a tag Markdown com o placeholder em vez de um URL real
+    const imageMarkdown = `\n![${file.name}](${placeholderId})\n`;
+    
+    // 4. Inserir a tag na posição do cursor na textarea
+    const textarea = contentTextArea.value;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = newAnalysis.value.content;
+    newAnalysis.value.content = text.substring(0, start) + imageMarkdown + text.substring(end);
+
+    // 5. Limpar o input para permitir selecionar o mesmo ficheiro novamente
+    event.target.value = null;
 };
 
 const resetForm = () => {
     newAnalysis.value = { title: '', tag: '', author: '', researchDate: '', description: '', content: '', referenceLinks: '', coverImage: null, documentFile: null, dataFile: null };
     imagePreviewUrl.value = '';
+    contentImages.value.clear(); // Limpa também o Map de imagens
     document.getElementById('coverImage').value = null;
     document.getElementById('documentFile').value = null;
     document.getElementById('dataFile').value = null;
 };
 
+// [CORRIGIDO] Esta função agora envia as imagens do conteúdo juntamente com o resto dos dados
 const publishAnalysis = async () => {
   if (isFormInvalid.value) return;
   isLoading.value = true;
   feedback.value = { message: '', type: '' };
+  
   const formData = new FormData();
+  
+  // Adiciona os campos de texto
   formData.append('title', newAnalysis.value.title);
   formData.append('tag', newAnalysis.value.tag);
   formData.append('author', newAnalysis.value.author);
   formData.append('researchDate', newAnalysis.value.researchDate);
   formData.append('description', newAnalysis.value.description);
-  formData.append('content', newAnalysis.value.content);
+  formData.append('content', newAnalysis.value.content); // O conteúdo com os placeholders
   formData.append('referenceLinks', newAnalysis.value.referenceLinks);
+
+  // Adiciona os ficheiros de anexo
   if (newAnalysis.value.coverImage) formData.append('coverImage', newAnalysis.value.coverImage);
   if (newAnalysis.value.documentFile) formData.append('documentFile', newAnalysis.value.documentFile);
   if (newAnalysis.value.dataFile) formData.append('dataFile', newAnalysis.value.dataFile);
-  
+
+  // Adiciona todas as imagens do conteúdo ao FormData
+  // A chave de cada ficheiro é o seu placeholder, que o backend usará para fazer a substituição
   for (const [placeholderId, file] of contentImages.value.entries()) {
     formData.append(placeholderId, file);
   }
@@ -246,18 +252,22 @@ const publishAnalysis = async () => {
   try {
     const token = localStorage.getItem('authToken');
     const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+    
     const response = await fetch(`${apiUrl}/api/admin/analyses`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData,
     });
+    
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Falha ao publicar a análise.');
     }
+    
     const result = await response.json();
     feedback.value = { message: result.message, type: 'success' };
     resetForm();
+
   } catch (err) {
     feedback.value = { message: err.message, type: 'error' };
   } finally {
@@ -265,8 +275,6 @@ const publishAnalysis = async () => {
     setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
   }
 };
-
-const contentImages = ref(new Map());
 </script>
 
 <style scoped>

@@ -106,28 +106,51 @@ router.post(
   verifyToken,
   upload.any(),
   asyncHandler(async (req, res) => {
-    // [MODIFICADO] Extrai os novos campos do req.body
+    // --- [DEBUG] Início do Processo ---
+    console.log('----------------------------------------------------');
+    console.log(`[DEBUG] Nova análise recebida do utilizador: ${req.user.email}`);
+    console.debug('[DEBUG] Corpo da requisição (texto):', req.body);
+    console.debug('[DEBUG] Ficheiros recebidos:', req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname })));
+
+    // Extrai os campos de texto do req.body
     let { title, tag, author, researchDate, description, content, referenceLinks } = req.body;
     
-    // ... (lógica de processamento dos ficheiros permanece a mesma) ...
+    // --- [NOVO] Validação de Campos Obrigatórios ---
+    if (!title || !content || !author || !researchDate || !tag || !description) {
+      // Retorna um erro 400 (Bad Request) se faltar um campo essencial
+      return res.status(400).json({ success: false, message: 'Erro de validação: Todos os campos marcados com * são obrigatórios.' });
+    }
+
+    // Separa os ficheiros de anexo dos ficheiros de conteúdo
     const coverImageFile = req.files.find(f => f.fieldname === 'coverImage');
     const documentFileFile = req.files.find(f => f.fieldname === 'documentFile');
     const dataFileFile = req.files.find(f => f.fieldname === 'dataFile');
 
+    // Normaliza os caminhos dos ficheiros para serem usados como URL
     const coverImagePath = coverImageFile ? coverImageFile.path.replace(/\\/g, '/') : null;
     const documentFilePath = documentFileFile ? documentFileFile.path.replace(/\\/g, '/') : null;
     const dataFilePath = dataFileFile ? dataFileFile.path.replace(/\\/g, '/') : null;
 
+    // --- [DEBUG] Processamento das Imagens do Conteúdo ---
     const contentImageFiles = req.files.filter(f => f.fieldname.startsWith('contentImage_'));
     if (contentImageFiles.length > 0) {
+      console.log(`[DEBUG] Encontradas ${contentImageFiles.length} imagens de conteúdo para processar.`);
       for (const file of contentImageFiles) {
         const placeholder = file.fieldname;
         const publicUrl = `/${file.path.replace(/\\/g, '/')}`;
+        
+        // Substitui o placeholder no texto pelo URL final da imagem
         content = content.replace(placeholder, publicUrl);
+        console.debug(`[DEBUG] Placeholder "${placeholder}" substituído por "${publicUrl}"`);
       }
+    } else {
+        console.log('[DEBUG] Nenhuma imagem de conteúdo para processar.');
     }
-    
-    // [MODIFICADO] Query de INSERT atualizada com as novas colunas
+
+    // --- [DEBUG] Query Final para a Base de Dados ---
+    console.log('[DEBUG] A executar a query de INSERT na base de dados...');
+    console.debug('[DEBUG] Conteúdo final a ser guardado:', content.substring(0, 100) + '...'); // Mostra um excerto do conteúdo
+
     const result = await sql`
       INSERT INTO analyses (
         title, tag, author, research_date, description, content, reference_links, 
@@ -140,6 +163,11 @@ router.post(
     `;
 
     const newId = result[0]?.id;
+
+    // --- [DEBUG] Conclusão do Processo ---
+    console.log(`[DEBUG] ✅ Conclusão: Análise "${title}" guardada com sucesso! Novo ID: ${newId}`);
+    console.log('----------------------------------------------------\n');
+    
     res.status(201).json({ 
       success: true, 
       message: `Análise "${title}" publicada com sucesso!`,
@@ -148,15 +176,48 @@ router.post(
   })
 );
 
+// Rota para buscar a lista de análises com suporte a pesquisa e paginação
 router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res) => {
-  // Selecionamos apenas os campos necessários para a lista de pesquisa
-  const result = await sql`
-    SELECT id, title, tag, author, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date 
-    FROM analyses 
-    ORDER BY created_at DESC
-  `;
+  // Obtém os parâmetros do URL ou usa valores padrão
+  const searchTerm = req.query.search || '';
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const page = parseInt(req.query.page, 10) || 1;
+  const offset = (page - 1) * limit;
+
+  // Usa Promise.all para executar a busca dos dados e a contagem total em paralelo
+  const [analysesResult, totalResult] = await Promise.all([
+    // Query para buscar as análises da página atual, filtrando pelo termo de pesquisa
+    sql`
+      SELECT id, title, tag, author, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date, description
+      FROM analyses 
+      WHERE 
+        title ILIKE ${'%' + searchTerm + '%'} OR
+        tag ILIKE ${'%' + searchTerm + '%'} OR
+        author ILIKE ${'%' + searchTerm + '%'}
+      ORDER BY created_at DESC 
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    // Query para contar o número total de resultados que correspondem à pesquisa
+    sql`
+      SELECT COUNT(*) 
+      FROM analyses
+      WHERE 
+        title ILIKE ${'%' + searchTerm + '%'} OR
+        tag ILIKE ${'%' + searchTerm + '%'} OR
+        author ILIKE ${'%' + searchTerm + '%'}
+    `
+  ]);
   
-  res.json({ success: true, data: result });
+  const total = parseInt(totalResult[0].count, 10);
+  
+  // Retorna os dados da página e o total de resultados
+  res.json({ 
+    success: true, 
+    data: {
+      analyses: analysesResult,
+      total: total
+    } 
+  });
 }));
 
 // Rota para BUSCAR uma análise específica por ID
@@ -173,27 +234,48 @@ router.get('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res)
 
 
 // Rota para ATUALIZAR uma análise
-// (Esta é uma versão simplificada. Uma versão completa lidaria com a exclusão de ficheiros antigos)
 router.put(
   '/api/admin/analyses/:id', 
   verifyToken, 
-  upload.fields([ /* ... mesma config da Multer ... */ ]), 
+  upload.any(), // Usamos .any() para lidar com os placeholders dinâmicos das imagens
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { title, tag, description, content, externalLink } = req.body;
+    let { title, tag, author, research_date, description, content, reference_links } = req.body;
     
-    // NOTA: Para uma implementação profissional, aqui você adicionaria a lógica
-    // para verificar se novos ficheiros foram enviados, apagar os antigos do servidor
-    // e só então atualizar os caminhos na base de dados.
+    // NOTA: Uma implementação completa aqui também apagaria os ficheiros antigos do servidor se eles forem substituídos.
+    // Esta versão foca-se em guardar os novos dados.
+
+    // Separa os ficheiros de anexo dos ficheiros de conteúdo
+    const newCoverImageFile = req.files.find(f => f.fieldname === 'newCoverImage');
+    // ... encontre outros ficheiros de anexo da mesma forma ...
+
+    // Se um novo ficheiro de capa foi enviado, atualiza o caminho, senão mantém o antigo (que vem no body)
+    const coverImagePath = newCoverImageFile 
+      ? newCoverImageFile.path.replace(/\\/g, '/') 
+      : req.body.cover_image_path; // Mantém o valor existente se não for substituído
+
+    // Processa as *novas* imagens inseridas no conteúdo
+    const contentImageFiles = req.files.filter(f => f.fieldname.startsWith('contentImage_'));
+    if (contentImageFiles.length > 0) {
+      for (const file of contentImageFiles) {
+        const placeholder = file.fieldname;
+        const publicUrl = `/${file.path.replace(/\\/g, '/')}`;
+        content = content.replace(placeholder, publicUrl);
+      }
+    }
     
     await sql`
       UPDATE analyses 
       SET 
         title = ${title}, 
         tag = ${tag}, 
+        author = ${author}, 
+        research_date = ${research_date}, 
         description = ${description}, 
         content = ${content}, 
-        external_link = ${externalLink}
+        reference_links = ${reference_links},
+        cover_image_path = ${coverImagePath}
+        -- adicione outras colunas de ficheiros aqui
       WHERE id = ${id}
     `;
     

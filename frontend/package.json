@@ -11,6 +11,7 @@
     "axios": "^1.7.2",
     "chart.js": "^4.4.3",
     "core-js": "^3.37.1",
+    "dompurify": "^3.2.6",
     "marked": "^16.2.1",
     "vue": "^3.4.31",
     "vue-router": "^4.4.0"
@@ -24,7 +25,9 @@
     "@vue/cli-service": "~5.0.8",
     "@vue/compiler-sfc": "^3.4.31",
     "eslint": "^8.57.0",
-    "eslint-plugin-vue": "^9.27.0"
+    "eslint-plugin-vue": "^9.27.0",
+    "less": "^4.4.1",
+    "less-loader": "^12.3.0"
   },
   "eslintConfig": {
     "root": true,
