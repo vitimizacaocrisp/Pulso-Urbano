@@ -78,15 +78,21 @@ marked.use({
   }
 });
 
+// [CORRIGIDO] A propriedade computada agora processa tanto Markdown quanto HTML
 const renderedContent = computed(() => {
     if (!analysis.value?.content) return '';
-    
+
     let processedContent = analysis.value.content;
 
-    // Garante que todas as imagens no conteúdo tenham o URL completo do backend
-    const relativeImagePathRegex = /(<img[^>]*src=")(\/uploads\/.*?)"/g;
-    processedContent = processedContent.replace(relativeImagePathRegex, `$1${API_BASE_URL}$2"`);
+    // 1. Encontra e corrige os caminhos de imagem em formato MARKDOWN `![...](/uploads/...)`
+    const markdownRegex = /(!\[.*?\]\()(\/src\/uploads\/.*?)\)/g;
+    processedContent = processedContent.replace(markdownRegex, `$1${API_BASE_URL}$2)`);
+
+    // 2. Encontra e corrige os caminhos de imagem em formato HTML `<img src="/uploads/...">`
+    const htmlRegex = /(<img[^>]*src=")(\/src\/uploads\/.*?)"/g;
+    processedContent = processedContent.replace(htmlRegex, `$1${API_BASE_URL}$2"`);
     
+    // Agora, com todos os caminhos corrigidos, renderiza o conteúdo
     return marked(processedContent);
 });
 
@@ -104,17 +110,13 @@ onMounted(async () => {
   }
   
   try {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken'); // Assumindo que a rota ainda é protegida
     const response = await fetch(`${API_BASE_URL}/api/admin/analyses/${analysisId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    if (response.status === 404) {
-        throw new Error('Análise não encontrada.');
-    }
-    if (!response.ok) {
-        throw new Error('Falha ao carregar os dados da análise.');
-    }
+    if (response.status === 404) throw new Error('Análise não encontrada.');
+    if (!response.ok) throw new Error('Falha ao carregar os dados da análise.');
     
     const result = await response.json();
     analysis.value = result.data;
@@ -128,175 +130,210 @@ onMounted(async () => {
 </script>
 <style lang="less" scoped>
 :root {
-  --admin-primary-color: #007bff;
-  --admin-text-color: #212529;
-  --admin-text-light: #6c757d;
+  --admin-primary-color: #2563eb; /* azul formal */
+  --admin-primary-hover: #1e40af;
+  --admin-text-color: #1f2937; /* cinza escuro */
+  --admin-text-light: #4b5563; 
   --admin-surface-color: #ffffff;
-  --admin-border-color: #dee2e6;
-  --admin-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --admin-border-color: #e5e7eb;
+  --admin-bg-color: #f9fafb;
+  --admin-font-family: Georgia, 'Times New Roman', serif; /* tipografia mais acadêmica */
   --border-radius: 8px;
-  --box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
 
-/* --- Layout Principal da Pré-visualização --- */
+/* --- Área principal --- */
 .content-section {
   padding: 2rem;
-  background-color: #f4f6f8; /* Fundo do admin */
+  background-color: var(--admin-bg-color);
 }
 
 .article-preview-container {
-  max-width: 800px; /* Largura otimizada para leitura */
+  max-width: 960px; /* maior largura para leitura */
   margin: 0 auto;
   background-color: var(--admin-surface-color);
-  padding: 3rem;
+  padding: 3rem 4rem;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   font-family: var(--admin-font-family);
+  line-height: 1.8;
 }
 
-/* --- Cabeçalho do Artigo --- */
+/* --- Cabeçalho --- */
 .article-header h1 {
-  font-size: 2.5rem;
+  font-size: 2.4rem;
   font-weight: 700;
-  line-height: 1.2;
-  color: var(--admin-text-color);
-  margin-top: 0;
-  margin-bottom: 1rem;
+  text-align: center;
+  line-height: 1.3;
+  margin: 0 0 2rem;
 }
 
 .article-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
+  text-align: center;
+  font-size: 0.95rem;
   color: var(--admin-text-light);
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 2.5rem;
   border-bottom: 1px solid var(--admin-border-color);
-  font-size: 0.9em;
+  padding-bottom: 1.2rem;
 }
 
 .tag-badge {
-  background-color: #e7eefc;
-  color: #0056b3;
-  padding: 0.25rem 0.6rem;
-  border-radius: 15px;
+  background-color: #dbeafe;
+  color: var(--admin-primary-color);
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
-/* --- Corpo do Artigo (Conteúdo Markdown) --- */
+/* --- Corpo --- */
 .article-body {
-  line-height: 1.8;
+  font-size: 1.15rem;
   color: var(--admin-text-color);
-  font-size: 1.1rem;
 }
 
 .article-body :deep(h2),
 .article-body :deep(h3) {
   font-weight: 600;
-  margin-top: 2.5rem;
+  margin-top: 2.2rem;
   margin-bottom: 1.2rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 0.3rem;
 }
 
 .article-body :deep(p) {
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.4rem;
+  text-align: justify;
 }
 
+/* --- Imagens no conteúdo --- */
 .article-body :deep(img) {
-  max-width: 100%;
+  width: 50%;
+  max-width: 500px;
   height: auto;
-  border-radius: var(--border-radius);
-  margin: 1.5rem 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin: 2rem auto;
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  border: 1px solid var(--admin-border-color);
 }
 
+/* Legendas de imagens */
+.article-body :deep(figure) {
+  text-align: center;
+  margin: 2rem auto;
+}
+.article-body :deep(figcaption) {
+  font-size: 0.9rem;
+  color: var(--admin-text-light);
+  margin-top: 0.6rem;
+  font-style: italic;
+}
+
+/* Citações */
 .article-body :deep(blockquote) {
   border-left: 4px solid var(--admin-primary-color);
-  padding-left: 1.5em;
-  margin-left: 0;
+  padding-left: 1.5rem;
+  margin: 2rem 0;
   font-style: italic;
   color: var(--admin-text-light);
 }
 
+/* Listas */
 .article-body :deep(ul),
 .article-body :deep(ol) {
-    padding-left: 1.5em;
+  margin-bottom: 1.5rem;
+  padding-left: 2rem;
 }
 
+/* Código */
 .article-body :deep(pre) {
-  background-color: #f8f9fa;
-  padding: 1em;
-  border-radius: 5px;
-  overflow-x: auto;
+  background-color: #f3f4f6;
+  padding: 1.2rem;
+  border-radius: 6px;
   border: 1px solid var(--admin-border-color);
+  overflow-x: auto;
+  font-size: 0.95rem;
 }
 
+/* Links */
 .article-body :deep(a) {
-    color: var(--admin-primary-color);
-    text-decoration: none;
-    font-weight: 500;
+  color: var(--admin-primary-color);
+  text-decoration: none;
+  font-weight: 500;
 }
-
 .article-body :deep(a:hover) {
-    text-decoration: underline;
-}
-.article-body :deep(img) {
-  width: 60%;
-  max-width: 400px;
-  height: auto;
-  border-radius: var(--border-radius);
-  margin: 1.5rem 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  text-decoration: underline;
+  color: var(--admin-primary-hover);
 }
 
-
-/* --- Rodapé do Artigo (Anexos) --- */
+/* --- Rodapé / Referências --- */
 .article-footer {
   margin-top: 3rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--admin-border-color);
+  border-top: 2px solid var(--admin-border-color);
 }
 
 .article-footer h3 {
-  font-size: 1.2rem;
-  color: var(--admin-text-light);
-  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 1.2rem;
+  font-weight: 600;
+  text-align: left;
 }
 
 .attachment-item {
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
   font-size: 1rem;
 }
 
 .attachment-preview-image {
-  max-width: 250px;
+  max-width: 400px;
   margin-top: 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: 6px;
   border: 1px solid var(--admin-border-color);
-  display: block;
 }
 
-.placeholder-container {
-  text-align: center;
-  padding: 4rem;
-  background-color: #fff;
-  border-radius: 8px;
-  color: #6c757d;
-}
-.placeholder-container.error {
-    color: #dc3545;
-}
-/* --- Responsividade --- */
-@media (max-width: 768px) {
+/* --- Responsividade detalhada --- */
+@media (max-width: 1200px) {
   .article-preview-container {
-    padding: 1.5rem;
+    max-width: 90%;
+    padding: 2.5rem;
   }
+}
+
+@media (max-width: 992px) {
   .article-header h1 {
     font-size: 2rem;
   }
   .article-body {
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .article-preview-container {
+    padding: 1.8rem;
+  }
+  .article-header h1 {
+    font-size: 1.8rem;
+  }
+  .article-body :deep(img) {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .article-preview-container {
+    padding: 1.2rem;
+  }
+  .article-header h1 {
+    font-size: 1.5rem;
+  }
+  .article-body {
     font-size: 1rem;
+  }
+  .article-footer h3 {
+    font-size: 1.1rem;
   }
 }
 

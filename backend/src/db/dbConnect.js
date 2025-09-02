@@ -1,7 +1,7 @@
 import { neon } from '@netlify/neon';
 
 // Inicializa o cliente Neon. Ele usa a connection string da variável de ambiente.
-const sql = neon();
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
 // [MODIFICADO] A nova forma de testar a conexão é executar uma query simples.
 const testConnection = async () => {
