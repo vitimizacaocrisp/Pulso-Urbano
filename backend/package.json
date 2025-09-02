@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "build": "echo \"DATABASE_URL=${DATABASE_URL}\\nJWT_SECRET=${JWT_SECRET}\\nADMIN_EMAIL=${ADMIN_EMAIL}\\nADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}\" > .env"
   },
   "repository": {
     "type": "git",
