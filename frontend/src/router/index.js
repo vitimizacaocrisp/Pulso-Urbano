@@ -13,16 +13,8 @@ import Publicacoes from "@/views/Publicacoes.vue";
 import AdminLogin from "@/views/admin/AdminLogin.vue";
 
 // --- Views aninhadas de "Análises" ---
-import Analises from "@/views/Analises.vue"; // A página principal que lista as análises
+import Analises from "../views/AnalisesView.vue"; // A página principal que lista as análises
 import AnalysisDetailView from "../views/analises/AnalysisDetailView.vue"; // Detalhes de uma análise específica
-
-import AnalisePNAD2009 from '../views/analises/AnalisePNAD2009.vue';
-import AnaliseDatafolha2010 from '../views/analises/AnaliseDatafolha2010.vue';
-import AnaliseEscolas2006 from '../views/analises/AnaliseEscolas2006.vue';
-import PercepcaoSocialMG from '../views/analises/PercepcaoSocialMG.vue';
-import HomicidiosMG from '../views/analises/HomicidiosMG.vue';
-import ViolenciaUrbana from '../views/analises/ViolenciaUrbana.vue';
-import DemografiaPopulacional from '../views/analises/DemografiaPopulacional.vue';
 
 // --- Views aninhadas de "Admin" ---
 import AdminDashboardView from '../views/admin/AdminDashboard.vue';
@@ -80,42 +72,7 @@ const routes = [
         path: '', // URL: /analises
         name: 'Analises',
         component: Analises, // Página que lista todas as análises
-      },
-      {
-        path: 'pnad-2009', // URL: /analises/pnad-2009
-        name: 'AnalisePNAD2009',
-        component: AnalisePNAD2009,
-      },
-      {
-        path: 'datafolha-2010',
-        name: 'AnaliseDatafolha2010',
-        component: AnaliseDatafolha2010,
-      },
-      {
-        path: 'escolas-2006',
-        name: 'AnaliseEscolas2006',
-        component: AnaliseEscolas2006,
-      },
-      {
-        path: 'percepcao-social-mg',
-        name: 'PercepcaoSocialMG',
-        component: PercepcaoSocialMG,
-      },
-      {
-        path: 'homicidios-mg',
-        name: 'HomicidiosMG',
-        component: HomicidiosMG,
-      },
-      {
-        path: 'violencia-urbana',
-        name: 'ViolenciaUrbana',
-        component: ViolenciaUrbana,
-      },
-      {
-        path: 'demografia-populacional',
-        name: 'DemografiaPopulacional',
-        component: DemografiaPopulacional,
-      },
+      }
     ]
   },
 

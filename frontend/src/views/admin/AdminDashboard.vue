@@ -83,6 +83,8 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import Chart from 'chart.js/auto';
 
+const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+
 const router = useRouter();
 const recentAnalyses = ref([]);
 const isLoading = ref(true);
@@ -107,7 +109,7 @@ const fetchDashboardData = async () => {
   
   try {
     // Chama a nova rota do backend
-    const response = await fetch('http://localhost:3000/api/admin/dashboard-data', {
+    const response = await fetch(API_URL+'/api/admin/dashboard-data', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 

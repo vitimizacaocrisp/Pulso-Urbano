@@ -89,7 +89,7 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
 
-const API_URL = 'http://localhost:3000/api/sql-query';
+const API_URL = process.env.VUE_APP_API_URL+'/api/sql-query' || 'http://localhost:3000/api/sql-query';
 
 const currentQuery = ref('');
 const history = ref([]);

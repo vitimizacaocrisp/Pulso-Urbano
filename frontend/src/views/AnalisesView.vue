@@ -52,12 +52,6 @@
   </main>
 </template>
 
-<script>
-export default {
-  name: 'AnalisesView', // Renomeado para seguir a convenção
-};
-</script>
-
 <script setup>
 // [CORRIGIDO] 'useRouter' foi removido porque não estava a ser usado
 import { ref, watch, onMounted, computed } from 'vue';

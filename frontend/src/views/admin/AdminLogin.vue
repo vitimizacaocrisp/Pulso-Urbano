@@ -40,6 +40,8 @@
 // Importamos o Axios para fazer a requisição HTTP
 import axios from 'axios';
 
+const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+
 export default {
   name: 'AdminLoginView',
   data() {
@@ -65,7 +67,7 @@ export default {
 
       try {
         // 6. Fazemos a requisição POST para o backend com os dados
-        const response = await axios.post('https://pulso-urbano-backend.onrender.com/admin-auth', { // Use uma URL de API, ex: /api/...
+        const response = await axios.post(API_URL+'/admin-auth', { // Use uma URL de API, ex: /api/...
           email: this.email,
           password: this.password,
         });
