@@ -1,7 +1,10 @@
-import { neon } from '@netlify/neon';
+import dotenv from "dotenv";
+dotenv.config();
+
+import { neon } from "@neondatabase/serverless";
 
 // Inicializa o cliente Neon. Ele usa a connection string da variável de ambiente.
-const sql = neon(process.env.NETLIFY_DATABASE_URL);
+const sql = neon(process.env.DATABASE_URL);
 
 // [MODIFICADO] A nova forma de testar a conexão é executar uma query simples.
 const testConnection = async () => {
@@ -15,8 +18,15 @@ const testConnection = async () => {
     process.exit(1);
   }
 };
+const requestHandler = async (req, res) => {
+  const result = await sql`SELECT version()`;
+  const { version } = result[0];
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end(version);
+};
 
 export {
   sql,
-  testConnection
+  testConnection,
+  requestHandler
 };

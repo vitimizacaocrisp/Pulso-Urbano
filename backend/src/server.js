@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const { requestHandler } = require('./db/dbConnect');
+
+const PORT = process.env.PORT || 3000;
 
 // 1. Importa o nosso novo arquivo de rotas
 const mainRoutes = require('./routes/routes');
@@ -22,7 +25,9 @@ app.use('/', mainRoutes);
 
 
 // 5. Inicia o Servidor
-const PORT = process.env.PORT || 3000;
+
+app.use(requestHandler);
+
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`Acesse o site em http://localhost:${PORT}`);

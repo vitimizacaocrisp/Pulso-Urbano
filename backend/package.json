@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/vitimizacaocrisp/Pulso-Urbano#readme",
   "dependencies": {
-    "@netlify/neon": "^0.1.0",
+    "@neondatabase/serverless": "^1.0.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
