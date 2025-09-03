@@ -88,33 +88,27 @@ const fetchAnalyses = async (isNewSearch = false) => {
 
   try {
     const token = localStorage.getItem('authToken');
-    const params = new URLSearchParams({
+    const params = {
       search: searchQuery.value,
       page: currentPage.value,
       limit: limit.value
-    });
+    };
 
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
-      params: {
-      search: searchQuery.value,
-      page: currentPage.value,
-      limit: limit.value
-      },
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
+      params
     });
 
-    if (!response.ok) throw new Error('Falha ao carregar as análises.');
-    
-    const result = await response.json();
-    
-    analyses.value = isNewSearch 
-      ? result.data.analyses 
+    const result = response.data;
+
+    analyses.value = isNewSearch
+      ? result.data.analyses
       : [...analyses.value, ...result.data.analyses];
-      
+
     totalAnalyses.value = result.data.total;
 
   } catch (err) {
-    error.value = err.message;
+    error.value = err.response?.data?.message || err.message;
   } finally {
     isLoading.value = false;
     isLoadingMore.value = false;
