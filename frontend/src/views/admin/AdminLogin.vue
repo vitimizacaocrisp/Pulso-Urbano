@@ -67,7 +67,8 @@ export default {
 
       try {
         // 6. Fazemos a requisição POST para o backend com os dados
-        const response = await axios.post(API_URL+'/admin-auth', { // Use uma URL de API, ex: /api/...
+        const response = await axios.post(API_URL+'/admin-auth', 
+        {
           email: this.email,
           password: this.password,
         });

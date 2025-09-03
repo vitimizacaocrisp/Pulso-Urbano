@@ -109,18 +109,13 @@ const fetchDashboardData = async () => {
   }
   
   try {
-    // Chama a nova rota do backend
-    const response = await axios.get(API_URL+'/api/admin/dashboard-data', {
-      headers: { 'Authorization': `Bearer ${token}` }
+    // Chama a nova rota do backend usando axios
+    const response = await axios.get(API_URL + '/api/admin/dashboard-data', {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 15000 // 15 segundos para aguardar a resposta
     });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Erro HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-    const data = result.data;
+    const data = response.data.data;
 
     // Preenche os refs com os dados reais do backend
     recentAnalyses.value = data.recentAnalyses;
@@ -130,7 +125,7 @@ const fetchDashboardData = async () => {
     createChart(data.chartData);
 
   } catch (err) {
-    if (err.message.includes('Token')) {
+    if (err.response && err.response.data && err.response.data.message && err.response.data.message.includes('Token')) {
       error.value = 'A sua sessão expirou. Por favor, faça login novamente.';
       setTimeout(() => router.push({ name: 'AdminLogin' }), 3000);
     } else {
