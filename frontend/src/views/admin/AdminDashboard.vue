@@ -81,6 +81,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import Chart from 'chart.js/auto';
 
 const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
@@ -109,7 +110,7 @@ const fetchDashboardData = async () => {
   
   try {
     // Chama a nova rota do backend
-    const response = await fetch(API_URL+'/api/admin/dashboard-data', {
+    const response = await axios.get(API_URL+'/api/admin/dashboard-data', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
