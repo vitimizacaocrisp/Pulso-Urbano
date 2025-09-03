@@ -55,6 +55,7 @@
 <script setup>
 // [CORRIGIDO] 'useRouter' foi removido porque não estava a ser usado
 import { ref, watch, onMounted, computed } from 'vue';
+import axios from 'axios';
 
 // [CORRIGIDO] A variável 'router' foi removida
 // const router = useRouter(); 
@@ -93,7 +94,12 @@ const fetchAnalyses = async (isNewSearch = false) => {
       limit: limit.value
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/analyses-list?${params.toString()}`, {
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
+      params: {
+      search: searchQuery.value,
+      page: currentPage.value,
+      limit: limit.value
+      },
       headers: { 'Authorization': `Bearer ${token}` }
     });
 

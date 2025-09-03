@@ -88,6 +88,7 @@
 
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
+import axios from 'axios';
 
 const API_URL = process.env.VUE_APP_API_URL+'/api/sql-query' || 'http://localhost:3000/api/sql-query';
 
@@ -161,15 +162,18 @@ async function executeQuery(command) {
   const timeoutId = setTimeout(() => controller.abort(), 90000);
 
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 
+    const response = await axios.post(
+      API_URL,
+      { query: command },
+      {
+      headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ query: command }),
-    });
+      timeout: 90000, // 90 seconds timeout
+      signal: controller.signal
+      }
+    );
 
     const data = await response.json();
     const historyEntry = history.value.find(h => h.id === historyId);

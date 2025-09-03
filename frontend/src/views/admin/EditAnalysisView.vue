@@ -218,6 +218,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { marked } from 'marked';
+import axios from 'axios';
 
 // --- Refs para Elementos do DOM ---
 const contentTextArea = ref(null);
@@ -320,8 +321,9 @@ const loadAllAnalyses = async () => {
   isLoading.value = true;
   try {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/api/admin/analyses-list`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 30000 // 30 segundos para aguardar a resposta
     });
     if (!response.ok) throw new Error('Falha ao carregar a lista de análises.');
     const result = await response.json();
@@ -346,8 +348,9 @@ const selectAnalysis = async (analysis) => {
   feedback.value = { message: '', type: '' };
   try {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/api/admin/analyses/${analysis.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses/${analysis.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 30000 // 30 segundos para aguardar a resposta
     });
     if (!response.ok) throw new Error('Falha ao carregar os dados completos da análise.');
     const result = await response.json();
@@ -407,11 +410,18 @@ const updateAnalysis = async () => {
 
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/admin/analyses/${currentAnalysis.value.id}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData,
-        });
+        const response = await axios.put(
+            `${API_BASE_URL}/api/admin/analyses/${currentAnalysis.value.id}`,
+            formData,
+            {
+          headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+          },
+          timeout: 30000 // 30 segundos para aguardar a resposta
+            }
+        );
+
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.message || 'Falha ao atualizar a análise.');
@@ -434,10 +444,13 @@ const confirmDelete = async () => {
     isDeleteModalVisible.value = false;
     try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/api/admin/analyses/${currentAnalysis.value.id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await axios.delete(
+            `${API_BASE_URL}/api/admin/analyses/${currentAnalysis.value.id}`,
+            {
+          headers: { 'Authorization': `Bearer ${token}` },
+          timeout: 30000 // 30 segundos para aguardar a resposta
+            }
+        );
         if (!response.ok) throw new Error('Falha ao excluir a análise.');
         const result = await response.json();
         setFeedback(result.message, 'success');

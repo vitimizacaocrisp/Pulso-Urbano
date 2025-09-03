@@ -135,6 +135,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { marked } from 'marked';
+import axios from 'axios';
 
 const isPreviewMode = ref(false);
 const imageUploader = ref(null);
@@ -253,11 +254,17 @@ const publishAnalysis = async () => {
     const token = localStorage.getItem('authToken');
     const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
     
-    const response = await fetch(`${apiUrl}/api/admin/analyses`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData,
-    });
+    const response = await axios.post(
+      `${apiUrl}/api/admin/analyses`,
+      formData,
+      {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 30000 // 30 segundos para aguardar a resposta
+      }
+    );
     
     if (!response.ok) {
       const errorData = await response.json();
