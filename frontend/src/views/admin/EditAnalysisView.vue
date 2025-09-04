@@ -325,9 +325,9 @@ const loadAllAnalyses = async () => {
       headers: { 'Authorization': `Bearer ${token}` },
       timeout: 30000 // 30 segundos para aguardar a resposta
     });
-    if (!response.ok) throw new Error('Falha ao carregar a lista de análises.');
 
-    const result = await response.json();
+    // Axios não tem .ok, então removemos essa checagem
+    const result = response.data;
     // Garante que o array de análises seja sempre um array válido
     const analysesArray = Array.isArray(result.data?.analyses)
       ? result.data.analyses
@@ -360,11 +360,14 @@ const selectAnalysis = async (analysis) => {
       headers: { 'Authorization': `Bearer ${token}` },
       timeout: 30000 // 30 segundos para aguardar a resposta
     });
-    if (!response.ok) throw new Error('Falha ao carregar os dados completos da análise.');
-    const result = await response.json();
-    currentAnalysis.value = result.data;
+    if (!response.data || !response.data.data) throw new Error('Falha ao carregar os dados completos da análise.');
+    currentAnalysis.value = response.data.data;
   } catch (err) {
-    setFeedback(err.message, 'error');
+    if (err.response && err.response.status === 401) {
+      setFeedback('Não autorizado. Faça login novamente.', 'error');
+    } else {
+      setFeedback(err.message, 'error');
+    }
   } finally {
     isLoading.value = false;
   }

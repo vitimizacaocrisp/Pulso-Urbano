@@ -179,6 +179,7 @@ router.post(
 // Rota para buscar a lista de análises com suporte a pesquisa e paginação
 router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   // Obtém os parâmetros do URL ou usa valores padrão
+  testConnection(); // testa conexão ao iniciar
   const searchTerm = req.query.search || '';
   const limit = parseInt(req.query.limit, 10) || 20;
   const page = parseInt(req.query.page, 10) || 1;

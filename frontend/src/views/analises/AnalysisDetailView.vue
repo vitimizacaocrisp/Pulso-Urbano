@@ -118,10 +118,8 @@ onMounted(async () => {
     });
     
     if (response.status === 404) throw new Error('Análise não encontrada.');
-    if (!response.ok) throw new Error('Falha ao carregar os dados da análise.');
     
-    const result = await response.json();
-    analysis.value = result.data;
+    analysis.value = response.data.data;
 
   } catch (err) {
     error.value = err.message;

@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-// [CORRIGIDO] 'useRouter' foi removido porque não estava a ser usado
+// 'useRouter' foi removido porque não estava a ser usado
 import { ref, watch, onMounted, computed } from 'vue';
 import axios from 'axios';
 
