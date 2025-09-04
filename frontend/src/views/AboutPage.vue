@@ -17,7 +17,7 @@ export default {
   },
   methods: {
     async carregarUsuarios() {
-      const res = await fetch("http://localhost:3000/");
+      const res = await fetch(process.env.VUE_APP_API_URL || "http://localhost:3000/");
       this.users = await res.json();
     }
   }

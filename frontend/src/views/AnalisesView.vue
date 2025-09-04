@@ -55,6 +55,7 @@
 <script setup>
 // [CORRIGIDO] 'useRouter' foi removido porque não estava a ser usado
 import { ref, watch, onMounted, computed } from 'vue';
+import axios from 'axios';
 
 // [CORRIGIDO] A variável 'router' foi removida
 // const router = useRouter(); 
@@ -87,28 +88,27 @@ const fetchAnalyses = async (isNewSearch = false) => {
 
   try {
     const token = localStorage.getItem('authToken');
-    const params = new URLSearchParams({
+    const params = {
       search: searchQuery.value,
       page: currentPage.value,
       limit: limit.value
+    };
+
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      params
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/analyses-list?${params.toString()}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const result = response.data;
 
-    if (!response.ok) throw new Error('Falha ao carregar as análises.');
-    
-    const result = await response.json();
-    
-    analyses.value = isNewSearch 
-      ? result.data.analyses 
+    analyses.value = isNewSearch
+      ? result.data.analyses
       : [...analyses.value, ...result.data.analyses];
-      
+
     totalAnalyses.value = result.data.total;
 
   } catch (err) {
-    error.value = err.message;
+    error.value = err.response?.data?.message || err.message;
   } finally {
     isLoading.value = false;
     isLoadingMore.value = false;

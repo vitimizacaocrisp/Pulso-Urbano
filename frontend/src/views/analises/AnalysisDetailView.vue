@@ -59,6 +59,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import axios from 'axios';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -111,8 +112,9 @@ onMounted(async () => {
   
   try {
     const token = localStorage.getItem('authToken'); // Assumindo que a rota ainda é protegida
-    const response = await fetch(`${API_BASE_URL}/api/admin/analyses/${analysisId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses/${analysisId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      timeout: 30000 // 30 segundos para aguardar a resposta
     });
     
     if (response.status === 404) throw new Error('Análise não encontrada.');
