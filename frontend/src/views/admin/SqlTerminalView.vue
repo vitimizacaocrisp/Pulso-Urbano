@@ -174,21 +174,20 @@ async function executeQuery(command) {
       }
     );
 
+    console.log(response);
+
     const data = response.data;
     const historyEntry = history.value.find(h => h.id === historyId);
 
     if (response.status === 200 && data.success) {
       historyEntry.result = data.data;
     } else {
-      historyEntry.error = data.error || `Erro HTTP ${response.status}`;
+      throw new Error(data.error || `Erro HTTP ${response.status}`);
     }
   } catch (err) {
     const historyEntry = history.value.find(h => h.id === historyId);
     if (axios.isCancel(err)) {
       historyEntry.error = err.message;
-    } else if (err.response) {
-      // Mostra detalhes do erro do backend
-      historyEntry.error = `❌ Erro ${err.response.status}: ${err.response.data && err.response.data.error ? err.response.data.error : err.response.statusText}`;
     } else {
       historyEntry.error = `❌ ${err.message}`;
     }
