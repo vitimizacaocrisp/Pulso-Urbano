@@ -1,23 +1,23 @@
 <template>
   <div class="dashboard-body">
     <div class="dashboard-container">
-      
+      <!-- Sidebar (desktop) -->
       <aside class="dashboard-sidebar">
         <div class="sidebar-header">
           <span>Painel Admin</span>
         </div>
 
-        <nav class="sidebar-nav" id="mainNavMenu">
+        <nav class="sidebar-nav">
           <ul>
-            <li><router-link :to="{ name: 'AdminDashboard' }">Início</router-link></li>
-            <li><router-link :to="{ name: 'ContentManager' }">Nova Análise</router-link></li>
-            <li><router-link :to="{ name: 'EditAnalysis' }">Editar / Excluir Análise</router-link></li>
-            <li><router-link :to="{ name: 'SqlTerminal' }">Terminal SQL</router-link></li>
+            <li><router-link :to="{ name: 'AdminDashboard' }"><Icon icon="mdi:view-dashboard" /> Início</router-link></li>
+            <li><router-link :to="{ name: 'ContentManager' }"><Icon icon="mdi:plus-circle" /> Nova Análise</router-link></li>
+            <li><router-link :to="{ name: 'EditAnalysis' }"><Icon icon="mdi:pencil" /> Editar / Excluir</router-link></li>
+            <li><router-link :to="{ name: 'SqlTerminal' }"><Icon icon="mdi:terminal" /> Terminal SQL</router-link></li>
           </ul>
         </nav>
 
         <div class="sidebar-footer">
-          <button @click="logout" class="btn-logout">Sair</button>
+          <button @click="logout" class="btn-logout"><Icon icon="mdi:logout" /> Sair</button>
         </div>
       </aside>
 
@@ -26,99 +26,71 @@
       </main>
     </div>
 
-    <div class="mobile-floating-menu" id="mobileFloatingMenu">
-      <button id="mobileMenuToggle" class="menu-toggle-btn">
-        <span class="icon">&#9881;</span>
-      </button>
-      <div class="menu-items-wrapper">
-        <router-link :to="{ name: 'AdminDashboard' }" class="menu-item" title="Início" @click="closeMobileMenu"><span class="icon">🏠</span></router-link>
-        <router-link :to="{ name: 'ContentManager' }" class="menu-item" title="Nova Análise" @click="closeMobileMenu"><span class="icon">➕</span></router-link>
-        <router-link :to="{ name: 'EditAnalysis' }" class="menu-item" title="Editar Análise" @click="closeMobileMenu"><span class="icon">📝</span></router-link>
-        <router-link :to="{ name: 'SqlTerminal' }" class="menu-item" title="Terminal SQL" @click="closeMobileMenu"><span class="icon">💻</span></router-link>
-        <button @click="logoutAndCloseMenu" class="menu-item" title="Sair"><span class="icon">🚪</span></button>
+    <!-- Floating Expandable Menu (mobile) -->
+    <div class="mobile-bottom-menu" :class="{ open: isMenuOpen }">
+      <div class="menu-items">
+        <router-link :to="{ name: 'AdminDashboard' }" class="menu-item" title="Início" @click="toggleMenu(false)">
+          <Icon icon="mdi:view-dashboard" />
+        </router-link>
+        <router-link :to="{ name: 'ContentManager' }" class="menu-item" title="Nova Análise" @click="toggleMenu(false)">
+          <Icon icon="mdi:plus-circle" />
+        </router-link>
+        <router-link :to="{ name: 'EditAnalysis' }" class="menu-item" title="Editar Análise" @click="toggleMenu(false)">
+          <Icon icon="mdi:pencil" />
+        </router-link>
+        <router-link :to="{ name: 'SqlTerminal' }" class="menu-item" title="Terminal SQL" @click="toggleMenu(false)">
+          <Icon icon="mdi:terminal" />
+        </router-link>
+        <button @click="logoutAndClose" class="menu-item" title="Sair">
+          <Icon icon="mdi:logout" />
+        </button>
       </div>
-    </div>
 
-    <!-- <button id="backToTopBtn" class="btn btn-primary back-to-top" title="Voltar ao topo">&uarr;</button> -->
+      <button class="menu-toggle" @click="toggleMenu()">
+        <Icon icon="mdi:cog" />
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import '../../assets/css/adminStyle.css';
-import { onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Icon } from '@iconify/vue'
 
-const router = useRouter();
+import '../../assets/css/admin/base.css'
+import '../../assets/css/admin/components.css'
+import '../../assets/css/admin/layout.css'
+import '../../assets/css/admin/responsive-lg.css'
+import '../../assets/css/admin/responsive-md.css'
+import '../../assets/css/admin/responsive-sm.css'
+
+const router = useRouter()
+const isMenuOpen = ref(false)
 
 const logout = () => {
-  localStorage.removeItem('authToken');
-  router.push({ name: 'AdminLogin' });
-};
-
-// --- Funções para controlar o menu mobile ---
-const closeMobileMenu = () => {
-  const mobileMenu = document.getElementById('mobileFloatingMenu');
-  if (mobileMenu) {
-    mobileMenu.classList.remove('is-open');
-  }
-};
-
-const logoutAndCloseMenu = () => {
-  closeMobileMenu();
-  logout();
-};
-
-// --- Lógica que executa após o componente ser montado ---
-onMounted(() => {
-  // LÓGICA PARA O BOTÃO "VOLTAR AO TOPO"
-  const backToTopButton = document.getElementById('backToTopBtn');
-  const mainContent = document.querySelector('.dashboard-main');
-
-  if (backToTopButton && mainContent) {
-    const scrollFunction = () => {
-      backToTopButton.style.display = mainContent.scrollTop > 100 ? 'block' : 'none';
-    };
-    const scrollToTop = () => {
-      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    mainContent.addEventListener('scroll', scrollFunction);
-    backToTopButton.addEventListener('click', scrollToTop);
-  }
-
-  // LÓGICA PARA ABRIR/FECHAR O MENU MOBILE (ENGRENAGEM)
-  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-  const mobileFloatingMenu = document.getElementById('mobileFloatingMenu');
-
-  if (mobileMenuToggle && mobileFloatingMenu) {
-    mobileMenuToggle.addEventListener('click', (event) => {
-      event.stopPropagation(); // Impede que o clique se propague para o document
-      mobileFloatingMenu.classList.toggle('is-open');
-    });
-
-    // Fechar o menu ao clicar fora dele
-    document.addEventListener('click', (event) => {
-      if (mobileFloatingMenu.classList.contains('is-open') && !mobileFloatingMenu.contains(event.target)) {
-        closeMobileMenu();
-      }
-    });
-  }
-});
-</script>
-
-<!-- <style scoped>
-/* Estilo para o link ativo na barra lateral */
-.sidebar-nav .router-link-exact-active {
-  background-color: #0056b3;
-  color: white;
-  font-weight: bold;
+  localStorage.removeItem('authToken')
+  router.push({ name: 'AdminLogin' })
 }
 
-/* Estilos gerais do layout */
+const logoutAndClose = () => {
+  isMenuOpen.value = false
+  logout()
+}
+
+const toggleMenu = (state) => {
+  isMenuOpen.value = state !== undefined ? state : !isMenuOpen.value
+}
+</script>
+
+<style scoped>
+/* ----------- Desktop Sidebar -----------*/
+/*.mobile-bottom-menu {
+  display: none;
+}
 .dashboard-body {
   display: flex;
   min-height: 100vh;
-  font-family: Arial, sans-serif;
   background-color: #f4f6f8;
 }
 .dashboard-container {
@@ -131,18 +103,12 @@ onMounted(() => {
   color: #ecf0f1;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0; /* Impede que a sidebar encolha */
 }
 .sidebar-header {
   padding: 1.5rem;
   text-align: center;
   border-bottom: 1px solid #34495e;
-}
-.sidebar-header h3 {
-  margin: 0;
-}
-.sidebar-nav {
-  margin-top: 1rem;
+  font-weight: bold;
 }
 .sidebar-nav ul {
   list-style: none;
@@ -150,19 +116,15 @@ onMounted(() => {
   margin: 0;
 }
 .sidebar-nav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 1rem 1.5rem;
   color: #ecf0f1;
   text-decoration: none;
-  transition: background-color 0.2s;
-  border-left: 3px solid transparent;
 }
 .sidebar-nav a:hover {
   background-color: #34495e;
-}
-.sidebar-nav .router-link-exact-active {
-  background-color: #1a2531;
-  border-left-color: #3498db;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -172,17 +134,75 @@ onMounted(() => {
   width: 100%;
   padding: 0.75rem;
   background-color: #e74c3c;
-  color: white;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-logout:hover {
-    background-color: #c0392b;
+  border-radius: 6px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .dashboard-main {
   flex-grow: 1;
-  overflow-y: auto; /* Permite scroll apenas no conteúdo principal */
+  overflow-y: auto;
+} */
+
+/* ----------- Mobile Bottom Expanding Menu ----------- */
+.mobile-bottom-menu {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 100px;
+  padding: 10px;
+  align-items: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  transition: all 0.3s ease-in-out;
+  z-index: 2000;
 }
-</style> -->
+.mobile-bottom-menu .menu-items {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  max-width: 0;
+  overflow: hidden;
+  transition: max-width 0.3s ease-in-out;
+}
+.mobile-bottom-menu.open .menu-items {
+  max-width: 500px;
+  padding: 0 10px;
+}
+.menu-item {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-toggle {
+  background: #7b2ff7;
+  border: none;
+  border-radius: 100px;
+  padding: 10px;
+  color: white;
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+.menu-toggle:active {
+  transform: scale(0.9);
+}
+
+/* Mostrar apenas no mobile */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    display: none;
+  }
+  .mobile-bottom-menu {
+    display: flex;
+  }
+}
+</style>

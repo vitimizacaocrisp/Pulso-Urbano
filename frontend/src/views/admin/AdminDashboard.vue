@@ -15,7 +15,7 @@
         </router-link>
       </div>
 
-      <!-- Cards de Resumo (KPIs) com dados reais -->
+      <!-- Cards de Resumo (KPIs) -->
       <div v-if="!isLoading" class="stats-cards">
         <div class="card">
           <h3>{{ stats.totalAnalyses }}</h3>
@@ -32,12 +32,15 @@
       </div>
       
       <div class="dashboard-grid">
+        <!-- Gráfico -->
         <div class="grid-item">
-            <h2>Publicações nos Últimos 6 Meses</h2>
-            <div class="chart-container">
-                <canvas id="monthlyPublicationsChart"></canvas>
-            </div>
+          <h2>Publicações nos Últimos 6 Meses</h2>
+          <div class="chart-container">
+            <canvas id="monthlyPublicationsChart"></canvas>
+          </div>
         </div>
+
+        <!-- Tabela -->
         <div class="grid-item">
           <h2>Análises Recentes</h2>
           <div v-if="isLoading" class="loading-message">Carregando dados...</div>
@@ -69,9 +72,11 @@
               </tbody>
             </table>
           </div>
-           <div v-if="!isLoading && !error && recentAnalyses.length === 0" class="no-data-message">
-              Nenhuma análise encontrada. Comece por <router-link :to="{ name: 'ContentManager' }">criar uma nova</router-link>.
-            </div>
+
+          <div v-if="!isLoading && !error && recentAnalyses.length === 0" class="no-data-message">
+            Nenhuma análise encontrada. Comece por 
+            <router-link :to="{ name: 'ContentManager' }">criar uma nova</router-link>.
+          </div>
         </div>
       </div>
     </section>
@@ -189,75 +194,75 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Estilos existentes */
-.main-header-bar { background-color: white; color: #212529; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; }
-.content-section { padding: 2rem; }
-.loading-message, .error-message { text-align: center; padding: 2rem; font-size: 1.2rem; }
-.error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; }
-.data-table-container table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.data-table-container th, .data-table-container td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-.data-table-container th { background-color: #f2f2f2; }
 
-.quick-actions {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-.action-btn {
-    padding: 0.6rem 1.2rem;
-    background-color: #007bff;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-.action-btn:hover {
-    background-color: #0056b3;
+/* --- Responsividade --- */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    padding: 1rem !important;
+  }
+  main {
+    padding: 0.5rem !important;
+  }
+  .content-section {
+    padding: 1rem !important;
+  }
+  .chart-container {
+    height: 250px;
+  }
 }
 
-.stats-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-.card {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.card h3 {
-    margin: 0;
-    font-size: 2.5rem;
-    color: #007bff;
-}
-.card p {
-    margin: 0.5rem 0 0;
-    color: #6c757d;
+@media (max-width: 768px) {
+  .grid-item {
+    width: 70%;
+    min-width: 250px;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  .dashboard-main {
+    padding: 0.5rem !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .main-header-bar {
+    padding: 1rem;
+    text-align: center;
+  }
+  .content-section {
+    padding: 0rem !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Grids em 1 coluna */
+  }
+  .quick-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .action-btn {
+    text-align: center;
+  }
+  .stats-cards {
+    grid-template-columns: 1fr;
+  }
+  .card h3 {
+    font-size: 1.8rem;
+  }
 }
 
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 2rem;
-}
-.grid-item {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.chart-container {
-    height: 300px;
-}
-.btn-edit {
-    padding: 0.4rem 0.8rem;
-    background-color: #ffc107;
-    color: #212529;
-    text-decoration: none;
-    border-radius: 5px;
-    font-size: 0.9em;
+@media (max-width: 480px) {
+  .main-header-bar h1 {
+    font-size: 1.5rem;
+  }
+  .main-header-bar p {
+    font-size: 0.9rem;
+  }
+  .card {
+    padding: 1rem;
+  }
+  .btn-edit {
+    font-size: 0.8em;
+    padding: 0.3rem 0.6rem;
+  }
 }
 </style>

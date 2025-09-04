@@ -88,8 +88,9 @@
 
 <script setup>
 import { ref, nextTick, onMounted } from 'vue';
+import axios from 'axios';
 
-const API_URL = process.env.VUE_APP_API_URL+'/api/sql-query' || 'http://localhost:3000/api/sql-query';
+const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 const currentQuery = ref('');
 const history = ref([]);
@@ -157,32 +158,37 @@ async function executeQuery(command) {
     }
   }, 4000);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  const source = axios.CancelToken.source();
+  const timeoutId = setTimeout(() => source.cancel('⏳ Timeout: O pedido demorou demasiado tempo a responder.'), 90000);
 
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ query: command }),
-    });
+    const response = await axios.post(
+      API_URL + '/api/sql-query',
+      { query: command },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        cancelToken: source.token,
+      }
+    );
 
-    const data = await response.json();
+    const data = response.data;
     const historyEntry = history.value.find(h => h.id === historyId);
 
-    if (response.ok && data.success) {
+    if (response.status === 200 && data.success) {
       historyEntry.result = data.data;
     } else {
-      throw new Error(data.error || `Erro HTTP ${response.status}`);
+      historyEntry.error = data.error || `Erro HTTP ${response.status}`;
     }
   } catch (err) {
     const historyEntry = history.value.find(h => h.id === historyId);
-    if (err.name === 'AbortError') {
-      historyEntry.error = '⏳ Timeout: O pedido demorou demasiado tempo a responder.';
+    if (axios.isCancel(err)) {
+      historyEntry.error = err.message;
+    } else if (err.response) {
+      // Mostra detalhes do erro do backend
+      historyEntry.error = `❌ Erro ${err.response.status}: ${err.response.data && err.response.data.error ? err.response.data.error : err.response.statusText}`;
     } else {
       historyEntry.error = `❌ ${err.message}`;
     }
@@ -192,7 +198,7 @@ async function executeQuery(command) {
     const historyEntry = history.value.find(h => h.id === historyId);
     if(historyEntry) historyEntry.loading = false;
     isLoading.value = false;
-    
+
     await nextTick();
     output.value.scrollTop = output.value.scrollHeight;
     input.value.focus();
@@ -220,7 +226,7 @@ function navigateHistory(direction) {
 }
 </script>
 
-<style scoped>
+<!-- <style scoped>
 .cold-start-warning {
   font-size: 0.8em;
   color: #f1c40f;
@@ -264,4 +270,4 @@ function navigateHistory(direction) {
 .result-data th, .result-data td { border: 1px solid #444; padding: 6px 8px; text-align: left; }
 .result-data th { background-color: #0e639c; color: white; }
 .no-rows { padding-left: 20px; color: #888; }
-</style>
+</style> -->

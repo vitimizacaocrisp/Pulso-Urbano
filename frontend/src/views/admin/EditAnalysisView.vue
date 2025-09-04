@@ -304,8 +304,8 @@ const filteredAnalyses = computed(() => {
     return allAnalyses.value;
   }
   const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return allAnalyses.value.filter(analysis => 
-    analysis.title.toLowerCase().includes(lowerCaseQuery) ||
+  return allAnalyses.value.filter(analysis =>
+    (analysis.title && analysis.title.toLowerCase().includes(lowerCaseQuery)) ||
     (analysis.tag && analysis.tag.toLowerCase().includes(lowerCaseQuery)) ||
     (analysis.author && analysis.author.toLowerCase().includes(lowerCaseQuery))
   );
@@ -324,12 +324,20 @@ const loadAllAnalyses = async () => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Falha ao carregar a lista de análises.');
+
     const result = await response.json();
-    allAnalyses.value = result.data;
+    // Garante que o array de análises seja sempre um array válido
+    const analysesArray = Array.isArray(result.data?.analyses)
+      ? result.data.analyses
+      : Array.isArray(result.data)
+        ? result.data
+        : [];
+    allAnalyses.value = analysesArray;
     hasLoadedOnce = true;
     isDropdownVisible.value = true;
   } catch (err) {
     setFeedback(err.message, 'error');
+    allAnalyses.value = [];
   } finally {
     isLoading.value = false;
   }
@@ -624,7 +632,7 @@ const confirmDelete = async () => {
 
 
 
-.btn-toggle-preview:disabled {
+/* .btn-toggle-preview:disabled {
   border-color: #adb5bd;
   color: #adb5bd;
   cursor: not-allowed;
@@ -689,5 +697,5 @@ const confirmDelete = async () => {
 .feedback-message { margin-top: 1.5rem; padding: 1rem; border-radius: 4px; font-weight: 500; }
 .feedback-message.success { background-color: #d4edda; color: #155724; }
 .feedback-message.error { background-color: #f8d7da; color: #721c24; }
-.feedback-message.info { background-color: #cce5ff; color: #004085; }
+.feedback-message.info { background-color: #cce5ff; color: #004085; } */
 </style>

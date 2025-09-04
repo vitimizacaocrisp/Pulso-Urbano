@@ -646,7 +646,7 @@ main {
 /* Conteúdo Principal */
 .dashboard-main {
     flex: 1;
-    padding: 2rem 3rem;
+    padding: 3% 5%;
     overflow-y: auto;
 }
 

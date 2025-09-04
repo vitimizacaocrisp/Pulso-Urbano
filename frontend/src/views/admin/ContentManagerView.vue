@@ -133,15 +133,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { marked } from 'marked';
+import axios from 'axios';
+
+// --- Chave para o Rascunho no LocalStorage ---
+const DRAFT_KEY = 'analysisFormDraft';
 
 const isPreviewMode = ref(false);
 const imageUploader = ref(null);
 const contentTextArea = ref(null);
-
-// [REMOVIDO] Já não precisamos de um estado de loading para o upload individual
-// const isUploadingImage = ref(false);
+const isUploadingImage = ref(false);
 
 const newAnalysis = ref({
   title: '',
@@ -162,6 +164,74 @@ const contentImages = ref(new Map());
 const imagePreviewUrl = ref('');
 const isLoading = ref(false);
 const feedback = ref({ message: '', type: '' });
+
+// --- Lógica de Rascunho (Auto-Save) ---
+
+// [NOVO] Função que guarda os dados de texto no localStorage com um timestamp de validade
+const saveDraft = () => {
+  //console.log('Salvando rascunho...');
+  const textData = {
+    title: newAnalysis.value.title,
+    tag: newAnalysis.value.tag,
+    author: newAnalysis.value.author,
+    researchDate: newAnalysis.value.researchDate,
+    description: newAnalysis.value.description,
+    content: newAnalysis.value.content,
+    referenceLinks: newAnalysis.value.referenceLinks,
+  };
+
+  const draft = {
+    data: textData,
+    expires: Date.now() + (60 * 60 * 1000) // Validade de 1 hora
+  };
+
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+};
+
+// [NOVO] Função que carrega o rascunho se ele for válido
+const loadDraft = () => {
+  const savedDraft = localStorage.getItem(DRAFT_KEY);
+  if (savedDraft) {
+    const draft = JSON.parse(savedDraft);
+    // Verifica se o rascunho não expirou
+    if (draft.expires > Date.now()) {
+      //console.log('Carregando rascunho válido.');
+      // Atualiza apenas os campos de texto
+      Object.assign(newAnalysis.value, draft.data);
+    } else {
+      //console.log('Rascunho expirado, removendo.');
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }
+};
+
+// [NOVO] Observa alterações nos campos de texto e chama a função de salvar
+// O "debounce" (atraso) evita que a função seja chamada a cada tecla pressionada
+let debounceTimer = null;
+watch(
+  () => ({
+    title: newAnalysis.value.title,
+    tag: newAnalysis.value.tag,
+    author: newAnalysis.value.author,
+    researchDate: newAnalysis.value.researchDate,
+    description: newAnalysis.value.description,
+    content: newAnalysis.value.content,
+    referenceLinks: newAnalysis.value.referenceLinks,
+  }),
+  () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      saveDraft();
+    }, 1000); // Salva 1 segundo após a última alteração
+  },
+  { deep: true }
+);
+
+// Ao montar o componente, tenta carregar um rascunho existente
+onMounted(() => {
+  loadDraft();
+});
+// --- Fim da Lógica de Rascunho ---
 
 const renderedContent = computed(() => {
     if (newAnalysis.value.content) {
@@ -219,16 +289,19 @@ const resetForm = () => {
     document.getElementById('coverImage').value = null;
     document.getElementById('documentFile').value = null;
     document.getElementById('dataFile').value = null;
+
+    // [MODIFICADO] Limpa também o rascunho ao resetar
+    localStorage.removeItem(DRAFT_KEY);
 };
 
-// [CORRIGIDO] Esta função agora envia as imagens do conteúdo juntamente com o resto dos dados
+// Esta função envia as imagens do conteúdo juntamente com o resto dos dados
 const publishAnalysis = async () => {
   if (isFormInvalid.value) return;
   isLoading.value = true;
   feedback.value = { message: '', type: '' };
-  
+
   const formData = new FormData();
-  
+
   // Adiciona os campos de texto
   formData.append('title', newAnalysis.value.title);
   formData.append('tag', newAnalysis.value.tag);
@@ -244,7 +317,6 @@ const publishAnalysis = async () => {
   if (newAnalysis.value.dataFile) formData.append('dataFile', newAnalysis.value.dataFile);
 
   // Adiciona todas as imagens do conteúdo ao FormData
-  // A chave de cada ficheiro é o seu placeholder, que o backend usará para fazer a substituição
   for (const [placeholderId, file] of contentImages.value.entries()) {
     formData.append(placeholderId, file);
   }
@@ -252,27 +324,39 @@ const publishAnalysis = async () => {
   try {
     const token = localStorage.getItem('authToken');
     const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-    
-    const response = await fetch(`${apiUrl}/api/admin/analyses`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Falha ao publicar a análise.');
+
+    const response = await axios.post(
+      `${apiUrl}/api/admin/analyses`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    let resultMessage = 'Análise publicada com sucesso!';
+    if (response.data && response.data.message) {
+      resultMessage = response.data.message;
     }
-    
-    const result = await response.json();
-    feedback.value = { message: result.message, type: 'success' };
+    // [MODIFICADO] Após o sucesso, limpa o rascunho do localStorage
+    localStorage.removeItem(DRAFT_KEY);
+
+    feedback.value = { message: resultMessage, type: 'success' };
     resetForm();
 
   } catch (err) {
-    feedback.value = { message: err.message, type: 'error' };
+    let errorMessage = 'Falha ao publicar a análise.';
+    if (err.response && err.response.data && err.response.data.message) {
+      errorMessage = err.response.data.message;
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    feedback.value = { message: errorMessage, type: 'error' };
   } finally {
     isLoading.value = false;
-    setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
+    setTimeout(() => { feedback.value = { message: '', type: '' }; }, 10000);
   }
 };
 </script>
@@ -380,4 +464,36 @@ legend { font-size: 1.2rem; font-weight: 600; padding: 0 0.5rem; color: #333; }
 .feedback-message { margin-top: 1.5rem; padding: 1rem; border-radius: 4px; font-weight: 500; }
 .feedback-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .feedback-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+@media (max-width: 768px) {
+  .content-section {
+    padding: 1rem !important;
+  }
+  .form-container {
+    padding: 1rem !important;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .btn-publish {
+    width: 100%;
+  }
+}
+@media (max-width: 480px) {
+  .content-section {
+    padding: 0.5rem !important;
+  }
+  .form-container {
+    padding: 0rem !important;
+  }
+  .main-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .header-actions {
+    width: 100%;
+    text-align: right;
+  }
+}
 </style>
