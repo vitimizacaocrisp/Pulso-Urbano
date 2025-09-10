@@ -10,46 +10,54 @@
     </div>
 
     <div v-else-if="analysis" class="article-preview-container">
+      <!-- Cabeçalho -->
       <header class="article-header">
+        <!-- Botão de voltar -->
+        <button class="back-button" @click="$router.back()">← Voltar</button>
+
         <h1>{{ analysis.title }}</h1>
+
+        <!-- Autor -->
         <div class="article-meta">
-            <span><strong>Autor(es):</strong> {{ analysis.author }}</span>
-            <span><strong>Data:</strong> {{ analysis.research_date }}</span>
-            <span><strong>Tag:</strong> <span class="tag-badge">{{ analysis.tag }}</span></span>
-        </div>
-      </header>
-      
-      <div class="article-body" v-html="renderedContent"></div>
-      
-      <footer v-if="analysis.reference_links || analysis.cover_image_path || analysis.document_file_path || analysis.data_file_path" class="article-footer">
-        <h3>Referências e Anexos</h3>
-        
-        <div v-if="analysis.cover_image_path" class="attachment-item">
-          <strong>Imagem de Capa:</strong>
-          <img :src="getFullMediaPath(analysis.cover_image_path)" alt="Imagem de capa da análise" class="attachment-preview-image">
+          <span class="author-name">{{ analysis.author }}</span>
         </div>
 
+        <!-- Imagem destacada -->
+        <div v-if="analysis.cover_image_path" class="featured-image">
+          <img :src="getFullMediaPath(analysis.cover_image_path)" alt="Imagem de capa da análise">
+        </div>
+      </header>
+
+      <!-- Conteúdo -->
+      <div class="article-body" v-html="renderedContent"></div>
+
+      <!-- Rodapé -->
+      <footer v-if="analysis.reference_links || analysis.document_file_path || analysis.data_file_path"
+              class="article-footer">
+        <h3>Referências e Anexos</h3>
+
         <div v-if="analysis.document_file_path" class="attachment-item">
-          <strong>Documento Original:</strong> 
+          <strong>Documento Original:</strong>
           <a :href="getFullMediaPath(analysis.document_file_path)" target="_blank" rel="noopener noreferrer">
             {{ analysis.document_file_path.split('/').pop() }}
           </a>
         </div>
 
         <div v-if="analysis.data_file_path" class="attachment-item">
-          <strong>Ficheiro de Dados:</strong> 
+          <strong>Ficheiro de Dados:</strong>
           <a :href="getFullMediaPath(analysis.data_file_path)" target="_blank" rel="noopener noreferrer">
             {{ analysis.data_file_path.split('/').pop() }}
           </a>
         </div>
 
         <div v-if="analysis.reference_links" class="attachment-item">
-            <strong>Links de Referência:</strong>
-            <ul>
-                <li v-for="(link, index) in analysis.reference_links.split('\n').filter(l => l.trim() !== '')" :key="index">
-                    <a :href="link" target="_blank" rel="noopener noreferrer">{{ link }}</a>
-                </li>
-            </ul>
+          <strong>Links de Referência:</strong>
+          <ul>
+            <li v-for="(link, index) in analysis.reference_links.split('\n').filter(l => l.trim() !== '')"
+                :key="index">
+              <a :href="link" target="_blank" rel="noopener noreferrer">{{ link }}</a>
+            </li>
+          </ul>
         </div>
       </footer>
     </div>
@@ -70,7 +78,6 @@ const error = ref(null);
 
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
-// Configuração de segurança para o 'marked'
 marked.use({
   hooks: {
     postprocess(html) {
@@ -79,27 +86,22 @@ marked.use({
   }
 });
 
-// [CORRIGIDO] A propriedade computada agora processa tanto Markdown quanto HTML
 const renderedContent = computed(() => {
-    if (!analysis.value?.content) return '';
+  if (!analysis.value?.content) return '';
+  let processedContent = analysis.value.content;
 
-    let processedContent = analysis.value.content;
+  const markdownRegex = /(!\[.*?\]\()(\/src\/uploads\/.*?)\)/g;
+  processedContent = processedContent.replace(markdownRegex, `$1${API_BASE_URL}$2)`);
 
-    // 1. Encontra e corrige os caminhos de imagem em formato MARKDOWN `![...](/uploads/...)`
-    const markdownRegex = /(!\[.*?\]\()(\/src\/uploads\/.*?)\)/g;
-    processedContent = processedContent.replace(markdownRegex, `$1${API_BASE_URL}$2)`);
+  const htmlRegex = /(<img[^>]*src=")(\/src\/uploads\/.*?)"/g;
+  processedContent = processedContent.replace(htmlRegex, `$1${API_BASE_URL}$2"`);
 
-    // 2. Encontra e corrige os caminhos de imagem em formato HTML `<img src="/uploads/...">`
-    const htmlRegex = /(<img[^>]*src=")(\/src\/uploads\/.*?)"/g;
-    processedContent = processedContent.replace(htmlRegex, `$1${API_BASE_URL}$2"`);
-    
-    // Agora, com todos os caminhos corrigidos, renderiza o conteúdo
-    return marked(processedContent);
+  return marked(processedContent);
 });
 
 const getFullMediaPath = (path) => {
-    if (!path) return '';
-    return `${API_BASE_URL}/${path}`;
+  if (!path) return '';
+  return `${API_BASE_URL}/${path}`;
 };
 
 onMounted(async () => {
@@ -111,16 +113,15 @@ onMounted(async () => {
   }
   
   try {
-    const token = localStorage.getItem('authToken'); // Assumindo que a rota ainda é protegida
+    const token = localStorage.getItem('authToken');
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses/${analysisId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 30000 // 30 segundos para aguardar a resposta
+      timeout: 30000
     });
     
     if (response.status === 404) throw new Error('Análise não encontrada.');
     
     analysis.value = response.data.data;
-
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -128,85 +129,54 @@ onMounted(async () => {
   }
 });
 </script>
+
 <style lang="less" scoped>
 :root {
-  --admin-primary-color: #2563eb; /* azul formal */
+  --admin-primary-color: #2563eb;
   --admin-primary-hover: #1e40af;
-  --admin-text-color: #1f2937; /* cinza escuro */
-  --admin-text-light: #4b5563; 
+  --admin-text-color: #1f2937;
+  --admin-text-light: #6b7280;
   --admin-surface-color: #ffffff;
   --admin-border-color: #e5e7eb;
   --admin-bg-color: #f9fafb;
-  --admin-font-family: Georgia, 'Times New Roman', serif; /* tipografia mais acadêmica */
-  --border-radius: 8px;
-  --box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-}
-
-/* --- Área principal --- */
-.content-section {
-  padding: 2rem;
-  background-color: var(--admin-bg-color);
+  --border-radius: 10px;
+  --box-shadow: 0 6px 16px rgba(0,0,0,0.05);
 }
 
 .article-preview-container {
-  max-width: 960px; /* maior largura para leitura */
-  margin: 0 auto;
+  max-width: 780px;
+  margin: 2rem auto;
+  padding: 2.5rem;
   background-color: var(--admin-surface-color);
-  padding: 3rem 4rem;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  font-family: var(--admin-font-family);
-  line-height: 1.8;
+  line-height: 1.7;
+  font-family: 'Georgia', serif;
 }
 
-/* --- Cabeçalho --- */
-.article-header h1 {
-  font-size: 2.4rem;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.3;
-  margin: 0 0 2rem;
-}
-
-.article-meta {
-  text-align: center;
-  font-size: 0.95rem;
-  color: var(--admin-text-light);
-  margin-bottom: 2.5rem;
-  border-bottom: 1px solid var(--admin-border-color);
-  padding-bottom: 1.2rem;
-}
-
-.tag-badge {
-  background-color: #dbeafe;
+/* Botão voltar */
+.back-button {
+  display: inline-block;
+  background: none;
+  border: none;
   color: var(--admin-primary-color);
-  padding: 0.25rem 0.7rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.back-button:hover {
+  text-decoration: underline;
+  color: var(--admin-primary-hover);
 }
 
-/* --- Corpo --- */
-.article-body {
-  font-size: 1.15rem;
-  color: var(--admin-text-color);
+/* Cabeçalho */
+.article-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
 }
-
-.article-body :deep(h2),
-.article-body :deep(h3) {
-  font-weight: 600;
-  margin-top: 2.2rem;
-  margin-bottom: 1.2rem;
-  border-bottom: 2px solid #f3f4f6;
-  padding-bottom: 0.3rem;
-}
-
-.article-body :deep(p) {
-  margin-bottom: 1.4rem;
-  text-align: justify;
-}
-
-/* --- Imagens no conteúdo --- */
 .article-body :deep(img) {
   width: 50%;
   max-width: 500px;
@@ -218,123 +188,60 @@ onMounted(async () => {
   border: 1px solid var(--admin-border-color);
 }
 
-/* Legendas de imagens */
-.article-body :deep(figure) {
-  text-align: center;
-  margin: 2rem auto;
-}
-.article-body :deep(figcaption) {
-  font-size: 0.9rem;
-  color: var(--admin-text-light);
-  margin-top: 0.6rem;
-  font-style: italic;
-}
-
-/* Citações */
-.article-body :deep(blockquote) {
-  border-left: 4px solid var(--admin-primary-color);
-  padding-left: 1.5rem;
-  margin: 2rem 0;
-  font-style: italic;
-  color: var(--admin-text-light);
-}
-
-/* Listas */
-.article-body :deep(ul),
-.article-body :deep(ol) {
-  margin-bottom: 1.5rem;
-  padding-left: 2rem;
-}
-
-/* Código */
-.article-body :deep(pre) {
-  background-color: #f3f4f6;
-  padding: 1.2rem;
-  border-radius: 6px;
-  border: 1px solid var(--admin-border-color);
-  overflow-x: auto;
+.article-meta {
+  margin-bottom: 2rem;
   font-size: 0.95rem;
+  color: var(--admin-text-light);
 }
 
-/* Links */
-.article-body :deep(a) {
-  color: var(--admin-primary-color);
-  text-decoration: none;
-  font-weight: 500;
-}
-.article-body :deep(a:hover) {
-  text-decoration: underline;
-  color: var(--admin-primary-hover);
-}
-
-/* --- Rodapé / Referências --- */
-.article-footer {
-  margin-top: 3rem;
-  padding-top: 1.5rem;
-  border-top: 2px solid var(--admin-border-color);
-}
-
-.article-footer h3 {
-  font-size: 1.25rem;
-  margin-bottom: 1.2rem;
+.author-name {
   font-weight: 600;
-  text-align: left;
+  color: var(--admin-text-color);
 }
 
-.attachment-item {
+/* Imagem destacada */
+.featured-image {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+.featured-image img {
+  width: 100%;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+/* Corpo */
+.article-body {
+  font-size: 1.1rem;
+  color: var(--admin-text-color);
+}
+.article-body :deep(p) {
   margin-bottom: 1.2rem;
-  font-size: 1rem;
+  text-align: justify;
 }
 
-.attachment-preview-image {
-  max-width: 400px;
-  margin-top: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--admin-border-color);
+/* Rodapé */
+.article-footer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--admin-border-color);
+}
+.article-footer h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+.attachment-item {
+  margin-bottom: 1rem;
 }
 
-/* --- Responsividade detalhada --- */
-@media (max-width: 1200px) {
-  .article-preview-container {
-    max-width: 90%;
-    padding: 2.5rem;
-  }
-}
-
-@media (max-width: 992px) {
-  .article-header h1 {
-    font-size: 2rem;
-  }
-  .article-body {
-    font-size: 1.05rem;
-  }
-}
-
+/* Responsivo */
 @media (max-width: 768px) {
   .article-preview-container {
-    padding: 1.8rem;
+    padding: 1.5rem;
   }
   .article-header h1 {
-    font-size: 1.8rem;
-  }
-  .article-body :deep(img) {
-    max-width: 100%;
+    font-size: 1.6rem;
   }
 }
-
-@media (max-width: 576px) {
-  .article-preview-container {
-    padding: 1.2rem;
-  }
-  .article-header h1 {
-    font-size: 1.5rem;
-  }
-  .article-body {
-    font-size: 1rem;
-  }
-  .article-footer h3 {
-    font-size: 1.1rem;
-  }
-}
-
 </style>

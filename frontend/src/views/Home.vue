@@ -1,104 +1,119 @@
 <template>
-  <main>
-    <section class="hero">
+  <div>
+    <section class="hero-video">
+      <div class="video-overlay"></div>
+      <video 
+        src="https://www.pexels.com/pt-br/download/video/1851190/" 
+        autoplay 
+        loop 
+        muted 
+        playsinline
+      >
+        Seu navegador não suporta o elemento de vídeo.
+      </video>
       <div class="hero-content">
-        <h2>Democratizando dados e análises sobre segurança pública e justiça no Brasil.</h2>
-        <p>O Pulso Urbano integra dados de vitimização e registros administrativos para revelar um panorama completo
-          sobre a criminalidade e o acesso à justiça no país.</p>
-        <a href="#paineis" class="btn-primary">Explorar os Painéis</a>
+        <h1>Pulso Urbano</h1>
+        <p>Analisando os ritmos da segurança pública e justiça no Brasil.</p>
       </div>
     </section>
 
-    <section class="highlight-section">
-      <h2 class="section-title">Destaque do Dia</h2>
-      <div v-if="dailyHighlight.isLoading" class="status-message">
-        <div class="spinner-large"></div>
-        <p>Gerando destaque...</p>
-      </div>
-      <div v-else-if="dailyHighlight.error" class="status-message error">
-        {{ dailyHighlight.error }}
-      </div>
-      <article v-else class="card card-highlight">
-        <h3>{{ dailyHighlight.title }}</h3>
-        <p class="highlight-value">{{ dailyHighlight.value }}</p>
-        <span class="highlight-unit">{{ dailyHighlight.unit }}</span>
-        <span class="highlight-source">Fonte: {{ dailyHighlight.source }}</span>
-      </article>
-    </section>
-
-    <section class="featured-section" id="paineis">
-      <h2 class="section-title">Painéis de Dados</h2>
-      <div class="card-container">
-        <article class="card">
-          <h3>Monitor do Homicídio</h3>
-          <p>Análise detalhada das taxas de homicídios dolosos, perfil das vítimas e o impacto do crime organizado.</p>
-          <div class="card-footer">
-            <a href="/paineis/homicidios" class="card-link">Acessar Painel</a>
-            <span v-if="apiStatus.homicides.isLoading" class="status-badge loading"><div class="spinner-badge"></div></span>
-            <span v-else-if="apiStatus.homicides.error" class="status-badge error">Offline</span>
-            <span v-else class="status-badge online">Online</span>
-          </div>
-        </article>
-
-        <article class="card">
-          <h3>Atlas da Vitimização</h3>
-          <p>Explore dados sobre crimes reportados e não reportados à polícia, baseados em pesquisas de vitimização.</p>
-            <div class="card-footer">
-            <a href="/paineis/vitimizacao" class="card-link">Acessar Painel</a>
-            <span v-if="apiStatus.victimization.isLoading" class="status-badge loading"><div class="spinner-badge"></div></span>
-            <span v-else-if="apiStatus.victimization.error" class="status-badge error">Offline</span>
-            <span v-else class="status-badge online">Online</span>
-          </div>
-        </article>
+    <div class="page-container">
+      <main class="main-content">
         
-        <article class="card disabled">
-          <h3>Observatório da Violência de Gênero</h3>
-          <p>Dados sobre feminicídio e violência doméstica, revelando o lar como um dos espaços mais perigosos para mulheres.</p>
-            <div class="card-footer">
-            <a href="#" class="card-link">Em breve</a>
-            <span class="status-badge neutral">Pendente</span>
+        <article class="featured-article card">
+          <div v-if="dailyHighlight.isLoading" class="status-message">
+            <div class="spinner-large"></div>
+            <p>Gerando destaque do dia...</p>
           </div>
-        </article>
-      </div>
-    </section>
-    
-    <section class="context-section">
-      <h2 class="section-title">Contexto Nacional <span class="data-source">(IBGE, {{ population.ano || '...' }})</span></h2>
-      
-      <div v-if="apiStatus.population.isLoading" class="status-message">
-        <div class="spinner-large"></div>
-        <p>Carregando dados populacionais...</p>
-      </div>
-      <div v-else-if="apiStatus.population.error" class="status-message error">{{ apiStatus.population.error }}</div>
-      <div v-else class="card-container" id="ibge-data-container">
-        <article class="card card-data-highlight">
-            <h3>População Total do Brasil</h3>
-            <p class="data-value">{{ formatNumber(population.total) }}</p>
-        </article>
-        <article class="card" v-for="state in population.top3States" :key="state.uf">
-            <h3>{{ state.uf }}</h3>
-            <p class="data-value">{{ formatNumber(state.populacao) }}</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="api-status-section">
-        <h2 class="section-title">Status das Fontes de Dados</h2>
-        <div class="status-list">
-            <div v-for="(status, key) in apiStatus" :key="key" class="status-item">
-                <span class="status-name">{{ status.name }}</span>
-                <span v-if="status.isLoading" class="status-badge loading"><div class="spinner-badge"></div> Carregando...</span>
-                <span v-else-if="status.error" class="status-badge error">Erro</span>
-                <span v-else class="status-badge online">Operacional</span>
+          <div v-else-if="dailyHighlight.error" class="status-message error">
+            {{ dailyHighlight.error }}
+          </div>
+          <template v-else>
+            <header class="article-header">
+              <span class="category-tag">{{ dailyHighlight.source }}</span>
+              <h1>{{ dailyHighlight.title }}</h1>
+              <div class="article-meta">
+                <span><i class="fas fa-calendar-alt"></i> 10 de Setembro, 2025</span>
+                <span><i class="fas fa-user"></i> Por Pulso Urbano</span>
+              </div>
+            </header>
+            <figure class="featured-image">
+              <img src="https://images.unsplash.com/photo-1599493356233-a3b7a544837a?auto=format&fit=crop&w=1170&q=80" alt="Imagem representando análise de dados urbanos">
+            </figure>
+            <div class="article-content">
+              <p class="lead">
+                Hoje, o Pulso Urbano destaca um dado crucial sobre o cenário nacional: a <strong>{{ dailyHighlight.title.toLowerCase() }}</strong>. O valor registrado mais recente é de:
+              </p>
+              <div class="highlight-box">
+                <p class="highlight-value">{{ dailyHighlight.value }}</p>
+                <span class="highlight-unit">{{ dailyHighlight.unit }}</span>
+              </div>
+              <p>Este número, fornecido pelo(a) <strong>{{ dailyHighlight.source }}</strong>, é um indicador vital para entendermos as dinâmicas atuais.</p>
             </div>
+          </template>
+        </article>
+
+        <RecentPosts :post-count="6" />
+
+      </main>
+
+      <aside class="sidebar">
+        <div class="sidebar-widget card">
+          <h3 class="widget-title">Categorias</h3>
+          <div v-if="categories.isLoading" class="status-message small">
+            <div class="spinner-badge"></div> Carregando...
+          </div>
+          <div v-else-if="categories.error" class="status-message small error">
+            {{ categories.error }}
+          </div>
+          <ul v-else class="category-list">
+            <li v-for="category in categories.data" :key="category.name">
+              <a :href="`/analises?tag=${encodeURIComponent(category.name)}`">
+                {{ category.name }}
+                <span class="count">{{ category.count }}</span>
+              </a>
+            </li>
+          </ul>
         </div>
-    </section>
-  </main>
+        <div class="sidebar-widget card">
+          <h3 class="widget-title">Contexto Nacional</h3>
+           <div v-if="apiStatus.population.isLoading" class="status-message small">
+              <div class="spinner-badge"></div> Carregando...
+           </div>
+           <div v-else-if="apiStatus.population.error" class="status-message small error">Falha ao carregar.</div>
+           <div v-else class="stats-list">
+              <div class="stat-item">
+                <span>População Total ({{ population.ano }})</span>
+                <strong>{{ formatNumber(population.total) }}</strong>
+              </div>
+              <div v-if="population.top3States.length" class="stat-item">
+                <span>Estado mais populoso</span>
+                <strong>{{ population.top3States[0].uf }}</strong>
+              </div>
+           </div>
+        </div>
+        <div class="sidebar-widget card newsletter-widget">
+          <h3 class="widget-title">Inscreva-se</h3>
+          <p>Receba as últimas análises e destaques diretamente no seu email.</p>
+          <form class="subscribe-form">
+            <input type="email" placeholder="Seu melhor email">
+            <button type="submit" class="btn-primary">Inscrever</button>
+          </form>
+        </div>
+      </aside>
+    </div>
+  </div>
 </template>
 
 <script>
+import axios from 'axios';
+import RecentPosts from '@/components/RecentPosts.vue'; // Importando o novo componente
+
 export default {
   name: 'HomeView',
+  components: {
+    RecentPosts, // Registrando o novo componente
+  },
   data() {
     return {
       apiStatus: {
@@ -107,6 +122,7 @@ export default {
         homicides:    { name: 'Homicídios (Banco Mundial)', isLoading: true, error: null },
         spending:     { name: 'Gastos em Segurança (IPEA)', isLoading: true, error: null },
         legislation:  { name: 'Legislação (Câmara)', isLoading: true, error: null },
+        analyses:     { name: 'Lista de Análises', isLoading: true, error: null },
       },
       population: {
         total: 0,
@@ -121,215 +137,118 @@ export default {
         unit: '',
         source: '',
       },
+      categories: {
+        isLoading: true,
+        error: null,
+        data: [],
+      },
     };
   },
   methods: {
-    /**
-     * Função robusta para fazer requisições HTTP com tentativas e timeout.
-     */
     async fetchWithRetries(url, retries = 3, delay = 1000, timeout = 15000) {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const controller = new AbortController();
           const id = setTimeout(() => controller.abort(), timeout);
-
           const response = await fetch(url, {
             headers: { 'Accept': 'application/json' },
             signal: controller.signal
           });
-
           clearTimeout(id);
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status} - ${response.statusText}`);
-          }
-          
-          const json = await response.json();
-          return json;
-
+          if (!response.ok) throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+          return await response.json();
         } catch (err) {
           console.warn(`⚠️ Tentativa ${attempt} falhou [${url}]: ${err.message}`);
-          if (attempt === retries) {
-            throw new Error(`❌ Falha após ${retries} tentativas em ${url}: ${err.message}`);
-          }
+          if (attempt === retries) throw new Error(`❌ Falha após ${retries} tentativas: ${err.message}`);
           await new Promise(r => setTimeout(r, delay * attempt));
         }
       }
     },
-
-    // --- MÉTODOS DE API ---
-
     async getIBGEPopulationData() {
-      const ano = new Date().getFullYear() - 1;
-      const url = `https://apisidra.ibge.gov.br/values/t/6579/n3/all/v/9324/p/${ano}/h/n`;
-      const rawData = await this.fetchWithRetries(url);
-
-      if (!Array.isArray(rawData) || rawData.length < 2) {
-        throw new Error("Formato de resposta inesperado do IBGE.");
-      }
-
-      return rawData.slice(1).map(item => ({
-        uf: item.D3N,
-        ano: Number(item.D1N) || ano,
-        populacao: Number(item.V) || null,
-        fonte: "IBGE - SIDRA"
-      }));
-    },
-
-    /**
-     * [MODIFICADO] Usando um proxy CORS para contornar o bloqueio de requisição
-     * do navegador e conseguir acessar os dados reais da API de demonstração.
-     */
-    async getVictimizationData() {
-        const originalUrl = 'http://ec2-54-174-4-15.compute-1.amazonaws.com/api?per_page=1000&page=1';
-        // Um proxy público. Adiciona-se o URL original no final.
-        const proxyUrl = 'https://api.allorigins.win/raw?url=';
-        
-        const url = proxyUrl + encodeURIComponent(originalUrl);
-        
-        console.log(`[getVictimizationData] Buscando dados via proxy em: ${url}`);
+        const ano = new Date().getFullYear() - 1;
+        const url = `https://apisidra.ibge.gov.br/values/t/6579/n3/all/v/9324/p/${ano}/h/n`;
         const rawData = await this.fetchWithRetries(url);
-        
-        // A API allorigins pode encapsular a resposta. Precisamos pegar o conteúdo.
-        const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-        
-        const results = data?.data || data?.results || [];
-        if (!Array.isArray(results)) {
-            throw new Error("Formato de resposta inesperado da API de Vitimização.");
-        }
-        
-        return results.map(item => ({ ...item, fonte: "API Vitimização (demo)" }));
-    },
-    
-    async getHomicideData() {
-        const indicator = "VC.IHR.PSRC.P5";
-        const url = `https://api.worldbank.org/v2/country/BR/indicator/${indicator}?format=json&per_page=100&source=2`;
-        const rawData = await this.fetchWithRetries(url);
-
-        if (!Array.isArray(rawData) || !rawData[1]) {
-          throw new Error("Formato de resposta inesperado da API do Banco Mundial.");
-        }
-
-        return rawData[1]
-          .filter(item => item.value !== null)
-          .map(item => ({
-            ano: Number(item.date),
-            taxa_por_100k: parseFloat(parseFloat(item.value).toFixed(2)),
-            fonte: "Banco Mundial / UNODC"
-          }));
-    },
-    
-    getPublicSecuritySpending() {
-        console.warn("⚠️ AVISO: A API do IPEADATA está offline. Usando dados de exemplo.");
-        return Promise.resolve([
-            { ano: 2020, valorBRL: 95.8 * 1e9, fonte: "IPEA Data (Exemplo)" },
-            { ano: 2021, valorBRL: 106.1 * 1e9, fonte: "IPEA Data (Exemplo)" },
-            { ano: 2022, valorBRL: 115.3 * 1e9, fonte: "IPEA Data (Exemplo)" }
-        ]);
-    },
-    
-    async getSecurityLegislation() {
-        const ano = new Date().getFullYear();
-        const keywords = "segurança pública";
-        const url = `https://dadosabertos.camara.leg.br/api/v2/proposicoes?ano=${ano}&keywords=${encodeURIComponent(keywords)}&ordem=DESC&ordenarPor=ano`;
-        const rawData = await this.fetchWithRetries(url);
-
-        if (!rawData?.dados) throw new Error("Formato de resposta inesperado da Câmara.");
-
-        return rawData.dados.map(item => ({
-          id: item.id,
-          sigla: item.siglaTipo,
-          numero: item.numero,
-          ano: item.ano,
-          resumo: item.ementa,
-          link: `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${item.id}`,
-          fonte: "Câmara dos Deputados"
+        if (!Array.isArray(rawData) || rawData.length < 2) throw new Error("Formato de resposta inesperado do IBGE.");
+        return rawData.slice(1).map(item => ({
+            uf: item.D3N,
+            ano: Number(item.D1N) || ano,
+            populacao: Number(item.V) || null,
+            fonte: "IBGE - SIDRA"
         }));
     },
-
-    // --- LÓGICA DE ORQUESTRAÇÃO E PROCESSAMENTO ---
-
+    async getAnalysesList() {
+      const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        timeout: 30000 // 30 segundos para aguardar a resposta
+      });
+      const analysesArray = response.data?.data?.analyses;
+      if (!Array.isArray(analysesArray)) throw new Error("Formato de resposta inesperado da lista de análises.");
+      return analysesArray;
+    },
+    processCategoryData(analyses) {
+      const counts = analyses.reduce((acc, analysis) => {
+        const tag = analysis.tag || 'Sem Categoria';
+        acc[tag] = (acc[tag] || 0) + 1;
+        return acc;
+      }, {});
+      this.categories.data = Object.entries(counts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+    },
     async fetchAllData() {
       const requests = {
         population: this.getIBGEPopulationData(),
-        victimization: this.getVictimizationData(),
-        homicides: this.getHomicideData(),
-        spending: this.getPublicSecuritySpending(),
-        legislation: this.getSecurityLegislation(),
+        // Adicione outras chamadas de API aqui se necessário
+        analyses: this.getAnalysesList(),
       };
-
       const results = await Promise.allSettled(Object.values(requests));
       const keys = Object.keys(requests);
       const successfulData = {};
-
       results.forEach((result, index) => {
         const key = keys[index];
         this.apiStatus[key].isLoading = false;
-        
         if (result.status === 'fulfilled' && result.value) {
           const data = result.value;
           successfulData[key] = data;
-
-          if (key === 'population' && data.length > 0) {
-            this.processPopulationData(data);
+          if (key === 'population' && data.length > 0) this.processPopulationData(data);
+          if (key === 'analyses') {
+            this.categories.isLoading = false;
+            this.processCategoryData(data);
           }
         } else {
-          this.apiStatus[key].error = 'Falha ao carregar os dados.';
+          this.apiStatus[key].error = 'Falha ao carregar.';
+          if (key === 'analyses') {
+            this.categories.isLoading = false;
+            this.categories.error = 'Não foi possível carregar as categorias.';
+          }
           console.error(`Erro ao buscar dados para ${key}:`, result.reason);
         }
       });
-      
+      // generateDailyHighlight agora pode ser adaptado para usar os dados de 'analyses'
       this.generateDailyHighlight(successfulData);
     },
-
     processPopulationData(data) {
       this.population.total = data.reduce((sum, state) => sum + state.populacao, 0);
       this.population.top3States = [...data].sort((a, b) => b.populacao - a.populacao).slice(0, 3);
       this.population.ano = data[0]?.ano || new Date().getFullYear() - 2;
     },
-    
     generateDailyHighlight(allData) {
-      const highlightPool = [];
-
-      if (allData.homicides && allData.homicides.length > 0) {
-        const latest = [...allData.homicides].sort((a, b) => b.ano - a.ano)[0];
-        highlightPool.push({
-          title: `Taxa de Homicídios (${latest.ano})`,
-          value: this.formatNumber(latest.taxa_por_100k),
-          unit: 'por 100.000 habitantes',
-          source: 'Banco Mundial / UNODC'
-        });
-      }
-      
-      if (allData.victimization && allData.victimization.length > 0) {
-        const total = allData.victimization.length;
-        highlightPool.push({
-          title: 'Total de Ocorrências (Amostra)',
-          value: this.formatNumber(total),
-          unit: 'registros na amostra de dados',
-          source: 'API Vitimização (demo)'
-        });
-      }
-
-      if (allData.legislation && allData.legislation.length > 0) {
-        const latest = allData.legislation[0];
-        highlightPool.push({
-          title: 'Última Proposição Legislativa Relevante',
-          value: `${latest.sigla} ${latest.numero}/${latest.ano}`,
-          unit: 'relacionada à segurança pública',
-          source: 'Câmara dos Deputados'
-        });
-      }
-
-      if (highlightPool.length === 0) {
-        this.dailyHighlight = { isLoading: false, error: 'Não foi possível gerar um destaque hoje.' };
-        return;
-      }
-
-      const randomIndex = Math.floor(Math.random() * highlightPool.length);
-      this.dailyHighlight = { ...highlightPool[randomIndex], isLoading: false, error: null };
+        if (allData.analyses && allData.analyses.length > 0) {
+            const latest = [...allData.analyses].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            this.dailyHighlight = {
+                isLoading: false,
+                error: null,
+                title: latest.title,
+                value: latest.tag,
+                unit: 'Tópico Principal',
+                source: latest.author
+            };
+        } else {
+            this.dailyHighlight = { isLoading: false, error: 'Não foi possível gerar um destaque hoje.' };
+        }
     },
-
     formatNumber(num) {
       if (typeof num !== 'number') return '...';
       return num.toLocaleString('pt-BR');
@@ -341,147 +260,256 @@ export default {
 };
 </script>
 
-
 <style scoped>
-/* 1. ESTILOS PARA O SPINNER DE CARREGAMENTO */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.spinner-badge {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(0,0,0,0.2);
-  border-top-color: #333;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
-}
-.spinner-large {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(0,0,0,0.1);
-  border-top-color: #007bff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
-}
-.status-badge.loading {
-  display: inline-flex;
+/* SEÇÃO HERO VIDEO */
+.hero-video {
+  position: relative;
+  height: 60vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 5px;
+  background-color: #111827;
 }
-.status-item .status-badge.loading {
-  background-color: transparent;
-  color: #495057;
+.hero-video video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  z-index: 1;
+}
+.video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(17, 24, 39, 0.6);
+  z-index: 2;
+}
+.hero-content {
+  position: relative;
+  z-index: 3;
+  color: #fff;
+  text-align: center;
+  padding: 2rem;
+}
+.hero-content h1 {
+  font-size: 4rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+}
+.hero-content p {
+  font-size: 1.25rem;
+  max-width: 600px;
+  margin: 0 auto;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
 }
 
-/* 2. ESTILOS PARA A NOVA SEÇÃO DE DESTAQUE */
-.highlight-section {
-  padding: 2rem 0;
+/* GERAL E LAYOUT */
+.page-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+.main-content {
+  flex: 3;
+  min-width: 60%;
+}
+.sidebar {
+  flex: 1;
+  min-width: 300px;
+}
+.card {
+  background-color: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+/* ARTIGO EM DESTAQUE */
+.article-header {
+  margin-bottom: 1.5rem;
+}
+.category-tag {
+  display: inline-block;
+  background-color: #e0e7ff;
+  color: #4338ca;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.article-header h1 {
+  font-size: 2.5rem;
+  color: #111827;
+  line-height: 1.2;
+  margin: 0;
+}
+.article-meta {
+  display: flex;
+  gap: 1.5rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+.article-meta i {
+  margin-right: 0.5rem;
+}
+.featured-image {
+  margin: 0 0 1.5rem 0;
+}
+.featured-image img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.article-content .lead {
+  font-size: 1.1rem;
+  color: #4b5563;
+  margin-bottom: 1.5rem;
+}
+.highlight-box {
+  background-color: #f3f4f6;
+  border-left: 4px solid #6366f1;
+  padding: 1.5rem;
+  margin: 2rem 0;
   text-align: center;
 }
-.card-highlight {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-  color: white;
-  padding: 2rem;
-  border-radius: 12px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-.card-highlight h3 {
-  font-size: 1.2rem;
-  opacity: 0.8;
-  margin-bottom: 0.5rem;
-}
 .highlight-value {
-  font-size: 3rem;
+  font-size: 2.8rem;
   font-weight: 700;
+  color: #111827;
   margin: 0;
 }
 .highlight-unit {
-  display: block;
-  font-size: 1rem;
-  opacity: 0.9;
-}
-.highlight-source {
-  display: block;
-  margin-top: 1.5rem;
-  font-size: 0.8rem;
-  opacity: 0.7;
+  color: #4b5563;
 }
 
-/* ... Estilos anteriores ... */
-.card-footer {
+/* BARRA LATERAL (SIDEBAR) */
+.sidebar-widget {
+  padding: 1.5rem;
+}
+.widget-title {
+  font-size: 1.3rem;
+  color: #111827;
+  margin: 0 0 1rem 0;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.75rem;
+}
+.category-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.category-list li a {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  color: #4b5563;
+  text-decoration: none;
+  border-bottom: 1px solid #f3f4f6;
+  transition: color 0.2s;
+}
+.category-list li a:hover {
+  color: #6366f1;
+}
+.category-list .count {
+  background-color: #e9ecef;
+  color: #6b7280;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 8px;
+}
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.stat-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
+  font-size: 0.9rem;
 }
-.status-badge {
-  font-size: 0.8rem;
+.stat-item strong {
+  font-size: 1.1rem;
+  color: #111827;
+}
+.newsletter-widget p {
+  color: #4b5563;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.subscribe-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.subscribe-form input {
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+.subscribe-form input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px #e0e7ff;
+}
+.btn-primary {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: none;
   font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s, transform 0.2s;
+  background-color: #6366f1;
+  color: white;
 }
-.status-badge.online {
-  background-color: #d4edda;
-  color: #155724;
+.btn-primary:hover {
+  background-color: #4f46e5;
+  transform: translateY(-2px);
 }
-.status-badge.error {
-  background-color: #f8d7da;
-  color: #721c24;
+
+/* UTILITÁRIOS E SPINNERS */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-badge {
+  width: 16px; height: 16px; border: 2px solid #ced4da;
+  border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite;
+  display: inline-block;
 }
-.status-badge.neutral {
-  background-color: #f0f0f0;
-  color: #555;
-}
-.card.disabled {
-  opacity: 0.6;
-  background-color: #f8f9fa;
-}
-.card.disabled .card-link {
- pointer-events: none;
+.spinner-large {
+  width: 40px; height: 40px; border: 4px solid #e9ecef;
+  border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite;
+  margin: 0 auto 1rem auto;
 }
 .status-message {
-  text-align: center;
-  padding: 2rem;
-  font-size: 1.1rem;
-  color: #555;
-  width: 100%;
+  padding: 2rem; text-align: center; color: #6b7280;
 }
-.status-message.error {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-radius: 8px;
+.status-message.small { padding: 1rem; display: flex; align-items: center; gap: 0.5rem; justify-content: center; }
+.status-message.error { color: #991b1b; }
+
+/* RESPONSIVIDADE */
+@media (max-width: 992px) {
+  .page-container { flex-direction: column; }
+  .main-content, .sidebar { min-width: 100%; }
+  .article-header h1 { font-size: 2rem; }
 }
-.api-status-section {
-  background-color: #f8f9fa;
-  padding: 2rem;
-  border-radius: 8px;
-}
-.status-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  background-color: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-.status-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #eee;
-}
-.status-item:last-child {
-  border-bottom: none;
-}
-.status-name {
-  font-weight: 500;
-  color: #333;
+@media (max-width: 768px) {
+  .hero-content h1 { font-size: 2.5rem; }
+  .hero-content p { font-size: 1.1rem; }
 }
 </style>
