@@ -1,60 +1,136 @@
-const {asyncHandler, verifyToken, upload} = require('../middleware/middlewares.js');
-
+// --- Imports ---
 require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
-const {
-    getIBGEPopulationData,
-    getVictimizationData,
-    getPublicSecuritySpending,
-    getSecurityLegislation,
-    getHomicideData
-} = require('../api/apiConnect');
-
+const crypto = require('crypto');
+const path = require('path');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { testConnection, sql } = require('../db/dbConnect');
+const upload = require('../middleware/multerConfig');
+const { asyncHandler, verifyToken } = require('../middleware/middlewares.js');
+const apiConnect = require('../api/apiConnect'); // Supondo que suas funções API estejam aqui
+const { ListObjectsV2Command } = require("@aws-sdk/client-s3");
 
+// --- Configuração do Cliente S3 para Backblaze B2 ---
+const R2_ENDPOINT = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
 
+const s3Client = new S3Client({
+  region: "auto", // Região do Cloudflare R2 é sempre "auto"
+  endpoint: R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+});
 
+// Função para testar a conexão com o Cloudflare R2
+async function testConnectionData() {
+  try {
+    // Tenta listar objetos do bucket (limite 1)
+    const params = { Bucket: process.env.R2_BUCKET_NAME, MaxKeys: 1 };
+    await s3Client.send(new ListObjectsV2Command(params));
+    console.log("[R2] Conexão bem-sucedida.");
+    return true;
+  } catch (error) {
+    console.error("[R2] Falha na conexão:", error.message);
+    return false;
+  }
+}
+
+// --- Funções Auxiliares para Gerenciamento de Arquivos no Cloudflare R2 ---
+
+async function uploadFileToS3(file) {
+  const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+  const extension = path.extname(file.originalname);
+  const uniqueKey = `${uniqueSuffix}${extension}`;
+  
+  // [MODIFICADO] Usa a variável do bucket do R2
+  const params = { 
+    Bucket: process.env.R2_BUCKET_NAME, 
+    Key: uniqueKey, 
+    Body: file.buffer, 
+    ContentType: file.mimetype 
+  };
+
+  // [MODIFICADO] Atualiza as mensagens de debug
+  console.log(`[R2 DEBUG] Fazendo upload:`, {
+    originalName: file.originalname,
+    uniqueKey,
+    mimeType: file.mimetype,
+    size: file.size,
+    bucket: process.env.R2_BUCKET_NAME,
+  });
+
+  const command = new PutObjectCommand(params);
+  await s3Client.send(command);
+
+  // [MODIFICADO] Constrói a URL usando a R2_PUBLIC_URL do .env
+  const filePath = `${process.env.R2_PUBLIC_URL}/${uniqueKey}`;
+  
+  console.log(`[R2 DEBUG] Upload concluído: ${filePath}`);
+  return { path: filePath, originalName: file.originalname };
+}
+
+async function deleteFileFromS3(fileUrl) {
+  if (!fileUrl || !fileUrl.startsWith('http')) return;
+  try {
+    const key = new URL(fileUrl).pathname.substring(1);
+
+    // [MODIFICADO] Usa a variável do bucket do R2
+    const params = { 
+      Bucket: process.env.R2_BUCKET_NAME, 
+      Key: key 
+    };
+
+    const command = new DeleteObjectCommand(params);
+    await s3Client.send(command);
+    
+    // [MODIFICADO] Atualiza as mensagens de debug
+    console.log(`[R2 DEBUG] Arquivo deletado: ${key}`);
+  } catch (error) {
+    console.error(`[R2 ERRO] Falha ao deletar o arquivo ${fileUrl}:`, error);
+  }
+}
 
 // ================= ROTAS PÚBLICAS =================
 
 // Status da API
 router.get('/', async (req, res) => {
     await testConnection();
-    res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' });
+    await testConnectionData();
+    res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' },);
 });
 
 // Contexto: população IBGE
 router.get('/api/contexto/populacao', asyncHandler(async (req, res) => {
-    const dados = await getIBGEPopulationData();
+    const dados = await apiConnect.getIBGEPopulationData();
     res.json({ success: true, data: dados });
 }));
 
 // Contexto: vitimização
 router.get('/api/contexto/vitimizacao', asyncHandler(async (req, res) => {
     const { uf, crime, ano, municipio, mes } = req.query;
-    const dados = await getVictimizationData({ uf, crime, ano, municipio, mes });
+    const dados = await apiConnect.getVictimizationData({ uf, crime, ano, municipio, mes });
     res.json({ success: true, data: dados });
 }));
 
 // Contexto: gastos em segurança pública
 router.get('/api/contexto/gastos-seguranca', asyncHandler(async (req, res) => {
-    const dados = await getPublicSecuritySpending(req.query.ano);
+    const dados = await apiConnect.getPublicSecuritySpending(req.query.ano);
     res.json({ success: true, data: dados });
 }));
 
 // Contexto: legislação de segurança
 router.get('/api/contexto/legislacao-seguranca', asyncHandler(async (req, res) => {
-    const dados = await getSecurityLegislation(req.query.ano);
+    const dados = await apiConnect.getSecurityLegislation(req.query.ano);
     res.json({ success: true, data: dados });
 }));
 // Painéis: homicídios
 router.get('/api/paineis/homicidios', async (req, res) => {
   try {
-    const dadosHomicidios = await getHomicideData();
+    const dadosHomicidios = await apiConnect.getHomicideData();
     res.json(dadosHomicidios);
   } catch (error) {
     console.error("Erro na rota /api/paineis/homicidios:", error);
@@ -69,7 +145,7 @@ router.get('/api/paineis/vitimizacao', async (req, res) => {
     // req.query será { ano: '2023', uf: 'SP' }
     console.log('Filtros recebidos:', req.query);
 
-    const dados = await getVictimizationData(req.query);
+    const dados = await apiConnect.getVictimizationData(req.query);
     
     res.status(200).json(dados);
 
@@ -100,82 +176,17 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 
 // ================= ROTAS PRIVADAS =================
 
-// --- Rota para Criar Análises ---
-router.post(
-  '/api/admin/analyses',
-  verifyToken,
-  upload.any(),
-  asyncHandler(async (req, res) => {
-    // --- [DEBUG] Início do Processo ---
-    console.log('----------------------------------------------------');
-    console.log(`[DEBUG] Nova análise recebida do utilizador: ${req.user.email}`);
-    console.debug('[DEBUG] Corpo da requisição (texto):', req.body);
-    console.debug('[DEBUG] Ficheiros recebidos:', req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname })));
-
-    // Extrai os campos de texto do req.body
-    let { title, tag, author, researchDate, description, content, referenceLinks } = req.body;
-    
-    // --- [NOVO] Validação de Campos Obrigatórios ---
-    if (!title || !content || !author || !researchDate || !tag || !description) {
-      // Retorna um erro 400 (Bad Request) se faltar um campo essencial
-      return res.status(400).json({ success: false, message: 'Erro de validação: Todos os campos marcados com * são obrigatórios.' });
-    }
-
-    // Separa os ficheiros de anexo dos ficheiros de conteúdo
-    const coverImageFile = req.files.find(f => f.fieldname === 'coverImage');
-    const documentFileFile = req.files.find(f => f.fieldname === 'documentFile');
-    const dataFileFile = req.files.find(f => f.fieldname === 'dataFile');
-
-    // Normaliza os caminhos dos ficheiros para serem usados como URL
-    const coverImagePath = coverImageFile ? coverImageFile.path.replace(/\\/g, '/') : null;
-    const documentFilePath = documentFileFile ? documentFileFile.path.replace(/\\/g, '/') : null;
-    const dataFilePath = dataFileFile ? dataFileFile.path.replace(/\\/g, '/') : null;
-
-    // --- [DEBUG] Processamento das Imagens do Conteúdo ---
-    const contentImageFiles = req.files.filter(f => f.fieldname.startsWith('contentImage_'));
-    if (contentImageFiles.length > 0) {
-      console.log(`[DEBUG] Encontradas ${contentImageFiles.length} imagens de conteúdo para processar.`);
-      for (const file of contentImageFiles) {
-        const placeholder = file.fieldname;
-        const publicUrl = `/${file.path.replace(/\\/g, '/')}`;
-        
-        // Substitui o placeholder no texto pelo URL final da imagem
-        content = content.replace(placeholder, publicUrl);
-        console.debug(`[DEBUG] Placeholder "${placeholder}" substituído por "${publicUrl}"`);
-      }
-    } else {
-        console.log('[DEBUG] Nenhuma imagem de conteúdo para processar.');
-    }
-
-    // --- [DEBUG] Query Final para a Base de Dados ---
-    console.log('[DEBUG] A executar a query de INSERT na base de dados...');
-    console.debug('[DEBUG] Conteúdo final a ser guardado:', content.substring(0, 100) + '...'); // Mostra um excerto do conteúdo
-
-    const result = await sql`
-      INSERT INTO analyses (
-        title, tag, author, research_date, description, content, reference_links, 
-        cover_image_path, document_file_path, data_file_path
-      ) VALUES (
-        ${title}, ${tag}, ${author}, ${researchDate}, ${description}, ${content}, ${referenceLinks}, 
-        ${coverImagePath}, ${documentFilePath}, ${dataFilePath}
-      )
-      RETURNING id; 
-    `;
-
-    const newId = result[0]?.id;
-
-    // --- [DEBUG] Conclusão do Processo ---
-    console.log(`[DEBUG] ✅ Conclusão: Análise "${title}" guardada com sucesso! Novo ID: ${newId}`);
-    console.log('----------------------------------------------------\n');
-    
-    res.status(201).json({ 
-      success: true, 
-      message: `Análise "${title}" publicada com sucesso!`,
-      analysisId: newId 
-    });
-  })
-);
-
+// Rota para BUSCAR uma análise específica por ID
+router.get('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  
+  if (result.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+  
+  res.json({ success: true, data: result[0] });
+}));
 // Rota para buscar a lista de análises com suporte a pesquisa e paginação
 router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   // Obtém os parâmetros do URL ou usa valores padrão
@@ -221,120 +232,176 @@ router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res
   });
 }));
 
-// Rota para BUSCAR uma análise específica por ID
-router.get('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const result = await sql`SELECT * FROM analyses WHERE id = ${id}`;
-  
-  if (result.length === 0) {
-    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+// --- Rota para CRIAR Análises ---
+router.post('/api/admin/analyses', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+  try {
+    const isConnected = await testConnectionData();
+    if (!isConnected) {
+      return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+    }
+
+    const { title, tag, author, researchDate, description, content, referenceLinks } = req.body;
+    if (!title || !content || !author || !researchDate || !tag || !description) {
+      return res.status(400).json({ success: false, message: 'Campos obrigatórios em falta.' });
+    }
+
+    const uploadedFiles = await Promise.all(req.files.map(uploadFileToS3));
+
+    let coverImagePath = null;
+    const documentFilesData = [];
+    const dataFilesData = [];
+    const contentImageMap = {};
+
+    req.files.forEach((file, idx) => {
+      const uploaded = uploadedFiles[idx];
+      if (file.fieldname === 'coverImage') coverImagePath = uploaded.path;
+      else if (file.fieldname === 'documentFiles') documentFilesData.push(uploaded);
+      else if (file.fieldname === 'dataFiles') dataFilesData.push(uploaded);
+      else if (file.fieldname.startsWith('contentImage_')) contentImageMap[file.fieldname] = uploaded.path;
+    });
+
+    let finalContent = content;
+    for (const placeholder in contentImageMap) {
+      finalContent = finalContent.replace(new RegExp(placeholder.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), contentImageMap[placeholder]);
+    }
+
+    const result = await sql`
+      INSERT INTO analyses (title, tag, author, research_date, description, content, reference_links, cover_image_path, document_file_path, data_file_path)
+      VALUES (${title}, ${tag}, ${author}, ${researchDate}, ${description}, ${finalContent}, ${referenceLinks}, ${coverImagePath}, ${JSON.stringify(documentFilesData)}, ${JSON.stringify(dataFilesData)})
+      RETURNING id;`;
+    
+    const newId = result[0]?.id;
+    res.status(201).json({ success: true, message: `Análise "${title}" publicada com sucesso!`, analysisId: newId });
+  } catch (err) {
+    console.error('[DEBUG] Erro inesperado ao CRIAR análise:', err);
+    res.status(500).json({ success: false, message: 'Erro inesperado ao publicar análise.', error: err.message });
   }
-  
-  res.json({ success: true, data: result[0] });
 }));
 
+// --- Rota para ATUALIZAR uma Análise ---
+router.put('/api/admin/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+  try {
+    const isConnected = await testConnectionData();
+    if (!isConnected) {
+      return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+    }
 
-// Rota para ATUALIZAR uma análise
-router.put(
-  '/api/admin/analyses/:id', 
-  verifyToken, 
-  upload.any(), // Usamos .any() para lidar com os placeholders dinâmicos das imagens
-  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    let { title, tag, author, research_date, description, content, reference_links } = req.body;
+    const oldResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+    if (!oldResult.length) {
+      return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+    }
+    const oldAnalysis = oldResult[0];
+
+    const { title, tag, author, research_date, description, content, reference_links } = req.body;
+
+    const uploadedFiles = await Promise.all(req.files.map(uploadFileToS3));
+
+    let finalCoverImagePath = req.body.keptCoverImagePath === 'null' ? null : req.body.keptCoverImagePath || oldAnalysis.cover_image_path;
+    const keptDocumentFiles = JSON.parse(req.body.keptDocumentFiles || '[]');
+    const keptDataFiles = JSON.parse(req.body.keptDataFiles || '[]');
+    const contentImageMap = {};
+    const newDocumentFiles = [];
+    const newDataFiles = [];
+
+    req.files.forEach((file, idx) => {
+      const uploaded = uploadedFiles[idx];
+      if (file.fieldname === 'newCoverImage') finalCoverImagePath = uploaded.path;
+      else if (file.fieldname === 'newDocumentFiles') newDocumentFiles.push(uploaded);
+      else if (file.fieldname === 'newDataFiles') newDataFiles.push(uploaded);
+      else if (file.fieldname.startsWith('contentImage_')) contentImageMap[file.fieldname] = uploaded.path;
+    });
+
+    const finalDocumentFiles = [...keptDocumentFiles, ...newDocumentFiles];
+    const finalDataFiles = [...keptDataFiles, ...newDataFiles];
     
-    // NOTA: Uma implementação completa aqui também apagaria os ficheiros antigos do servidor se eles forem substituídos.
-    // Esta versão foca-se em guardar os novos dados.
-
-    // Separa os ficheiros de anexo dos ficheiros de conteúdo
-    const newCoverImageFile = req.files.find(f => f.fieldname === 'newCoverImage');
-    // ... encontre outros ficheiros de anexo da mesma forma ...
-
-    // Se um novo ficheiro de capa foi enviado, atualiza o caminho, senão mantém o antigo (que vem no body)
-    const coverImagePath = newCoverImageFile 
-      ? newCoverImageFile.path.replace(/\\/g, '/') 
-      : req.body.cover_image_path; // Mantém o valor existente se não for substituído
-
-    // Processa as *novas* imagens inseridas no conteúdo
-    const contentImageFiles = req.files.filter(f => f.fieldname.startsWith('contentImage_'));
-    if (contentImageFiles.length > 0) {
-      for (const file of contentImageFiles) {
-        const placeholder = file.fieldname;
-        const publicUrl = `/${file.path.replace(/\\/g, '/')}`;
-        content = content.replace(placeholder, publicUrl);
-      }
+    let finalContent = content;
+    for (const placeholder in contentImageMap) {
+        finalContent = finalContent.replace(new RegExp(placeholder.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'), contentImageMap[placeholder]);
     }
     
+    const finalFilePaths = new Set([finalCoverImagePath, ...finalDocumentFiles.map(f => f.path), ...finalDataFiles.map(f => f.path)].filter(Boolean));
+    const filesToDelete = [];
+    if (oldAnalysis.cover_image_path && !finalFilePaths.has(oldAnalysis.cover_image_path)) {
+        filesToDelete.push(oldAnalysis.cover_image_path);
+    }
+    (oldAnalysis.document_file_path || []).forEach(f => { if (!finalFilePaths.has(f.path)) filesToDelete.push(f.path); });
+    (oldAnalysis.data_file_path || []).forEach(f => { if (!finalFilePaths.has(f.path)) filesToDelete.push(f.path); });
+
+    const oldContentImageUrls = (oldAnalysis.content.match(/https?:\/\/[^\s"'<>()]+/g) || []).filter(url => url.includes(process.env.B2_ENDPOINT));
+    oldContentImageUrls.forEach(url => { if (!finalContent.includes(url)) filesToDelete.push(url); });
+
+    if (filesToDelete.length) {
+        await Promise.all(filesToDelete.map(deleteFileFromS3));
+    }
+
     await sql`
-      UPDATE analyses 
-      SET 
-        title = ${title}, 
-        tag = ${tag}, 
-        author = ${author}, 
-        research_date = ${research_date}, 
-        description = ${description}, 
-        content = ${content}, 
-        reference_links = ${reference_links},
-        cover_image_path = ${coverImagePath}
-        -- adicione outras colunas de ficheiros aqui
-      WHERE id = ${id}
-    `;
-    
+      UPDATE analyses SET title = ${title}, tag = ${tag}, author = ${author}, research_date = ${research_date}, description = ${description}, content = ${finalContent}, reference_links = ${reference_links},
+      cover_image_path = ${finalCoverImagePath}, document_file_path = ${JSON.stringify(finalDocumentFiles)}, data_file_path = ${JSON.stringify(finalDataFiles)}
+      WHERE id = ${id}`;
+
     res.json({ success: true, message: 'Análise atualizada com sucesso!' });
-}));
-
-
-// Rota para EXCLUIR uma análise
-router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  
-  // Opcional, mas recomendado: antes de excluir do DB, apague os ficheiros associados do servidor.
-  // const analysis = await sql`SELECT * FROM analyses WHERE id = ${id}`;
-  // if (analysis[0].cover_image_path) { fs.unlinkSync(analysis[0].cover_image_path); }
-  
-  const result = await sql`DELETE FROM analyses WHERE id = ${id} RETURNING title`;
-  
-  if (result.length === 0) {
-    return res.status(404).json({ success: false, message: 'Análise não encontrada para exclusão.' });
+  } catch (err) {
+    console.error('[DEBUG] Erro inesperado ao ATUALIZAR análise:', err);
+    res.status(500).json({ success: false, message: 'Erro inesperado ao atualizar análise.', error: err.message });
   }
-  
-  res.json({ success: true, message: `Análise "${result[0].title}" foi excluída com sucesso.` });
 }));
 
-// --- Rota para executar queries SQL arbitrárias (CUIDADO!) ---
-
-router.post('/api/sql-query', verifyToken, asyncHandler(async (req, res) => {
-    const { query } = req.body;
-
-    if (!query) {
-        return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
+// --- Rota para EXCLUIR uma Análise (ATUALIZADA com Debug e Conexão) ---
+router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+  try {
+    // 1. Testa a conexão com o servidor de arquivos
+    const isConnected = await testConnectionData();
+    if (!isConnected) {
+      return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
     }
 
-    if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
-        return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
+    const { id } = req.params;
+    console.log(`[DEBUG] Recebida requisição para DELETAR análise ID: ${id}`);
+
+    // 2. Busca os dados da análise para obter os caminhos dos arquivos
+    const analysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+    
+    // [CORRIGIDO] Usa .length diretamente no resultado
+    if (analysisResult.length === 0) {
+      console.warn(`[DEBUG] Tentativa de deletar análise não existente. ID: ${id}`);
+      return res.status(404).json({ success: false, message: 'Análise não encontrada para exclusão.' });
+    }
+    const analysis = analysisResult[0];
+
+    // 3. Monta a lista de todos os arquivos a serem deletados do B2
+    const filesToDelete = [];
+    if (analysis.cover_image_path) filesToDelete.push(analysis.cover_image_path);
+    (analysis.document_file_path || []).forEach(file => filesToDelete.push(file.path));
+    (analysis.data_file_path || []).forEach(file => filesToDelete.push(file.path));
+    const contentImageUrls = (analysis.content.match(/https?:\/\/[^\s"'<>()]+/g) || []);
+    filesToDelete.push(...contentImageUrls.filter(url => url.includes(process.env.B2_ENDPOINT)));
+    
+    console.log(`[DEBUG] ${filesToDelete.length} arquivos marcados para exclusão no B2.`);
+
+    // 4. Deleta os arquivos do B2
+    if (filesToDelete.length > 0) {
+      await Promise.all(filesToDelete.map(deleteFileFromS3));
+      console.log(`[DEBUG] Arquivos no B2 foram deletados para a análise ID: ${id}`);
     }
 
-    console.log(`Executando query pelo usuário ${req.user.email}:`, query);
-
-    try {
-        const result = await sql(query);
-
-        // SELECT retorna rows
-        if (/^\s*select/i.test(query)) {
-            res.json({ success: true, data: result });
-        } else {
-            res.json({
-                success: true,
-                data: [{
-                    status: `Comando executado com sucesso.`,
-                    linhas_afetadas: result.length ?? 'N/A'
-                }],
-            });
-        }
-    } catch (err) {
-        console.error('Erro ao executar query:', err);
-        res.status(500).json({ success: false, error: 'Erro ao executar query.' });
+    // 5. Deleta a análise do banco de dados
+    const result = await sql`DELETE FROM analyses WHERE id = ${id} RETURNING title`;
+    
+    // [CORRIGIDO] Usa .length diretamente no resultado
+    if (result.length === 0) {
+      // Este caso é raro, mas é bom ter uma salvaguarda
+      return res.status(404).json({ success: false, message: 'Análise não encontrada durante a exclusão final.' });
     }
+    
+    const deletedTitle = result[0].title;
+    console.log(`[DEBUG] Análise "${deletedTitle}" (ID: ${id}) deletada com sucesso do banco de dados.`);
+    res.json({ success: true, message: `Análise "${deletedTitle}" foi excluída com sucesso.` });
+
+  } catch (err) {
+    console.error(`[DEBUG] Erro inesperado ao DELETAR análise:`, err);
+    res.status(500).json({ success: false, message: 'Erro inesperado ao excluir análise.', error: err.message });
+  }
 }));
 
 // Rota para fornecer todos os dados agregados para o dashboard

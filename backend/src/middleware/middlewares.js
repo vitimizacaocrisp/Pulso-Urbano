@@ -52,6 +52,5 @@ const upload = multer({ storage: storage });
 
 module.exports = {
     asyncHandler,
-    verifyToken,
-    upload
+    verifyToken
 };
