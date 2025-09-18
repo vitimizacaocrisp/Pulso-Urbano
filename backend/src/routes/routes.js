@@ -6,70 +6,42 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { testConnection, sql } = require('../db/dbConnect');
 const upload = require('../middleware/multerConfig');
 const { asyncHandler, verifyToken } = require('../middleware/middlewares.js');
-const apiConnect = require('../api/apiConnect'); // Supondo que suas funções API estejam aqui
-const { ListObjectsV2Command } = require("@aws-sdk/client-s3");
+const apiConnect = require('../api/apiConnect'); 
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 
 // --- Configuração do Cliente S3 para Backblaze B2 ---
-const R2_ENDPOINT = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-
 const s3Client = new S3Client({
-  region: "auto", // Região do Cloudflare R2 é sempre "auto"
-  endpoint: R2_ENDPOINT,
+  endpoint: `https://${process.env.B2_ENDPOINT}`,
+  region: process.env.B2_ENDPOINT.split('.')[1],
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.B2_KEY_ID,
+    secretAccessKey: process.env.B2_APPLICATION_KEY,
   },
 });
 
-// Função para testar a conexão com o Cloudflare R2
+// --- Funções Auxiliares de Conexão e Gerenciamento de Arquivos ---
 async function testConnectionData() {
   try {
-    // Tenta listar objetos do bucket (limite 1)
-    const params = { Bucket: process.env.R2_BUCKET_NAME, MaxKeys: 1 };
-    await s3Client.send(new ListObjectsV2Command(params));
-    console.log("[R2] Conexão bem-sucedida.");
+    await s3Client.send(new ListObjectsV2Command({ Bucket: process.env.B2_BUCKET_NAME, MaxKeys: 1 }));
+    console.log("[B2] Conexão bem-sucedida.");
     return true;
   } catch (error) {
-    console.error("[R2] Falha na conexão:", error.message);
+    console.error("[B2] Falha na conexão:", error.message);
     return false;
   }
 }
-
-// --- Funções Auxiliares para Gerenciamento de Arquivos no Cloudflare R2 ---
 
 async function uploadFileToS3(file) {
   const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
   const extension = path.extname(file.originalname);
   const uniqueKey = `${uniqueSuffix}${extension}`;
-  
-  // [MODIFICADO] Usa a variável do bucket do R2
-  const params = { 
-    Bucket: process.env.R2_BUCKET_NAME, 
-    Key: uniqueKey, 
-    Body: file.buffer, 
-    ContentType: file.mimetype 
-  };
-
-  // [MODIFICADO] Atualiza as mensagens de debug
-  console.log(`[R2 DEBUG] Fazendo upload:`, {
-    originalName: file.originalname,
-    uniqueKey,
-    mimeType: file.mimetype,
-    size: file.size,
-    bucket: process.env.R2_BUCKET_NAME,
-  });
-
+  const params = { Bucket: process.env.B2_BUCKET_NAME, Key: uniqueKey, Body: file.buffer, ContentType: file.mimetype };
   const command = new PutObjectCommand(params);
   await s3Client.send(command);
-
-  // [MODIFICADO] Constrói a URL usando a R2_PUBLIC_URL do .env
-  const filePath = `${process.env.R2_PUBLIC_URL}/${uniqueKey}`;
-  
-  console.log(`[R2 DEBUG] Upload concluído: ${filePath}`);
+  const filePath = `https://${process.env.B2_BUCKET_NAME}.${process.env.B2_ENDPOINT}/${uniqueKey}`;
   return { path: filePath, originalName: file.originalname };
 }
 
@@ -77,22 +49,15 @@ async function deleteFileFromS3(fileUrl) {
   if (!fileUrl || !fileUrl.startsWith('http')) return;
   try {
     const key = new URL(fileUrl).pathname.substring(1);
-
-    // [MODIFICADO] Usa a variável do bucket do R2
-    const params = { 
-      Bucket: process.env.R2_BUCKET_NAME, 
-      Key: key 
-    };
-
+    const params = { Bucket: process.env.B2_BUCKET_NAME, Key: key };
     const command = new DeleteObjectCommand(params);
     await s3Client.send(command);
-    
-    // [MODIFICADO] Atualiza as mensagens de debug
-    console.log(`[R2 DEBUG] Arquivo deletado: ${key}`);
+    console.log(`[B2 DEBUG] Arquivo deletado: ${key}`);
   } catch (error) {
-    console.error(`[R2 ERRO] Falha ao deletar o arquivo ${fileUrl}:`, error);
+    console.error(`[B2 ERRO] Falha ao deletar o arquivo ${fileUrl}:`, error);
   }
 }
+
 
 // ================= ROTAS PÚBLICAS =================
 
