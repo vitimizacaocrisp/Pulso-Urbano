@@ -1,14 +1,21 @@
 // --- Imports ---
-require('dotenv').config();
-const express = require('express');
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const path = require('path');
-const { testConnection, sql } = require('../db/dbConnect');
-const { asyncHandler, verifyToken } = require('../middleware/middlewares.js');
-const apiConnect = require('../api/apiConnect'); 
-const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import path from 'path';
+
+import { testConnection, sql } from '../db/dbConnect.js';
+import { asyncHandler, verifyToken } from '../middleware/middlewares.js';
+import apiConnect from '../api/apiConnect.js';
+
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { deleteFileFromS3 } from '../services/b2Service.js';
+
 
 // --- Configuração do Cliente S3 para Backblaze B2 ---
 const s3Client = new S3Client({
@@ -171,7 +178,6 @@ router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res
 }));
 
 // --- Rota para CRIAR Análises (SIMPLIFICADA) ---
-// Removido 'upload.any()' - não recebemos mais arquivos, apenas JSON.
 router.post('/api/admin/analyses', verifyToken, asyncHandler(async (req, res) => {
   try {
     // Os dados agora vêm do req.body como JSON.
