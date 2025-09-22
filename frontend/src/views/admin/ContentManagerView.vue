@@ -31,7 +31,7 @@
         </fieldset>
         
         <fieldset><legend>Anexos e Ficheiros de Referência</legend>
-          <div class="form-group"><label for="coverImage">Imagem de Capa</label><input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*"><img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview"></div>
+          <div class="form-group"><label for="coverImage">Imagem de Capa</label><input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*"><img v-if="newAnalysis.coverImageUrl" :src="newAnalysis.coverImageUrl" alt="Pré-visualização da imagem de capa" class="image-preview"></div>
           <div class="form-group"><label for="documentFiles">Documentos Originais (PDF/Word)</label><input type="file" id="documentFiles" @change="handleFileSelection($event, 'documentFiles')" accept=".pdf,.doc,.docx" multiple>
             <div v-if="newAnalysis.documentFiles.length > 0" class="file-list"><div v-for="(file, index) in newAnalysis.documentFiles" :key="index" class="file-list-item"><span>{{ file.name }}</span><button type="button" @click="removeFile(index, 'documentFiles')" class="btn-remove-file">×</button></div></div>
           </div>
@@ -68,7 +68,7 @@
             </ul>
             <hr v-if="newAnalysis.coverImage || newAnalysis.documentFiles.length > 0 || newAnalysis.dataFiles.length > 0">
             <h3>Anexos:</h3>
-            <p v-if="newAnalysis.coverImage"><strong>Imagem de Capa:</strong> <a :href="imagePreviewUrl" target="_blank">Ver Imagem</a></p>
+            <p v-if="newAnalysis.coverImage"><strong>Imagem de Capa:</strong> <a :href="newAnalysis.coverImageUrl" target="_blank">Ver Imagem</a></p>
             <div v-if="newAnalysis.documentFiles.length > 0">
                 <strong>Documentos Originais:</strong>
                 <ul><li v-for="doc in newAnalysis.documentFiles" :key="doc.name">{{ doc.name }}</li></ul>
@@ -86,49 +86,37 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { marked } from 'marked';
 import axios from 'axios';
-import DataVisualizationModal from '../../components/DataVisualizationModal.vue'; // Ajuste o caminho
+import DataVisualizationModal from '../../components/DataVisualizationModal.vue';
+import { uploadFile } from '../../services/b2Service'; // Ajuste o caminho
 
-// --- Chave para o Rascunho no LocalStorage ---
 const DRAFT_KEY = 'analysisFormDraft';
 
-// --- Estado da UI ---
 const isPreviewMode = ref(false);
 const isLoading = ref(false);
 const feedback = ref({ message: '', type: '' });
 const selectedFileForModal = ref(null);
 
-// --- Refs de Elementos do DOM ---
 const imageUploader = ref(null);
 const contentTextArea = ref(null);
 
-// --- Estado do Formulário ---
-const contentImages = ref(new Map());
-const imagePreviewUrl = ref('');
 const getInitialAnalysisState = () => ({
   title: '', tag: '', author: '', researchDate: '', description: '', content: '', referenceLinks: '',
-  coverImage: null, documentFiles: [], dataFiles: []
+  coverImage: null,
+  coverImageUrl: '',
+  documentFiles: [],
+  dataFiles: []
 });
 const newAnalysis = ref(getInitialAnalysisState());
 
-// --- Lógica de Renderização de Conteúdo ---
 const renderedContent = computed(() => {
-    let processedContent = newAnalysis.value.content;
-
-    // Substitui os placeholders de NOVAS imagens pelos seus URLs de pré-visualização locais (blob:)
-    if (contentImages.value.size > 0) {
-        for (const [placeholderId, imageData] of contentImages.value.entries()) {
-            const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-            if (imageData.blobUrl) {
-                processedContent = processedContent.replace(placeholderRegex, imageData.blobUrl);
-            }
-        }
-    }
-    
-    // Converte o Markdown final para HTML
-    return processedContent ? marked(processedContent) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+    const contentWithImages = newAnalysis.value.content.replace(
+        /!\[(.*?)\]\(uploading,(.*?)\)/g,
+        `![Carregando imagem...]()`
+    );
+    return contentWithImages ? marked(contentWithImages) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
 });
 
 // --- Lógica de Rascunho (Auto-Save) ---
@@ -144,7 +132,7 @@ const saveDraft = () => {
   };
   const draft = {
     data: textData,
-    expires: Date.now() + (60 * 60 * 1000) // Validade de 1 hora
+    expires: Date.now() + (60 * 60 * 1000)
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 };
@@ -169,17 +157,16 @@ watch(newAnalysis, () => {
 
 onMounted(loadDraft);
 
-// --- Lógica de Limpeza de Memória ---
-const cleanupBlobUrls = () => {
-    if (imagePreviewUrl.value) {
-        URL.revokeObjectURL(imagePreviewUrl.value);
-    }
-    for (const imageData of contentImages.value.values()) {
-        URL.revokeObjectURL(imageData.blobUrl);
+// --- CORREÇÃO: Lógica de Limpeza de Memória atualizada ---
+// Esta função revoga apenas a URL local da imagem de capa, se existir.
+const cleanupCoverImageBlob = () => {
+    if (newAnalysis.value.coverImageUrl && newAnalysis.value.coverImageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(newAnalysis.value.coverImageUrl);
     }
 };
-onBeforeUnmount(cleanupBlobUrls);
 
+// Limpa a URL do blob ao sair do componente.
+onBeforeUnmount(cleanupCoverImageBlob);
 
 // --- Manipulação de Formulário e Ficheiros ---
 const isFormInvalid = computed(() => !newAnalysis.value.title || !newAnalysis.value.tag || !newAnalysis.value.description || !newAnalysis.value.content || !newAnalysis.value.author || !newAnalysis.value.researchDate);
@@ -189,11 +176,9 @@ const handleFileSelection = (event, fieldName) => {
   if (!files || files.length === 0) return;
 
   if (fieldName === 'coverImage') {
-    if (imagePreviewUrl.value) {
-        URL.revokeObjectURL(imagePreviewUrl.value); 
-    }
+    cleanupCoverImageBlob(); // Limpa a URL antiga antes de criar uma nova
     newAnalysis.value.coverImage = files[0];
-    imagePreviewUrl.value = URL.createObjectURL(files[0]);
+    newAnalysis.value.coverImageUrl = URL.createObjectURL(files[0]); 
   } else {
     newAnalysis.value[fieldName] = [...newAnalysis.value[fieldName], ...Array.from(files)];
   }
@@ -206,27 +191,35 @@ const removeFile = (index, fieldName) => {
 
 const triggerImageUpload = () => imageUploader.value.click();
 
-const uploadAndInsertImage = (event) => {
+const uploadAndInsertImage = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
-  const placeholderId = `contentImage_${Date.now()}_${file.name}`;
-  const blobUrl = URL.createObjectURL(file);
-  
-  contentImages.value.set(placeholderId, { file, blobUrl });
 
-  const imageMarkdown = `\n![${file.name}](${placeholderId})\n`;
+  const placeholder = `![enviando,${file.name}]()`;
   const textarea = contentTextArea.value;
   const start = textarea.selectionStart;
-  newAnalysis.value.content = newAnalysis.value.content.substring(0, start) + imageMarkdown + newAnalysis.value.content.substring(start);
+  
+  newAnalysis.value.content = newAnalysis.value.content.substring(0, start) + `\n${placeholder}\n` + newAnalysis.value.content.substring(start);
   event.target.value = null;
+
+  try {
+    const imageUrl = await uploadFile(file);
+    const imageMarkdown = `![${file.name}](${imageUrl})`;
+    
+    newAnalysis.value.content = newAnalysis.value.content.replace(placeholder, imageMarkdown);
+  } catch (error) {
+    newAnalysis.value.content = newAnalysis.value.content.replace(placeholder, '\n*Falha no upload da imagem.*\n');
+    feedback.value = { message: 'Falha ao enviar a imagem.', type: 'error' };
+  }
 };
 
+// --- CORREÇÃO: Função de resetar formulário implementada ---
 const resetForm = () => {
-  cleanupBlobUrls();
-  newAnalysis.value = getInitialAnalysisState();
-  imagePreviewUrl.value = '';
-  contentImages.value.clear();
-  localStorage.removeItem(DRAFT_KEY);
+  cleanupCoverImageBlob(); // Limpa a URL do blob da imagem de capa
+  newAnalysis.value = getInitialAnalysisState(); // Reseta o estado do formulário
+  localStorage.removeItem(DRAFT_KEY); // Remove o rascunho
+  
+  // Limpa visualmente os inputs de arquivo
   document.getElementById('coverImage').value = null;
   document.getElementById('documentFiles').value = null;
   document.getElementById('dataFiles').value = null;
@@ -239,26 +232,47 @@ const publishAnalysis = async () => {
   }
   isLoading.value = true;
   feedback.value = { message: '', type: '' };
-  
-  const formData = new FormData();
-
-  Object.entries(newAnalysis.value).forEach(([key, value]) => {
-    if (!['coverImage', 'documentFiles', 'dataFiles'].includes(key)) {
-      formData.append(key, value);
-    }
-  });
-
-  if (newAnalysis.value.coverImage) formData.append('coverImage', newAnalysis.value.coverImage);
-  newAnalysis.value.documentFiles.forEach(file => formData.append('documentFiles', file));
-  newAnalysis.value.dataFiles.forEach(file => formData.append('dataFiles', file));
-  contentImages.value.forEach((imageData, placeholder) => formData.append(placeholder, imageData.file));
 
   try {
+    const coverImageUrl = newAnalysis.value.coverImage ? await uploadFile(newAnalysis.value.coverImage) : '';
+    
+    const documentFilesData = await Promise.all(
+      newAnalysis.value.documentFiles.map(async (file) => ({
+        path: await uploadFile(file),
+        originalName: file.name,
+      }))
+    );
+    
+    const dataFilesData = await Promise.all(
+      newAnalysis.value.dataFiles.map(async (file) => ({
+        path: await uploadFile(file),
+        originalName: file.name,
+      }))
+    );
+
+    const payload = {
+      title: newAnalysis.value.title,
+      tag: newAnalysis.value.tag,
+      author: newAnalysis.value.author,
+      researchDate: newAnalysis.value.researchDate,
+      description: newAnalysis.value.description,
+      content: newAnalysis.value.content,
+      referenceLinks: newAnalysis.value.referenceLinks,
+      coverImagePath: coverImageUrl,
+      documentFilePath: JSON.stringify(documentFilesData),
+      dataFilePath: JSON.stringify(dataFilesData),
+    };
+
     const token = localStorage.getItem('authToken');
     const apiUrl = 'http://localhost:3000';
-    const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    
+    const response = await axios.post(`${apiUrl}/api/admin/analyses`, payload, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
     });
+
     feedback.value = { message: response.data.message || 'Análise publicada com sucesso!', type: 'success' };
     resetForm();
     isPreviewMode.value = false;
@@ -270,7 +284,6 @@ const publishAnalysis = async () => {
   }
 };
 
-// --- Lógica do Modal ---
 const openDataModal = (file) => {
     selectedFileForModal.value = file;
 };
