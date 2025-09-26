@@ -1,26 +1,21 @@
 // --- Imports ---
-import dotenv from 'dotenv';
-dotenv.config();
-
-import express from 'express';
+require('dotenv').config();
+const express = require('express');
 const router = express.Router();
-
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import path from 'path';
-
-import { testConnection, sql } from '../db/dbConnect.js';
-import { asyncHandler, verifyToken } from '../middleware/middlewares.js';
-import apiConnect from '../api/apiConnect.js';
-
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { deleteFileFromS3 } from '../services/b2Service.js';
-
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const path = require('path');
+const { testConnection, sql } = require('../db/dbConnect');
+const upload = require('../middleware/multerConfig');
+const { asyncHandler, verifyToken } = require('../middleware/middlewares.js');
+const apiConnect = require('../api/apiConnect'); 
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 
 // --- Configuração do Cliente S3 para Backblaze B2 ---
 const s3Client = new S3Client({
   endpoint: `https://${process.env.B2_ENDPOINT}`,
-  region: 'us-east-005',
+  region: process.env.B2_ENDPOINT.split('.')[1],
   credentials: {
     accessKeyId: process.env.B2_KEY_ID,
     secretAccessKey: process.env.B2_APPLICATION_KEY,
@@ -38,6 +33,31 @@ async function testConnectionData() {
     return false;
   }
 }
+
+async function uploadFileToS3(file) {
+  const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+  const extension = path.extname(file.originalname);
+  const uniqueKey = `${uniqueSuffix}${extension}`;
+  const params = { Bucket: process.env.B2_BUCKET_NAME, Key: uniqueKey, Body: file.buffer, ContentType: file.mimetype };
+  const command = new PutObjectCommand(params);
+  await s3Client.send(command);
+  const filePath = `https://${process.env.B2_BUCKET_NAME}.${process.env.B2_ENDPOINT}/${uniqueKey}`;
+  return { path: filePath, originalName: file.originalname };
+}
+
+async function deleteFileFromS3(fileUrl) {
+  if (!fileUrl || !fileUrl.startsWith('http')) return;
+  try {
+    const key = new URL(fileUrl).pathname.substring(1);
+    const params = { Bucket: process.env.B2_BUCKET_NAME, Key: key };
+    const command = new DeleteObjectCommand(params);
+    await s3Client.send(command);
+    console.log(`[B2 DEBUG] Arquivo deletado: ${key}`);
+  } catch (error) {
+    console.error(`[B2 ERRO] Falha ao deletar o arquivo ${fileUrl}:`, error);
+  }
+}
+
 
 // ================= ROTAS PÚBLICAS =================
 
@@ -177,130 +197,150 @@ router.get('/api/admin/analyses-list', verifyToken, asyncHandler(async (req, res
   });
 }));
 
-// --- Rota para CRIAR Análises (SIMPLIFICADA) ---
-router.post('/api/admin/analyses', verifyToken, asyncHandler(async (req, res) => {
+// --- Rota para CRIAR Análises (corrigida) ---
+router.post('/api/admin/analyses', verifyToken, upload.any(), asyncHandler(async (req, res) => {
   try {
-    // Os dados agora vêm do req.body como JSON.
-    const { 
-      title, tag, author, researchDate, description, content, referenceLinks,
-      coverImagePath,     // URL da imagem de capa (string)
-      documentFilePath, // Arquivos de documento (string JSON)
-      dataFilePath      // Arquivos de dados (string JSON)
-    } = req.body;
+    const isConnected = await testConnectionData();
+    if (!isConnected) {
+      return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+    }
 
-    // Validação dos campos obrigatórios.
+    const { title, tag, author, researchDate, description, content, referenceLinks } = req.body;
     if (!title || !content || !author || !researchDate || !tag || !description) {
       return res.status(400).json({ success: false, message: 'Campos obrigatórios em falta.' });
     }
 
-    // A lógica de upload de arquivos foi removida.
-    // Inserimos as URLs e os dados de texto diretamente no banco.
-    const result = await sql`
-      INSERT INTO analyses (
-        title, tag, author, research_date, description, content, 
-        reference_links, cover_image_path, document_file_path, data_file_path
-      )
-      VALUES (
-        ${title}, ${tag}, ${author}, ${researchDate}, ${description}, ${content}, 
-        ${referenceLinks}, 
-        ${coverImagePath || null},
-        ${documentFilePath},
-        ${dataFilePath}
-      )
-      RETURNING id;`;
-    
-    const newId = result[0]?.id;
-    res.status(201).json({ success: true, message: `Análise "${title}" publicada com sucesso!`, analysisId: newId });
+    // Upload de todos os arquivos
+    const uploadedFiles = await Promise.all(req.files.map(uploadFileToS3));
 
+    let coverImagePath = null;
+    const documentFilesData = [];
+    const dataFilesData = [];
+    const contentImageMap = {};
+
+    // Mapeia cada arquivo para o seu campo
+    req.files.forEach((file, idx) => {
+      const uploaded = uploadedFiles[idx];
+      if (file.fieldname === 'coverImage') coverImagePath = uploaded.path;
+      else if (file.fieldname === 'documentFiles') documentFilesData.push(uploaded);
+      else if (file.fieldname === 'dataFiles') dataFilesData.push(uploaded);
+      else if (file.fieldname.startsWith('contentImage_')) {
+        // ex.: contentImage_123 => usar esse mesmo placeholder no markdown
+        contentImageMap[file.fieldname] = uploaded.path;
+      }
+    });
+
+    // Substitui todos os placeholders no conteúdo
+    let finalContent = content;
+    for (const placeholder in contentImageMap) {
+      const escaped = placeholder.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      finalContent = finalContent.replace(new RegExp(escaped, 'g'), contentImageMap[placeholder]);
+    }
+
+    const result = await sql`
+      INSERT INTO analyses
+        (title, tag, author, research_date, description, content, reference_links,
+         cover_image_path, document_file_path, data_file_path)
+      VALUES
+        (${title}, ${tag}, ${author}, ${researchDate}, ${description}, ${finalContent},
+         ${referenceLinks}, ${coverImagePath},
+         ${JSON.stringify(documentFilesData)}, ${JSON.stringify(dataFilesData)})
+      RETURNING id;
+    `;
+
+    res.status(201).json({
+      success: true,
+      message: `Análise "${title}" publicada com sucesso!`,
+      analysisId: result[0]?.id
+    });
   } catch (err) {
     console.error('[DEBUG] Erro inesperado ao CRIAR análise:', err);
     res.status(500).json({ success: false, message: 'Erro inesperado ao publicar análise.', error: err.message });
   }
 }));
 
-// --- Rota para ATUALIZAR uma Análise (REFEITA) ---
-// Removido 'upload.any()'. A rota agora limpa arquivos órfãos.
-router.put('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+// --- Rota para ATUALIZAR Análises (corrigida) ---
+router.put('/api/admin/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
   try {
-    const { id } = req.params;
+    const isConnected = await testConnectionData();
+    if (!isConnected) {
+      return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+    }
 
-    // 1. Busca os dados antigos da análise para comparar os arquivos.
+    const { id } = req.params;
     const oldResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
     if (!oldResult.length) {
       return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
     }
     const oldAnalysis = oldResult[0];
 
-    // 2. Obtém os novos dados do corpo da requisição.
-    const { 
-      title, tag, author, research_date, description, content, reference_links,
-      coverImagePath: newCoverImagePath,
-      documentFilePath: newDocumentFilePath,
-      dataFilePath: newDataFilePath
-    } = req.body;
+    const { title, tag, author, research_date, description, content, reference_links } = req.body;
 
-    // 3. Lógica para deletar arquivos órfãos do B2.
-    // Monta um Set com todas as URLs de arquivos que devem permanecer.
-    const newDocumentFiles = JSON.parse(newDocumentFilePath || '[]');
-    const newDataFiles = JSON.parse(newDataFilePath || '[]');
-    const newContentImageUrls = (content.match(/https?:\/\/[^\s"'<>()]+/g) || []).filter(url => url.includes(process.env.B2_ENDPOINT));
-    
-    const finalFileUrls = new Set([
-        newCoverImagePath,
-        ...newDocumentFiles.map(f => f.path),
-        ...newDataFiles.map(f => f.path),
-        ...newContentImageUrls
-    ].filter(Boolean)); // .filter(Boolean) remove valores nulos ou vazios
+    const uploadedFiles = await Promise.all(req.files.map(uploadFileToS3));
 
-    // Monta uma lista com todas as URLs de arquivos antigos.
-    const oldDocumentFiles = oldAnalysis.document_file_path || [];
-    const oldDataFiles = oldAnalysis.data_file_path || [];
-    const oldContentImageUrls = (oldAnalysis.content.match(/https?:\/\/[^\s"'<>()]+/g) || []).filter(url => url.includes(process.env.B2_ENDPOINT));
+    let finalCoverImagePath = req.body.keptCoverImagePath === 'null'
+      ? null
+      : req.body.keptCoverImagePath || oldAnalysis.cover_image_path;
 
-    const oldFileUrls = [
-        oldAnalysis.cover_image_path,
-        ...oldDocumentFiles.map(f => f.path),
-        ...oldDataFiles.map(f => f.path),
-        ...oldContentImageUrls
-    ].filter(Boolean);
+    const keptDocumentFiles = JSON.parse(req.body.keptDocumentFiles || '[]');
+    const keptDataFiles = JSON.parse(req.body.keptDataFiles || '[]');
 
-    // Compara as listas e marca para exclusão os arquivos que não estão na nova lista.
-    const filesToDelete = oldFileUrls.filter(oldUrl => !finalFileUrls.has(oldUrl));
+    const contentImageMap = {};
+    const newDocumentFiles = [];
+    const newDataFiles = [];
 
-    if (filesToDelete.length > 0) {
-      console.log(`[B2 DEBUG] Deletando ${filesToDelete.length} arquivos órfãos para a análise ID: ${id}`);
-      await Promise.all(filesToDelete.map(deleteFileFromS3));
+    req.files.forEach((file, idx) => {
+      const uploaded = uploadedFiles[idx];
+      if (file.fieldname === 'newCoverImage') finalCoverImagePath = uploaded.path;
+      else if (file.fieldname === 'newDocumentFiles') newDocumentFiles.push(uploaded);
+      else if (file.fieldname === 'newDataFiles') newDataFiles.push(uploaded);
+      else if (file.fieldname.startsWith('contentImage_')) {
+        contentImageMap[file.fieldname] = uploaded.path;
+      }
+    });
+
+    const finalDocumentFiles = [...keptDocumentFiles, ...newDocumentFiles];
+    const finalDataFiles = [...keptDataFiles, ...newDataFiles];
+
+    let finalContent = content;
+    for (const placeholder in contentImageMap) {
+      const escaped = placeholder.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      finalContent = finalContent.replace(new RegExp(escaped, 'g'), contentImageMap[placeholder]);
     }
 
-    // 4. Atualiza o banco de dados com as novas informações.
+    const finalFilePaths = new Set([finalCoverImagePath, ...finalDocumentFiles.map(f => f.path), ...finalDataFiles.map(f => f.path)].filter(Boolean));
+    const filesToDelete = [];
+    if (oldAnalysis.cover_image_path && !finalFilePaths.has(oldAnalysis.cover_image_path)) {
+        filesToDelete.push(oldAnalysis.cover_image_path);
+    }
+    (oldAnalysis.document_file_path || []).forEach(f => { if (!finalFilePaths.has(f.path)) filesToDelete.push(f.path); });
+    (oldAnalysis.data_file_path || []).forEach(f => { if (!finalFilePaths.has(f.path)) filesToDelete.push(f.path); });
+
+    const oldContentImageUrls = (oldAnalysis.content.match(/https?:\/\/[^\s"'<>()]+/g) || []).filter(url => url.includes(process.env.B2_ENDPOINT));
+    oldContentImageUrls.forEach(url => { if (!finalContent.includes(url)) filesToDelete.push(url); });
+
+    if (filesToDelete.length) {
+        await Promise.all(filesToDelete.map(deleteFileFromS3));
+    }
+
     await sql`
-      UPDATE analyses 
-      SET 
-        title = ${title}, 
-        tag = ${tag}, 
-        author = ${author}, 
-        research_date = ${research_date}, 
-        description = ${description}, 
-        content = ${content}, 
-        reference_links = ${reference_links},
-        cover_image_path = ${newCoverImagePath || null}, 
-        document_file_path = ${newDocumentFilePath}, 
-        data_file_path = ${newDataFilePath}
+      UPDATE analyses SET title = ${title}, tag = ${tag}, author = ${author}, research_date = ${research_date}, description = ${description}, content = ${finalContent}, reference_links = ${reference_links},
+      cover_image_path = ${finalCoverImagePath}, document_file_path = ${JSON.stringify(finalDocumentFiles)}, data_file_path = ${JSON.stringify(finalDataFiles)}
       WHERE id = ${id}`;
 
     res.json({ success: true, message: 'Análise atualizada com sucesso!' });
-
   } catch (err) {
     console.error('[DEBUG] Erro inesperado ao ATUALIZAR análise:', err);
     res.status(500).json({ success: false, message: 'Erro inesperado ao atualizar análise.', error: err.message });
   }
 }));
 
-// --- Rota para EXCLUIR uma Análise (LÓGICA MANTIDA E CORRIGIDA) ---
-// A lógica original está correta: ao deletar um post, o backend deve limpar todos os arquivos.
+
+// --- Rota para EXCLUIR uma Análise (ATUALIZADA com Debug e Conexão) ---
 router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   try {
-    const isConnected = await testConnectionData(); // Verifica a conexão com o B2.
+    // 1. Testa a conexão com o servidor de arquivos
+    const isConnected = await testConnectionData();
     if (!isConnected) {
       return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
     }
@@ -308,14 +348,17 @@ router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, r
     const { id } = req.params;
     console.log(`[DEBUG] Recebida requisição para DELETAR análise ID: ${id}`);
 
+    // 2. Busca os dados da análise para obter os caminhos dos arquivos
     const analysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
     
+    // [CORRIGIDO] Usa .length diretamente no resultado
     if (analysisResult.length === 0) {
+      console.warn(`[DEBUG] Tentativa de deletar análise não existente. ID: ${id}`);
       return res.status(404).json({ success: false, message: 'Análise não encontrada para exclusão.' });
     }
     const analysis = analysisResult[0];
 
-    // Monta a lista de TODOS os arquivos associados à análise.
+    // 3. Monta a lista de todos os arquivos a serem deletados do B2
     const filesToDelete = [];
     if (analysis.cover_image_path) filesToDelete.push(analysis.cover_image_path);
     (analysis.document_file_path || []).forEach(file => filesToDelete.push(file.path));
@@ -325,16 +368,18 @@ router.delete('/api/admin/analyses/:id', verifyToken, asyncHandler(async (req, r
     
     console.log(`[DEBUG] ${filesToDelete.length} arquivos marcados para exclusão no B2.`);
 
-    // Deleta os arquivos do B2.
+    // 4. Deleta os arquivos do B2
     if (filesToDelete.length > 0) {
       await Promise.all(filesToDelete.map(deleteFileFromS3));
       console.log(`[DEBUG] Arquivos no B2 foram deletados para a análise ID: ${id}`);
     }
 
-    // Deleta a análise do banco de dados.
+    // 5. Deleta a análise do banco de dados
     const result = await sql`DELETE FROM analyses WHERE id = ${id} RETURNING title`;
     
+    // [CORRIGIDO] Usa .length diretamente no resultado
     if (result.length === 0) {
+      // Este caso é raro, mas é bom ter uma salvaguarda
       return res.status(404).json({ success: false, message: 'Análise não encontrada durante a exclusão final.' });
     }
     

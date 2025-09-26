@@ -31,7 +31,7 @@
         </fieldset>
         
         <fieldset><legend>Anexos e Ficheiros de Referência</legend>
-          <div class="form-group"><label for="coverImage">Imagem de Capa</label><input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*"><img v-if="newAnalysis.coverImageUrl" :src="newAnalysis.coverImageUrl" alt="Pré-visualização da imagem de capa" class="image-preview"></div>
+          <div class="form-group"><label for="coverImage">Imagem de Capa</label><input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*"><img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview"></div>
           <div class="form-group"><label for="documentFiles">Documentos Originais (PDF/Word)</label><input type="file" id="documentFiles" @change="handleFileSelection($event, 'documentFiles')" accept=".pdf,.doc,.docx" multiple>
             <div v-if="newAnalysis.documentFiles.length > 0" class="file-list"><div v-for="(file, index) in newAnalysis.documentFiles" :key="index" class="file-list-item"><span>{{ file.name }}</span><button type="button" @click="removeFile(index, 'documentFiles')" class="btn-remove-file">×</button></div></div>
           </div>
@@ -68,7 +68,7 @@
             </ul>
             <hr v-if="newAnalysis.coverImage || newAnalysis.documentFiles.length > 0 || newAnalysis.dataFiles.length > 0">
             <h3>Anexos:</h3>
-            <p v-if="newAnalysis.coverImage"><strong>Imagem de Capa:</strong> <a :href="newAnalysis.coverImageUrl" target="_blank">Ver Imagem</a></p>
+            <p v-if="newAnalysis.coverImage"><strong>Imagem de Capa:</strong> <a :href="imagePreviewUrl" target="_blank">Ver Imagem</a></p>
             <div v-if="newAnalysis.documentFiles.length > 0">
                 <strong>Documentos Originais:</strong>
                 <ul><li v-for="doc in newAnalysis.documentFiles" :key="doc.name">{{ doc.name }}</li></ul>
@@ -86,39 +86,56 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { marked } from 'marked';
-import DataVisualizationModal from '../../components/DataVisualizationModal.vue';
-import { uploadFile } from '../../services/b2Service.js'; // <-- Serviço de B2
+import axios from 'axios';
+import DataVisualizationModal from '../../components/DataVisualizationModal.vue'; // Ajuste o caminho
 
+// --- Chave para o Rascunho no LocalStorage ---
 const DRAFT_KEY = 'analysisFormDraft';
 
+// --- Estado da UI ---
 const isPreviewMode = ref(false);
 const isLoading = ref(false);
 const feedback = ref({ message: '', type: '' });
 const selectedFileForModal = ref(null);
 
+// --- Refs de Elementos do DOM ---
 const imageUploader = ref(null);
 const contentTextArea = ref(null);
 
+// --- Estado do Formulário ---
+const contentImages = ref(new Map());
+const imagePreviewUrl = ref('');
 const getInitialAnalysisState = () => ({
   title: '', tag: '', author: '', researchDate: '', description: '', content: '', referenceLinks: '',
-  coverImage: null,
-  coverImageUrl: '',
-  documentFiles: [],
-  dataFiles: []
+  coverImage: null, documentFiles: [], dataFiles: []
 });
 const newAnalysis = ref(getInitialAnalysisState());
 
+function randomSuffix() {
+  return Math.floor(Math.random() * 1e6).toString();
+}
+
+// --- Lógica de Renderização de Conteúdo ---
 const renderedContent = computed(() => {
-    const contentWithImages = newAnalysis.value.content.replace(
-        /!\[(.*?)\]\(uploading,(.*?)\)/g,
-        `![Carregando imagem...]()`
-    );
-    return contentWithImages ? marked(contentWithImages) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+    let processedContent = newAnalysis.value.content;
+
+    // Substitui os placeholders de NOVAS imagens pelos seus URLs de pré-visualização locais (blob:)
+    if (contentImages.value.size > 0) {
+        for (const [placeholderId, imageData] of contentImages.value.entries()) {
+            const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+            if (imageData.blobUrl) {
+                processedContent = processedContent.replace(placeholderRegex, imageData.blobUrl);
+            }
+        }
+    }
+    
+    // Converte o Markdown final para HTML
+    return processedContent ? marked(processedContent) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
 });
 
-// --- Rascunho (Auto-Save) ---
+// --- Lógica de Rascunho (Auto-Save) ---
 const saveDraft = () => {
   const textData = {
     title: newAnalysis.value.title,
@@ -129,7 +146,10 @@ const saveDraft = () => {
     content: newAnalysis.value.content,
     referenceLinks: newAnalysis.value.referenceLinks,
   };
-  const draft = { data: textData, expires: Date.now() + 3600000 };
+  const draft = {
+    data: textData,
+    expires: Date.now() + (60 * 60 * 1000) // Validade de 1 hora
+  };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 };
 
@@ -153,15 +173,19 @@ watch(newAnalysis, () => {
 
 onMounted(loadDraft);
 
-// --- Limpeza de URL de blob ---
-const cleanupCoverImageBlob = () => {
-    if (newAnalysis.value.coverImageUrl && newAnalysis.value.coverImageUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(newAnalysis.value.coverImageUrl);
+// --- Lógica de Limpeza de Memória ---
+const cleanupBlobUrls = () => {
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value);
+    }
+    for (const imageData of contentImages.value.values()) {
+        URL.revokeObjectURL(imageData.blobUrl);
     }
 };
-onBeforeUnmount(cleanupCoverImageBlob);
+onBeforeUnmount(cleanupBlobUrls);
 
-// --- Formulário e arquivos ---
+
+// --- Manipulação de Formulário e Ficheiros ---
 const isFormInvalid = computed(() => !newAnalysis.value.title || !newAnalysis.value.tag || !newAnalysis.value.description || !newAnalysis.value.content || !newAnalysis.value.author || !newAnalysis.value.researchDate);
 
 const handleFileSelection = (event, fieldName) => {
@@ -169,9 +193,11 @@ const handleFileSelection = (event, fieldName) => {
   if (!files || files.length === 0) return;
 
   if (fieldName === 'coverImage') {
-    cleanupCoverImageBlob();
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value); 
+    }
     newAnalysis.value.coverImage = files[0];
-    newAnalysis.value.coverImageUrl = URL.createObjectURL(files[0]);
+    imagePreviewUrl.value = URL.createObjectURL(files[0]);
   } else {
     newAnalysis.value[fieldName] = [...newAnalysis.value[fieldName], ...Array.from(files)];
   }
@@ -184,31 +210,28 @@ const removeFile = (index, fieldName) => {
 
 const triggerImageUpload = () => imageUploader.value.click();
 
-const uploadAndInsertImage = async (event) => {
+const uploadAndInsertImage = (event) => {
   const file = event.target.files[0];
   if (!file) return;
+  const placeholderId = `contentImage_${randomSuffix()}`;
 
-  const placeholder = `![enviando,${file.name}]()`;
+  const blobUrl = URL.createObjectURL(file);
+  
+  contentImages.value.set(placeholderId, { file, blobUrl });
+
+  const imageMarkdown = `\n![${file.name}](${placeholderId})\n`;
   const textarea = contentTextArea.value;
   const start = textarea.selectionStart;
-  newAnalysis.value.content = newAnalysis.value.content.substring(0, start) + `\n${placeholder}\n` + newAnalysis.value.content.substring(start);
+  newAnalysis.value.content = newAnalysis.value.content.substring(0, start) + imageMarkdown + newAnalysis.value.content.substring(start);
   event.target.value = null;
-
-  try {
-    const imageUrl = await uploadFile(file); // <-- upload via b2Services
-    const imageMarkdown = `![${file.name}](${imageUrl})`;
-    newAnalysis.value.content = newAnalysis.value.content.replace(placeholder, imageMarkdown);
-  } catch (error) {
-    newAnalysis.value.content = newAnalysis.value.content.replace(placeholder, '\n*Falha no upload da imagem.*\n');
-    feedback.value = { message: 'Falha ao enviar a imagem.', type: 'error' };
-  }
 };
 
 const resetForm = () => {
-  cleanupCoverImageBlob();
+  cleanupBlobUrls();
   newAnalysis.value = getInitialAnalysisState();
+  imagePreviewUrl.value = '';
+  contentImages.value.clear();
   localStorage.removeItem(DRAFT_KEY);
-
   document.getElementById('coverImage').value = null;
   document.getElementById('documentFiles').value = null;
   document.getElementById('dataFiles').value = null;
@@ -221,73 +244,45 @@ const publishAnalysis = async () => {
   }
   isLoading.value = true;
   feedback.value = { message: '', type: '' };
+  
+  const formData = new FormData();
+
+  Object.entries(newAnalysis.value).forEach(([key, value]) => {
+    if (!['coverImage', 'documentFiles', 'dataFiles'].includes(key)) {
+      formData.append(key, value);
+    }
+  });
+
+  if (newAnalysis.value.coverImage) formData.append('coverImage', newAnalysis.value.coverImage);
+  newAnalysis.value.documentFiles.forEach(file => formData.append('documentFiles', file));
+  newAnalysis.value.dataFiles.forEach(file => formData.append('dataFiles', file));
+  contentImages.value.forEach((imageData, placeholder) => formData.append(placeholder, imageData.file));
 
   try {
-    // Upload Cover Image
-    const coverImageUrl = newAnalysis.value.coverImage ? await uploadFile(newAnalysis.value.coverImage) : '';
-
-    // Upload Document Files
-    const documentFilesData = await Promise.all(
-      newAnalysis.value.documentFiles.map(async (file) => ({
-        path: await uploadFile(file),
-        originalName: file.name
-      }))
-    );
-
-    // Upload Data Files
-    const dataFilesData = await Promise.all(
-      newAnalysis.value.dataFiles.map(async (file) => ({
-        path: await uploadFile(file),
-        originalName: file.name
-      }))
-    );
-
-    // Monta payload
-    const payload = {
-      title: newAnalysis.value.title,
-      tag: newAnalysis.value.tag,
-      author: newAnalysis.value.author,
-      researchDate: newAnalysis.value.researchDate,
-      description: newAnalysis.value.description,
-      content: newAnalysis.value.content,
-      referenceLinks: newAnalysis.value.referenceLinks,
-      coverImagePath: coverImageUrl,
-      documentFilePath: JSON.stringify(documentFilesData),
-      dataFilePath: JSON.stringify(dataFilesData)
-    };
-
     const token = localStorage.getItem('authToken');
     const apiUrl = 'http://localhost:3000';
-    
-    const response = await fetch(`${apiUrl}/api/admin/analyses`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    const result = await response.json();
-
-    if (!response.ok) throw new Error(result.message || 'Erro ao publicar análise.');
-
-    feedback.value = { message: result.message || 'Análise publicada com sucesso!', type: 'success' };
+    feedback.value = { message: response.data.message || 'Análise publicada com sucesso!', type: 'success' };
     resetForm();
     isPreviewMode.value = false;
   } catch (err) {
-    feedback.value = { message: err.message || 'Falha ao publicar a análise.', type: 'error' };
+    feedback.value = { message: err.response?.data?.message || 'Falha ao publicar a análise.', type: 'error' };
   } finally {
     isLoading.value = false;
     setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
   }
 };
 
+// --- Lógica do Modal ---
 const openDataModal = (file) => {
-  selectedFileForModal.value = file;
+    selectedFileForModal.value = file;
 };
 const closeDataModal = () => {
-  selectedFileForModal.value = null;
+    selectedFileForModal.value = null;
 };
 </script>
-
 
 <style scoped>
 .main-header-bar{background-color:#fff;padding:1.5rem 2rem;border-bottom:1px solid #dee2e6;display:flex;justify-content:space-between;align-items:center}.header-content h1{margin:0}.header-content p{margin:0;color:#6c757d}.btn-toggle-preview{background-color:transparent;border:1px solid #007bff;color:#007bff;padding:.5rem 1rem;border-radius:5px;cursor:pointer;font-weight:500}.btn-toggle-preview:hover{background-color:#007bff;color:#fff}.content-section{padding:2rem;max-width:1200px;margin:0 auto}.form-container{background-color:#fff;padding:2.5rem;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1)}fieldset{border:1px solid #e0e0e0;border-radius:8px;padding:2rem;margin-bottom:2rem}legend{font-size:1.2rem;font-weight:600;padding:0 .5rem;color:#333}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem}.form-group{margin-bottom:1.5rem}.form-group label{display:block;margin-bottom:.5rem;font-weight:500;color:#555}.form-group input,.form-group textarea{width:100%;padding:.75rem;border:1px solid #ccc;border-radius:4px;font-size:1rem;box-sizing:border-box}.required{color:#dc3545}.content-toolbar{background-color:#f8f9fa;padding:.5rem;border:1px solid #ccc;border-bottom:none;border-top-left-radius:4px;border-top-right-radius:4px}.toolbar-btn{background-color:#6c757d;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer}#content{border-top-left-radius:0;border-top-right-radius:0}.form-actions{text-align:right}.btn-publish{padding:.8rem 2rem;background-color:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1rem;font-weight:700}.btn-publish:disabled{background-color:#a5d6a7;cursor:not-allowed}.image-preview{max-width:200px;margin-top:1rem;border-radius:4px;border:1px solid #ddd}.feedback-message{margin-top:1.5rem;padding:1rem;border-radius:4px;font-weight:500}.feedback-message.success{background-color:#d4edda;color:#155724;border:1px solid #c3e6cb}.feedback-message.error{background-color:#f8d7da;color:#721c24;border:1px solid #f5c6cb}.file-list{margin-top:1rem;border:1px solid #e0e0e0;border-radius:4px;padding:.5rem}.file-list-item{display:flex;justify-content:space-between;align-items:center;padding:.5rem;background-color:#f8f9fa;border-radius:4px;margin-bottom:.5rem}.file-list-item:last-child{margin-bottom:0}.btn-remove-file{background:0 0;border:none;color:#dc3545;font-size:1.5rem;line-height:1;cursor:pointer;padding:0 .5rem}

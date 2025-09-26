@@ -1,7 +1,8 @@
-const webpack = require('webpack');
-
+//const { defineConfig } = require('@vue/cli-service')
+// module.exports = defineConfig({
+//   transpileDependencies: true
+// })
 module.exports = {
-  // Sua configuração de proxy
   devServer: {
     proxy: {
       "/api": {
@@ -9,23 +10,5 @@ module.exports = {
         changeOrigin: true
       }
     }
-  },
-
-  // Configuração completa do Webpack para os polyfills
-  configureWebpack: {
-    resolve: {
-      fallback: {
-        "crypto": require.resolve("crypto-browserify"),
-        "stream": require.resolve("stream-browserify"),
-        "vm": require.resolve("vm-browserify"),
-        "buffer": require.resolve("buffer/")
-      }
-    },
-    plugins: [
-      new webpack.ProvidePlugin({
-        process: 'process/browser', // Garante que 'process' esteja disponível
-        Buffer: ['buffer', 'Buffer'], // Garante que 'Buffer' esteja disponível
-      }),
-    ]
   }
 };

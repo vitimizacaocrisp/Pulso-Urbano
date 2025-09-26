@@ -1,15 +1,15 @@
 // Carrega as variáveis de ambiente do arquivo .env
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { sql, testConnection, requestHandler } from './db/dbConnect.js';
-import b2Routes from './routes/b2Routes.js';
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { requestHandler } = require('./db/dbConnect');
 
 const PORT = process.env.PORT || 3000;
 
 // Importa o arquivo principal de rotas
-import mainRoutes from './routes/routes.js';
+const mainRoutes = require('./routes/routes');
 
 // Cria a aplicação Express
 const app = express();
@@ -24,7 +24,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Usa o arquivo de rotas para gerenciar todas as requisições da API
 app.use('/', mainRoutes);
-app.use('/api/b2', b2Routes);
 
 // Middleware para conexão com o banco de dados
 app.use(requestHandler);
