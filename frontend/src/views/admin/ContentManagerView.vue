@@ -25,7 +25,7 @@
         
         <fieldset><legend>Conteúdo Principal</legend>
           <div class="form-group"><label for="content">Conteúdo Completo (suporta Markdown) <span class="required">*</span></label>
-            <div class="content-toolbar"><button type="button" @click="triggerImageUpload" class="toolbar-btn">+ Inserir Imagem</button><input type="file" ref="imageUploader" @change="uploadAndInsertImage" style="display: none;" accept="image/*"></div>
+            <div class="content-toolbar"><button type="button" @click="triggerImageUpload" class="toolbar-btn">+ Inserir Imagem</button><input type="file" ref="imageUploader" @change="uploadAndInsertImage" style="display: none;" accept="image/*" multiple></div>
             <textarea id="content" ref="contentTextArea" v-model="newAnalysis.content" rows="15" required></textarea>
           </div>
         </fieldset>
@@ -211,18 +211,30 @@ const removeFile = (index, fieldName) => {
 const triggerImageUpload = () => imageUploader.value.click();
 
 const uploadAndInsertImage = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const placeholderId = `contentImage_${randomSuffix()}`;
-
-  const blobUrl = URL.createObjectURL(file);
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
   
-  contentImages.value.set(placeholderId, { file, blobUrl });
-
-  const imageMarkdown = `\n![${file.name}](${placeholderId})\n`;
+  let markdownToInsert = '';
+  
+  for (const file of files) {
+    // A MUDANÇA ESTÁ AQUI: Criamos um ID simples e seguro.
+    const placeholderId = `placeholder_${Date.now()}_${randomSuffix()}`;
+    
+    const blobUrl = URL.createObjectURL(file);
+    contentImages.value.set(placeholderId, { file, blobUrl });
+    
+    // O alt text do Markdown continua usando o nome original do arquivo, o que é bom para SEO.
+    markdownToInsert += `\n![${file.name}](${placeholderId})\n`;
+  }
+  
   const textarea = contentTextArea.value;
   const start = textarea.selectionStart;
-  newAnalysis.value.content = newAnalysis.value.content.substring(0, start) + imageMarkdown + newAnalysis.value.content.substring(start);
+  const end = textarea.selectionEnd;
+  newAnalysis.value.content = 
+    newAnalysis.value.content.substring(0, start) + 
+    markdownToInsert + 
+    newAnalysis.value.content.substring(end);
+    
   event.target.value = null;
 };
 
@@ -260,7 +272,7 @@ const publishAnalysis = async () => {
 
   try {
     const token = localStorage.getItem('authToken');
-    const apiUrl = 'http://localhost:3000';
+    const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
     const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
       headers: { 'Authorization': `Bearer ${token}` }
     });

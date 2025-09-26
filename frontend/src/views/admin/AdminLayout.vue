@@ -12,7 +12,6 @@
             <li><router-link :to="{ name: 'AdminDashboard' }"><Icon icon="mdi:view-dashboard" /> Início</router-link></li>
             <li><router-link :to="{ name: 'ContentManager' }"><Icon icon="mdi:plus-circle" /> Nova Análise</router-link></li>
             <li><router-link :to="{ name: 'EditAnalysis' }"><Icon icon="mdi:pencil" /> Editar / Excluir</router-link></li>
-            <li><router-link :to="{ name: 'SqlTerminal' }"><Icon icon="mdi:terminal" /> Terminal SQL</router-link></li>
           </ul>
         </nav>
 
@@ -37,9 +36,6 @@
         </router-link>
         <router-link :to="{ name: 'EditAnalysis' }" class="menu-item" title="Editar Análise" @click="toggleMenu(false)">
           <Icon icon="mdi:pencil" />
-        </router-link>
-        <router-link :to="{ name: 'SqlTerminal' }" class="menu-item" title="Terminal SQL" @click="toggleMenu(false)">
-          <Icon icon="mdi:terminal" />
         </router-link>
         <button @click="logoutAndClose" class="menu-item" title="Sair">
           <Icon icon="mdi:logout" />
