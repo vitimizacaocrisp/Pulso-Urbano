@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-body">
+  <div class="dashboard-body" style="display: fixed; top: 0; left: 0; width: 100%; height: 100vh;">
     <div class="dashboard-container">
       <!-- Sidebar (desktop) -->
       <aside class="dashboard-sidebar">
@@ -43,7 +43,7 @@
       </div>
 
       <button class="menu-toggle" @click="toggleMenu()">
-        <Icon icon="mdi:cog" />
+        <Icon icon="mdi:cog"/>
       </button>
     </div>
   </div>

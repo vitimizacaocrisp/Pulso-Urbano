@@ -1,147 +1,223 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { asyncHandler, verifyToken, upload } = require('../middleware/middlewares.js');
-const { sql, testConnection } = require('../db/dbConnect');
-
 const router = express.Router();
+const { verifyToken, asyncHandler } = require('../middleware/middlewares');
+const upload = require('../middleware/multerConfig');
+const { sql } = require('../db/dbConnect');
+const { 
+  generateUniqueFilename, 
+  uploadFileToS3, 
+  deleteFileFromS3, 
+  getFolderForFile, 
+  testConnectionData 
+} = require('../middleware/s3Connection');
 
-// ================= AUTENTICAÇÃO ADMIN =================
-router.post('/auth', asyncHandler(async (req, res) => {
-  testConnection();
-  const { email, password } = req.body;
-
-  const isAdminEmail = email === process.env.ADMIN_EMAIL;
-  const isPasswordCorrect = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
-
-  if (!isAdminEmail || !isPasswordCorrect) {
-    return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-  }
-
-  const payload = { email: process.env.ADMIN_EMAIL };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-  res.json({ success: true, message: 'Login bem-sucedido!', token });
+// NOVA ROTA: Listar análises para a pesquisa no frontend
+router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
+  const analyses = await sql`
+    SELECT id, title, author, tag FROM analyses ORDER BY created_at DESC
+  `;
+  res.json({ success: true, data: { analyses } });
 }));
 
-// ================= ROTAS PRIVADAS =================
 
-// CRUD de análises
-router.post('/analyses', verifyToken, upload.fields([
-  { name: 'coverImage', maxCount: 1 },
-  { name: 'documentFile', maxCount: 1 },
-  { name: 'dataFile', maxCount: 1 }
-]), asyncHandler(async (req, res) => {
-  testConnection();
+// Rota para LER uma Análise Específica (sem alterações)
+router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  if (results.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+  res.json({ success: true, data: results[0] });
+}));
 
-  const { title, tag, description, content, externalLink } = req.body;
-  const coverImagePath = req.files?.coverImage?.[0]?.path || null;
-  const documentFilePath = req.files?.documentFile?.[0]?.path || null;
-  const dataFilePath = req.files?.dataFile?.[0]?.path || null;
+
+// Rota para CRIAR Análises (sem alterações)
+router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+  const isConnected = await testConnectionData();
+  if (!isConnected) return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+
+  const {
+    title, subtitle, lastUpdate, studyPeriod, source, category,
+    tag, author, description, content, referenceLinks
+  } = req.body;
+
+  if (!title || !content || !author || !tag || !description || !category) {
+    return res.status(400).json({ success: false, message: 'Campos obrigatórios em falta.' });
+  }
+  
+  const hasCoverImage = req.files && req.files.some(file => file.fieldname === 'coverImage');
+  if (!hasCoverImage) {
+    return res.status(400).json({ success: false, message: 'A imagem de capa é obrigatória.' });
+  }
+
+  const uploadPromises = req.files.map(async file => {
+    const folder = getFolderForFile(file.fieldname);
+    const uniqueFilename = generateUniqueFilename(file.originalname);
+    const keyWithFolder = `${folder}/${uniqueFilename}`;
+    return uploadFileToS3(file, keyWithFolder);
+  });
+  const uploadedFiles = await Promise.all(uploadPromises);
+
+  let coverImagePath = null;
+  const documentFilesData = [];
+  const dataFilesData = [];
+  const audioFilesData = [];
+  const videoFilesData = [];
+  const contentMediaMap = {};
+
+  req.files.forEach((file, idx) => {
+    const uploaded = uploadedFiles[idx];
+    const fieldname = file.fieldname;
+
+    if (fieldname === 'coverImage') {
+        coverImagePath = uploaded.path;
+    } else if (fieldname === 'documentFiles') {
+        documentFilesData.push(uploaded);
+    } else if (fieldname === 'dataFiles') {
+        dataFilesData.push(uploaded);
+    } else if (fieldname.startsWith('placeholder_') || fieldname.startsWith('audio_placeholder_') || fieldname.startsWith('video_placeholder_')) {
+        contentMediaMap[fieldname] = uploaded.path;
+        if (fieldname.startsWith('audio_placeholder_')) audioFilesData.push(uploaded);
+        else if (fieldname.startsWith('video_placeholder_')) videoFilesData.push(uploaded);
+    }
+  });
+
+  let finalContent = content;
+  for (const placeholder in contentMediaMap) {
+    const escaped = placeholder.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    finalContent = finalContent.replace(new RegExp(escaped, 'g'), contentMediaMap[placeholder]);
+  }
 
   const result = await sql`
-    INSERT INTO analyses (title, tag, description, content, external_link, 
-      cover_image_path, document_file_path, data_file_path)
-    VALUES (${title}, ${tag}, ${description}, ${content}, ${externalLink},
-      ${coverImagePath}, ${documentFilePath}, ${dataFilePath})
+    INSERT INTO analyses
+      (title, subtitle, last_update, study_period, source, category,
+      tag, author, description, content, reference_links,
+      cover_image_path, document_file_path, data_file_path, audio_file_path, video_file_path)
+    VALUES
+      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category},
+      ${tag}, ${author}, ${description}, ${finalContent}, ${referenceLinks},
+      ${coverImagePath}, ${JSON.stringify(documentFilesData)}, ${JSON.stringify(dataFilesData)},
+      ${JSON.stringify(audioFilesData)}, ${JSON.stringify(videoFilesData)})
     RETURNING id;
   `;
 
   res.status(201).json({
     success: true,
     message: `Análise "${title}" publicada com sucesso!`,
-    analysisId: result[0]?.id
+    analysisId: result[0]?.id,
   });
 }));
 
-router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const result = await sql`SELECT * FROM analyses WHERE id = ${id}`;
-  if (!result.length) return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
-  res.json({ success: true, data: result[0] });
-}));
+// Rota para ATUALIZAR Análises (TOTALMENTE ATUALIZADA)
+router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+  const isConnected = await testConnectionData();
+  if (!isConnected) return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
 
-router.put('/analyses/:id', verifyToken, upload.none(), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, tag, description, content, externalLink } = req.body;
+  const {
+    title, subtitle, lastUpdate, studyPeriod, source, category,
+    tag, author, description, content, referenceLinks, filesToDelete
+  } = req.body;
+
+  // 1. Deletar arquivos marcados para exclusão
+  const filesToDeleteParsed = JSON.parse(filesToDelete || '[]');
+  if (filesToDeleteParsed.length > 0) {
+    console.log(`[B2 DELETE] Deletando ${filesToDeleteParsed.length} arquivos solicitados...`);
+    await Promise.all(filesToDeleteParsed.map(deleteFileFromS3));
+  }
+
+  // 2. Fazer upload de todos os arquivos enviados (representam o estado final)
+  const uploadPromises = req.files.map(async file => {
+    const folder = getFolderForFile(file.fieldname);
+    const uniqueFilename = generateUniqueFilename(file.originalname);
+    const keyWithFolder = `${folder}/${uniqueFilename}`;
+    return { ...await uploadFileToS3(file, keyWithFolder), fieldname: file.fieldname };
+  });
+  const uploadedFiles = await Promise.all(uploadPromises);
+
+  // 3. Montar o estado final dos arquivos para o banco de dados
+  const oldAnalysis = (await sql`SELECT * FROM analyses WHERE id = ${id}`)[0];
+  if (!oldAnalysis) return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+
+  let finalCoverImagePath = oldAnalysis.cover_image_path;
+  let finalDocumentFiles = oldAnalysis.document_file_path || [];
+  let finalDataFiles = oldAnalysis.data_file_path || [];
+  const contentMediaMap = {};
+
+  // Remove os arquivos deletados das listas existentes
+  finalDocumentFiles = finalDocumentFiles.filter(f => !filesToDeleteParsed.includes(f.path));
+  finalDataFiles = finalDataFiles.filter(f => !filesToDeleteParsed.includes(f.path));
+  if (filesToDeleteParsed.includes(finalCoverImagePath)) {
+    finalCoverImagePath = null;
+  }
+  
+  // Adiciona os novos arquivos
+  uploadedFiles.forEach(uploaded => {
+    if (uploaded.fieldname === 'coverImage') {
+      finalCoverImagePath = uploaded.path;
+    } else if (uploaded.fieldname === 'documentFiles') {
+      finalDocumentFiles.push({ path: uploaded.path, originalName: uploaded.originalName });
+    } else if (uploaded.fieldname === 'dataFiles') {
+      finalDataFiles.push({ path: uploaded.path, originalName: uploaded.originalName });
+    } else if (uploaded.fieldname.startsWith('placeholder_') || uploaded.fieldname.startsWith('audio_placeholder_') || uploaded.fieldname.startsWith('video_placeholder_')) {
+      contentMediaMap[uploaded.fieldname] = uploaded.path;
+    }
+  });
+
+  // 4. Atualizar o conteúdo com os novos URLs
+  let finalContent = content;
+  for (const placeholder in contentMediaMap) {
+    const escaped = placeholder.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    finalContent = finalContent.replace(new RegExp(escaped, 'g'), contentMediaMap[placeholder]);
+  }
+
+  // 5. Atualizar o banco de dados
   await sql`
-    UPDATE analyses SET title=${title}, tag=${tag}, description=${description}, 
-    content=${content}, external_link=${externalLink} WHERE id=${id}
+    UPDATE analyses SET
+      title = ${title}, subtitle = ${subtitle}, last_update = ${lastUpdate}, 
+      study_period = ${studyPeriod}, source = ${source}, category = ${category},
+      tag = ${tag}, author = ${author}, description = ${description}, 
+      content = ${finalContent}, reference_links = ${referenceLinks},
+      cover_image_path = ${finalCoverImagePath},
+      document_file_path = ${JSON.stringify(finalDocumentFiles)},
+      data_file_path = ${JSON.stringify(finalDataFiles)}
+      -- audio_file_path e video_file_path podem ser adicionados aqui se necessário
+    WHERE id = ${id}
   `;
-  res.json({ success: true, message: 'Análise atualizada com sucesso!' });
+
+  res.json({
+    success: true,
+    message: 'Análise atualizada com sucesso!',
+  });
 }));
 
+// Rota para DELETAR Análises (sem alterações necessárias)
 router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const result = await sql`DELETE FROM analyses WHERE id=${id} RETURNING title`;
-  if (!result.length) return res.status(404).json({ success: false, message: 'Não encontrada.' });
-  res.json({ success: true, message: `Análise "${result[0].title}" excluída.` });
-}));
 
-// Execução de query SQL arbitrária (cuidado!)
-router.post('/sql-query', verifyToken, asyncHandler(async (req, res) => {
-  const { query } = req.body;
-  if (!query) return res.status(400).json({ success: false, error: 'A query não pode estar vazia.' });
+  const analysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  if (analysisResult.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+  const analysis = analysisResult[0];
 
-  if (query.trim().split(';').filter(s => s.length > 0).length > 1) {
-    return res.status(400).json({ success: false, error: 'Múltiplos comandos SQL não são permitidos.' });
+  const filesToDelete = [];
+  if (analysis.cover_image_path) filesToDelete.push(analysis.cover_image_path);
+  (analysis.document_file_path || []).forEach(f => f.path && filesToDelete.push(f.path));
+  (analysis.data_file_path || []).forEach(f => f.path && filesToDelete.push(f.path));
+  (analysis.audio_file_path || []).forEach(f => f.path && filesToDelete.push(f.path));
+  (analysis.video_file_path || []).forEach(f => f.path && filesToDelete.push(f.path));
+
+  const mediaUrls = (analysis.content.match(/https?:\/\/[^\s"'<>()]+/g) || []).filter(url => url.includes(process.env.B2_ENDPOINT));
+  filesToDelete.push(...mediaUrls);
+
+  if (filesToDelete.length) {
+    await Promise.all(filesToDelete.map(deleteFileFromS3));
   }
 
-  try {
-    const result = await sql(query);
-    if (/^\s*select/i.test(query)) {
-      res.json({ success: true, data: result });
-    } else {
-      res.json({ success: true, data: [{ status: 'Comando executado com sucesso.', linhas_afetadas: result.length ?? 'N/A' }] });
-    }
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Erro ao executar query.' });
-  }
+  await sql`DELETE FROM analyses WHERE id = ${id}`;
+
+  res.json({ success: true, message: 'Análise deletada com sucesso.' });
 }));
-
-// Dashboard data
-router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
-  const [statsResult, recentAnalysesResult, chartDataResult] = await Promise.all([
-    sql`SELECT (SELECT COUNT(*) FROM analyses) AS "totalAnalyses",
-                (SELECT COUNT(*) FROM analyses WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS "newThisMonth",
-                (SELECT COUNT(DISTINCT tag) FROM analyses WHERE tag IS NOT NULL AND tag != '') AS "uniqueTags"`,
-    sql`SELECT id, title, tag, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date 
-        FROM analyses ORDER BY created_at DESC LIMIT 5`,
-    sql`WITH months AS (
-          SELECT generate_series(
-            date_trunc('month', CURRENT_DATE) - interval '5 months',
-            date_trunc('month', CURRENT_DATE), '1 month'::interval
-          ) AS month
-        )
-        SELECT TO_CHAR(months.month, 'Mon') AS month_name,
-               COUNT(analyses.id) AS publication_count
-        FROM months
-        LEFT JOIN analyses ON date_trunc('month', analyses.created_at) = months.month
-        GROUP BY months.month ORDER BY months.month`
-  ]);
-
-  res.json({
-    success: true,
-    data: {
-      stats: statsResult[0],
-      recentAnalyses: recentAnalysesResult,
-      chartData: {
-        labels: chartDataResult.map(r => r.month_name),
-        data: chartDataResult.map(r => r.publication_count)
-      }
-    }
-  });
-}));
-
-router.get('/data', verifyToken, (req, res) => {
-  res.json({
-    success: true,
-    message: `Dados secretos para ${req.user.email}`,
-    data: [
-      { id: 1, pesquisa: 'Impacto da Urbanização', ano: 2023 },
-      { id: 2, pesquisa: 'Vitimização em Capitais', ano: 2024 }
-    ]
-  });
-});
 
 module.exports = router;

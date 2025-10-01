@@ -25,7 +25,7 @@ import EditAnalysisView from '../views/admin/EditAnalysisView.vue';
 const routes = [
   // --- Rota de Login (Pública) ---
   {
-    path: '/admin/login',
+    path: '/login',
     name: 'AdminLogin',
     component: AdminLogin,
     meta: { requiresAuth: false, hideLayout: true } // Esta rota NÃO exige autenticação
@@ -114,7 +114,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(),
   routes
 });
 
@@ -123,13 +123,17 @@ router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const token = localStorage.getItem('authToken');
 
-  if (requiresAuth && !token) {
+  // Se tentar acessar a rota de login e já existir token, redireciona para /admin
+  if (to.name === 'AdminLogin' && token) {
+    next({ name: 'AdminDashboard' });
+  } else if (requiresAuth && !token) {
     // Se a rota exige autenticação e não há token, redireciona para o login
     next({ name: 'AdminLogin' });
   } else {
-    // Caso contrário, permite o acesso
+    // Caso contrário, permite o acesso normalmente
     next();
   }
 });
+
 
 export default router;
