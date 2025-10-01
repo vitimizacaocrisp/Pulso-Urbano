@@ -10,9 +10,6 @@
         <router-link :to="{ name: 'ContentManager' }" class="action-btn">
           + Nova Análise
         </router-link>
-        <router-link :to="{ name: 'SqlTerminal' }" class="action-btn">
-          Terminal SQL
-        </router-link>
       </div>
 
       <!-- Cards de Resumo (KPIs) -->

@@ -561,7 +561,7 @@ const publishAnalysis = async () => {
   
   try {
     const token = localStorage.getItem('authToken');
-    const apiUrl = 'http://localhost:3000';
+    const apiUrl = 'http://localhost:3000' || process.env.VUE_APP_API_UR;
     const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -626,7 +626,7 @@ legend { font-size: 1.2rem; font-weight: 600; padding: 0 .5rem; color: #333; }
 .preview-subtitle { font-size: 1.25rem; color: #009dc4; font-weight: 500; margin-bottom: 0.25rem; }
 .preview-meta { font-size: 0.92rem; color: #888; margin-bottom: 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
 .preview-category { background: #009dc4; color: #fff; font-weight: 600; padding: 0.1em 0.75em; border-radius: 36px; font-size: 0.9em; }
-.preview-description { padding: 0 2rem 1rem 2rem; font-size: 1.22rem; color: #333; font-weight: 400; }
+.preview-description { overflow-wrap: anywhere; padding: 0 2rem 1rem 2rem; font-size: 1.22rem; color: #333; font-weight: 400; }
 .preview-content { padding: 1rem 2rem 0 2rem; font-size: 1.08rem; color: #212121; word-break: break-word; }
 .preview-section-title { padding: 1.5rem 2rem 0.5rem 2rem; color: #009dc4; font-weight: bold; font-size: 1.1rem; }
 .preview-links { padding: 0 2rem 1rem 2rem; list-style: disc inside; margin-bottom: 1rem; }

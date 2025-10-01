@@ -11,12 +11,50 @@ const {
   testConnectionData 
 } = require('../middleware/s3Connection');
 
-// NOVA ROTA: Listar análises para a pesquisa no frontend
+// Listar análises para a pesquisa no frontend
 router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
+  const { search, page = 1, limit = 10, category } = req.query;
+  const offset = (page - 1) * limit;
+
+  const whereClauses = [];
+  if (search) {
+    whereClauses.push(sql`(
+      title ILIKE ${'%' + search + '%'} OR 
+      tag ILIKE ${'%' + search + '%'} OR 
+      author ILIKE ${'%' + search + '%'}
+    )`);
+  }
+  if (category) {
+    whereClauses.push(sql`category ILIKE ${category}`);
+  }
+
+  // CORREÇÃO: Usando .reduce() em vez do inexistente .join()
+  const whereCondition = whereClauses.length > 0
+    ? sql`WHERE ${whereClauses.reduce((acc, cur) => sql`${acc} AND ${cur}`)}`
+    : sql``;
+
+  // Monta a query de busca de análises usando a condição corrigida
   const analyses = await sql`
-    SELECT id, title, author, tag FROM analyses ORDER BY created_at DESC
+    SELECT id, title, author, tag, description, cover_image_path, created_at 
+    FROM analyses
+    ${whereCondition}
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
   `;
-  res.json({ success: true, data: { analyses } });
+  
+  // Monta a query para contagem total de resultados usando a condição corrigida
+  const totalResult = await sql`
+    SELECT COUNT(*) FROM analyses
+    ${whereCondition}
+  `;
+
+  res.json({ 
+    success: true, 
+    data: { 
+      analyses,
+      total: parseInt(totalResult[0].count, 10)
+    } 
+  });
 }));
 
 

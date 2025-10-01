@@ -5,6 +5,7 @@ const {asyncHandler} = require('../middleware/middlewares');
 const apiConnect = require('../api/apiConnect');
 const { testConnection } = require('../db/dbConnect');
 const { testConnectionData } = require('../middleware/s3Connection');
+const { sql } = require('../db/dbConnect');
 // Rota de autenticação Admin
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -15,6 +16,42 @@ router.get('/', async (req, res) => {
   await testConnectionData();
   res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' });
 });
+
+// ROTA PÚBLICA PARA LER UMA ANÁLISE
+router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  const results = await sql`
+    SELECT id, title, subtitle, last_update, study_period, source, category,
+           tag, author, description, content, reference_links,
+           cover_image_path, document_file_path, data_file_path
+    FROM analyses 
+    WHERE id = ${id}
+  `;
+
+  if (results.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+
+  res.json({ success: true, data: results[0] });
+}));
+router.get('/api/analyses-list', asyncHandler(async (req, res) => {
+  // Esta é uma versão simplificada da rota de admin, sem filtros complexos
+  const analyses = await sql`
+    SELECT id, title, author, tag, description, cover_image_path, created_at, category 
+    FROM analyses 
+    ORDER BY created_at DESC
+  `;
+  
+  res.json({ 
+    success: true, 
+    data: { 
+      analyses,
+      total: analyses.length
+    } 
+  });
+}));
+
 
 // Contextos API
 router.get('/api/contexto/populacao', asyncHandler(async (req, res) => {

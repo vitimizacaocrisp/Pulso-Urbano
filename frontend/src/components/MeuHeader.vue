@@ -39,16 +39,15 @@
 
     <nav class="desktop-submenu">
       <ul>
-          <li>
-            <span @click="toggleSubmenu" class="submenu-title">
+          <li @mouseenter="openSubmenu" @mouseleave="closeSubmenu">
+            <span class="submenu-title">
               Publicações
               <i class="fas fa-chevron-down icon-small"></i>
             </span>
             <ul v-if="submenuOpen" class="submenu">
-              <li><router-link to="/analises">Todas</router-link></li>
-              <li><router-link to="/analises-cenarios">Educação</router-link></li>
-              <li><router-link to="/tecnologia">Tecnologia</router-link></li>
-              <li><router-link to="/seguranca">Segurança</router-link></li>
+              <li v-for="category in categories" :key="category.path">
+                <router-link :to="category.path">{{ category.name }}</router-link>
+              </li>
             </ul>
           </li>
           <li><router-link to="/contato">Contato</router-link></li>
@@ -61,20 +60,49 @@
         <div class="drawer-header">
           <h2>Menu</h2>
           <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
-             <i class="fas fa-times"></i>
+              <i class="fas fa-times"></i>
           </button>
         </div>
+
+        <div class="search-wrapper">
+            <input 
+                type="text" 
+                v-model="searchQuery" 
+                placeholder="Pesquisar por análises..."
+                @focus="loadAllAnalyses"
+                @blur="hideDropdown"
+                class="search-input"
+                @keyup.enter="onSearch"
+                @input="isDropdownVisible = true"
+            >
+            <button @click="onSearch" class="search-button" aria-label="Pesquisar">
+                <i class="fas fa-search"></i>
+            </button>
+            <div v-if="isLoading" class="search-loader"></div>
+            
+            <div v-if="isDropdownVisible && filteredAnalyses.length > 0" class="search-dropdown">
+                <ul>
+                    <li v-for="analysis in filteredAnalyses" :key="analysis.id" @mousedown.prevent="selectAnalysis(analysis)">
+                        <strong>{{ analysis.title }}</strong>
+                        <small v-if="analysis.author || analysis.tag">{{ analysis.author }} - {{ analysis.tag }}</small>
+                    </li>
+                </ul>
+            </div>
+            <div v-if="isDropdownVisible && filteredAnalyses.length === 0 && searchQuery && !isLoading" class="search-dropdown no-results">
+                Nenhum resultado encontrado.
+            </div>
+        </div>
+
         <ul class="menu-list">
-           <li>
+            <li>
             <span @click="toggleSubmenu" class="submenu-title">
               Publicações
               <i class="fas fa-chevron-down icon-small"></i>
             </span>
-            <ul v-if="submenuOpen" class="submenu">
-              <li><router-link to="/analises">Todas</router-link></li>
-              <li><router-link to="/analises-cenarios">Educação</router-link></li>
-              <li><router-link to="/tecnologia">Tecnologia</router-link></li>
-              <li><router-link to="/seguranca">Segurança</router-link></li>
+            <ul v-if="submenuOpen" class="submenu-mobile">
+              <li v-for="category in categories" :key="category.path">
+                <router-link :to="category.path">{{ category.name }}</router-link>
+              </li>
             </ul>
           </li>
           <li><router-link to="/contato">Contato</router-link></li>
@@ -93,6 +121,16 @@ import axios from 'axios';
 // --- Estado da UI ---
 const menuOpen = ref(false);
 const submenuOpen = ref(false);
+
+// --- Lista de Categorias ---
+const categories = ref([
+    { name: 'Todas', path: '/categoria' },
+    { name: 'Educação', path: '/categoria/educacao' },
+    { name: 'Saúde', path: '/categoria/saude' },
+    { name: 'Política', path: '/categoria/politica' },
+    { name: 'Criminalidade', path: '/categoria/criminalidade' },
+    { name: 'Tecnologia', path: '/categoria/tecnologia' }
+]);
 
 // --- Estado da Busca ---
 const searchQuery = ref('');
@@ -121,9 +159,18 @@ const filteredAnalyses = computed(() => {
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value;
 };
-const toggleSubmenu = () => {
+
+// Funções para controle do submenu
+const toggleSubmenu = () => { // Usado no mobile (clique)
   submenuOpen.value = !submenuOpen.value;
 };
+const openSubmenu = () => { // Usado no desktop (hover)
+  submenuOpen.value = true;
+};
+const closeSubmenu = () => { // Usado no desktop (hover)
+  submenuOpen.value = false;
+};
+
 
 const loadAllAnalyses = async () => {
   isDropdownVisible.value = true;
@@ -133,20 +180,16 @@ const loadAllAnalyses = async () => {
   
   isLoading.value = true;
   try {
-    // Usando o endpoint PÚBLICO para a lista de análises, sem token.
     const token = localStorage.getItem('authToken');
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 30000 // 30 segundos para aguardar a resposta
+      headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    // Lógica para extrair o array de análises da resposta da API
     const analysesArray = response.data?.data?.analyses;
 
     if (Array.isArray(analysesArray)) {
         allAnalyses.value = analysesArray;
     } else {
-        console.error("A resposta da API não continha o array esperado em .data.analyses", response.data);
         allAnalyses.value = [];
     }
     
@@ -164,15 +207,18 @@ const hideDropdown = () => {
 };
 
 const selectAnalysis = (analysis) => {
-  searchQuery.value = analysis.title;
+  searchQuery.value = ''; // Limpa a busca após selecionar
   isDropdownVisible.value = false;
-  router.push(`/analises/${analysis.id}`);
+  router.push({ name: 'AnalysisDetail', params: { id: analysis.id } });
+  if (menuOpen.value) toggleMenu(); // Fecha o menu mobile após a seleção
 };
 
 const onSearch = () => {
   if (searchQuery.value.trim() !== "") {
     isDropdownVisible.value = false;
-    router.push(`/analises?query=${encodeURIComponent(searchQuery.value)}`);
+    if (filteredAnalyses.value.length > 0) {
+        selectAnalysis(filteredAnalyses.value[0]);
+    }
   }
 };
 </script>
@@ -194,6 +240,7 @@ const onSearch = () => {
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
 a {
@@ -201,7 +248,7 @@ a {
   text-decoration: none;
   transition: color 0.2s ease-in-out;
 }
-a:hover {
+a:hover, a.router-link-exact-active {
   color: var(--color-accent-primary);
 }
 ul {
@@ -336,27 +383,49 @@ ul {
   max-width: 1200px;
   margin: 0 auto;
 }
+.desktop-submenu li {
+  position: relative;
+}
 .submenu-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-weight: 600;
-  color: var(--color-text-headings);
-  position: relative;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  padding: 0.25rem 0;
+}
+.submenu-title:hover {
+  color: var(--color-accent-primary);
 }
 .icon-small {
-  font-size: 0.8em;
+  font-size: 0.7em;
+  transition: transform 0.2s;
+}
+.submenu-title:hover .icon-small {
+  transform: translateY(2px);
 }
 .submenu {
   position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   background-color: var(--color-bg-medium);
-
+  border: 1px solid var(--color-border);
   border-radius: 0 0 6px 6px;
   padding: 0.5rem;
   min-width: 200px;
   z-index: 120;
   box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+}
+.submenu li a {
+  display: block;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+}
+.submenu li a:hover {
+  background-color: var(--color-accent-primary);
+  color: var(--color-white);
 }
 
 .menu-btn {
@@ -372,19 +441,30 @@ ul {
   position: fixed;
   top: 0;
   left: 0;
-  width: 270px;
+  width: 280px;
   height: 100%;
   background: var(--color-bg-dark);
   box-shadow: 2px 0 15px rgba(0,0,0,0.5);
-  padding: 1rem;
+  padding: 1.5rem;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
 }
 .drawer-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text-headings);
+}
+.drawer-header h2 {
+  margin: 0;
+}
+.drawer .search-wrapper {
+  margin-bottom: 1.5rem;
+  max-width: 100%;
 }
 .close-btn {
   font-size: 1.5rem;
@@ -394,12 +474,34 @@ ul {
   color: var(--color-text-headings);
 }
 .menu-list {
-  padding: 1rem 0;
+  padding: 0;
+}
+.menu-list > li {
+  margin-bottom: 0.5rem;
+}
+.menu-list a, .menu-list .submenu-title {
+  display: block;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.menu-list a:hover, .menu-list .submenu-title:hover {
+  background-color: var(--color-bg-medium);
+}
+.submenu-mobile {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+.submenu-mobile li a {
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 /* --- 5. ANIMAÇÕES E RESPONSIVIDADE --- */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to { transform: translateY(-50%) rotate(360deg); }
 }
 
 .slide-enter-active,
@@ -412,16 +514,13 @@ ul {
 }
 
 @media (max-width: 768px) {
-  .desktop-submenu, .search-wrapper {
+  .desktop-submenu {
+    display: none;
+  }
+  .header-bar > .search-wrapper { /* Esconde apenas a barra de pesquisa do topo */
     display: none;
   }
   .menu-btn {
-    display: block;
-  }
-}
-
-@media (min-width: 769px) {
-  .desktop-submenu {
     display: block;
   }
 }

@@ -20,11 +20,16 @@
         <h4>Navegue</h4>
         <div class="links-columns">
             <ul>
-              <li><a href="#">Painéis & Dados</a></li>
-              <li><a href="/analises">Publicações</a></li>
-              <li><a href="/sobre">Sobre o Projeto</a></li>
+              <li><router-link to="/categoria">Todas as Publicações</router-link></li>
+              <li><router-link to="/sobre">Sobre o Projeto</router-link></li>
+              <li><router-link to="/contato">Contato</router-link></li>
             </ul>
-            </div>
+            <ul>
+              <li v-for="category in categories" :key="category.path">
+                <router-link :to="category.path">{{ category.name }}</router-link>
+              </li>
+            </ul>
+        </div>
       </div>
 
       <div class="footer-section subscribe">
@@ -42,7 +47,7 @@
     </div>
 
     <div class="footer-bottom">
-      <p>&copy; 2025 Pulso Urbano. Todos os direitos reservados.</p>
+      <p>&copy; {{ new Date().getFullYear() }} Pulso Urbano. Todos os direitos reservados.</p>
       <div class="footer-bottom-right">
         <div class="social-icons">
           <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
@@ -50,28 +55,41 @@
           <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
           <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
         </div>
+        <a href="#" @click.prevent="scrollToTop" class="back-to-top" aria-label="Voltar ao topo">
+            <i class="fas fa-arrow-up"></i>
+        </a>
       </div>
     </div>
   </footer>
 </template>
 
-<script>
-export default {
-  name: 'MeuFooter',
-  methods: {
-    handleSubscription() {
-      // Lógica para lidar com a inscrição do usuário
-      alert('Obrigado por se inscrever!');
-    }
-  }
-}
+<script setup>
+import { ref } from 'vue';
+
+// Lista de categorias, consistente com o header
+const categories = ref([
+    { name: 'Educação', path: '/categoria/educacao' },
+    { name: 'Saúde', path: '/categoria/saude' },
+    { name: 'Política', path: '/categoria/politica' },
+    { name: 'Criminalidade', path: '/categoria/criminalidade' },
+    { name: 'Tecnologia', path: '/categoria/tecnologia' }
+]);
+
+const handleSubscription = () => {
+  // Lógica para lidar com a inscrição do usuário
+  alert('Obrigado por se inscrever!');
+};
+
+const scrollToTop = () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+};
 </script>
 
 <style scoped>
-/* Para que os ícones funcionem, lembre-se de importar o Font Awesome no seu projeto.
-   Por exemplo, no seu index.html:
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-*/
+/* Para que os ícones funcionem, lembre-se de importar o Font Awesome no seu projeto. */
 
 /* Estilo principal do rodapé com variáveis CSS */
 .main-footer {
@@ -121,7 +139,8 @@ export default {
   transition: color 0.3s ease;
 }
 
-.footer-section a:hover {
+.footer-section a:hover,
+.footer-section a.router-link-exact-active {
   color: var(--color-accent-primary);
 }
 
@@ -272,7 +291,7 @@ export default {
 @media (max-width: 768px) {
   .useful-links .links-columns {
     flex-direction: column;
-    gap: 20px;
+    gap: 0;
   }
   .footer-container {
     grid-template-columns: 1fr;
