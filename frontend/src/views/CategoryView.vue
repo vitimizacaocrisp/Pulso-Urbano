@@ -80,7 +80,7 @@ const error = ref(null);
 // Pega a categoria da URL
 const category = ref(route.params.categoryName);
 
-const API_BASE_URL = 'http://localhost:3000' || process.env.VUE_APP_API_URL;
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 // Título dinâmico para a página
 const pageTitle = computed(() => {

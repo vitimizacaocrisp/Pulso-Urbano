@@ -561,7 +561,7 @@ const publishAnalysis = async () => {
   
   try {
     const token = localStorage.getItem('authToken');
-    const apiUrl = 'http://localhost:3000' || process.env.VUE_APP_API_URL;
+    const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
     const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
       headers: { 'Authorization': `Bearer ${token}` }
     });

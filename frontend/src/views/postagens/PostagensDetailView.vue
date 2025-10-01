@@ -77,7 +77,7 @@ const analysis = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
 
-const API_BASE_URL = 'http://localhost:3000' || process.env.VUE_APP_API_URL;
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 const getFullMediaPath = (path) => {
   if (!path) return '';

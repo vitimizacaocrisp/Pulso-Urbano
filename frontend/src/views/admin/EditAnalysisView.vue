@@ -256,7 +256,7 @@ import axios from 'axios';
 import DataVisualizationModal from '../../components/DataVisualizationModal.vue';
 
 // --- CONFIGURAÇÕES ---
-const API_BASE_URL = 'http://localhost:3000' || process.env.VUE_APP_API_URL;
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 // --- ESTADO DA UI ---
 const isPreviewMode = ref(false);
