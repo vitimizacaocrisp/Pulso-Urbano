@@ -10,7 +10,7 @@
 
 * **Frontend:** [https://pulso-urbano.netlify.app/](https://pulso-urbano.netlify.app/)
 * **Backend:** [https://pulso-urbano-backend.onrender.com/](https://pulso-urbano-backend.onrender.com/)
-* [cite_start]**Repositório GitHub:** [https://github.com/vitimizacaocrisp/Pulso-Urbano](https://github.com/vitimizacaocrisp/Pulso-Urbano) [cite: 74]
+* **Repositório GitHub:** [https://github.com/vitimizacaocrisp/Pulso-Urbano](https://github.com/vitimizacaocrisp/Pulso-Urbano)
 
 ---
 
