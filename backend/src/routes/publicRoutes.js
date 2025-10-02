@@ -107,21 +107,9 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
   }
 
   const payload = { email: process.env.ADMIN_EMAIL };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '4h' });
 
   res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));
-
-router.get('/verify-token', verifyToken, (req, res) => {
-  // Se o código chegou até aqui, o middleware 'verifyToken' confirmou
-  // que o token é válido (assinatura e expiração corretas).
-  // Apenas retornamos uma resposta de sucesso.
-  res.status(200).json({ 
-    success: true, 
-    message: 'Token é válido.',
-    // Enviamos o ID do usuário de volta, o que pode ser útil no frontend
-    userId: req.user.id 
-  });
-});
 
 module.exports = router;

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import axios from 'axios';
 
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 /**
  * Função de segurança que valida o token com o backend.
  * É a fonte de verdade para saber se o usuário está autenticado.
@@ -14,8 +15,7 @@ const checkAuthStatus = async () => {
   
   try {
     // A URL completa da API deve ser configurada globalmente no Axios ou vir de variáveis de ambiente
-    // Ex: axios.defaults.baseURL = 'http://localhost:3000';
-    await axios.get('/api/auth/verify-token', {
+    await axios.get(API_BASE_URL + '/api/admin/verify-token', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return true; // Token é válido.
@@ -65,16 +65,6 @@ const routes = [
     path: '/admin',
     component: () => import('../views/admin/AdminLayout.vue'),
     meta: { requiresAuth: true, hideLayout: true },
-    // Guarda de segurança no "portão principal" do admin.
-    // Verifica a validade do token com o backend antes de entrar em QUALQUER rota filha.
-    beforeEnter: async (to, from, next) => {
-      const isAuthenticated = await checkAuthStatus();
-      if (isAuthenticated) {
-        next(); // Permite a entrada na área de admin.
-      } else {
-        next({ name: 'AdminLogin' }); // Bloqueia e redireciona para o login.
-      }
-    },
     children: [
       {
         path: 'dashboard',
@@ -87,7 +77,7 @@ const routes = [
         component: () => import('../views/admin/ContentManagerView.vue'),
       },
       {
-        path: 'edit-analysis/:id',
+        path: 'edit-analysis/:id?',
         name: 'EditAnalysis',
         component: () => import('../views/admin/EditAnalysisView.vue'),
         props: true

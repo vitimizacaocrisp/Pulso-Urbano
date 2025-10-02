@@ -126,10 +126,15 @@ const submenuOpen = ref(false);
 const categories = ref([
     { name: 'Todas', path: '/categoria' },
     { name: 'Educação', path: '/categoria/Educação' },
-    { name: 'Saúde', path: '/categoria/saude' },
-    { name: 'Política', path: '/categoria/politica' },
-    { name: 'Criminalidade', path: '/categoria/criminalidade' },
-    { name: 'Tecnologia', path: '/categoria/tecnologia' }
+    { name: 'Saúde', path: '/categoria/Saúde' },
+    { name: 'Política', path: '/categoria/Política' },
+    { name: 'Criminalidade', path: '/categoria/Criminalidade' },
+    { name: 'Tecnologia', path: '/categoria/Tecnologia e inovação' },
+    { name: 'Cultura', path: '/categoria/Cultura' },
+    { name: 'Agricultura', path: '/categoria/Agricultura' },
+    { name: 'Ambiental', path: '/categoria/Ambiental' },
+    { name: 'Economia', path: '/categoria/Economia' },
+    { name: 'Transportes', path: '/categoria/Transportes' }
 ]);
 
 // --- Estado da Busca ---

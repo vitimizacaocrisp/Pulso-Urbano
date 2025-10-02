@@ -11,6 +11,18 @@ const {
   testConnectionData 
 } = require('../middleware/s3Connection');
 
+router.get('/verify-token', verifyToken, (req, res) => {
+  // Se o código chegou até aqui, o middleware 'verifyToken' confirmou
+  // que o token é válido (assinatura e expiração corretas).
+  // Apenas retornamos uma resposta de sucesso.
+  res.status(200).json({ 
+    success: true, 
+    message: 'Token é válido.',
+    // Enviamos o ID do usuário de volta, o que pode ser útil no frontend
+    userId: req.user.id 
+  });
+});
+
 // Listar análises para a pesquisa no frontend
 router.get('/analyses-list', asyncHandler(async (req, res) => {
   const { search, page = 1, limit = 10, category } = req.query;
@@ -146,7 +158,7 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
   });
 }));
 
-// Rota para ATUALIZAR Análises (TOTALMENTE ATUALIZADA)
+// Rota para ATUALIZAR Análises
 router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
   const isConnected = await testConnectionData();
   if (!isConnected) return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
@@ -229,7 +241,7 @@ router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, 
   });
 }));
 
-// Rota para DELETAR Análises (sem alterações necessárias)
+// Rota para DELETAR Análises
 router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
