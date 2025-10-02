@@ -125,7 +125,7 @@ const submenuOpen = ref(false);
 // --- Lista de Categorias ---
 const categories = ref([
     { name: 'Todas', path: '/categoria' },
-    { name: 'Educação', path: '/categoria/educacao' },
+    { name: 'Educação', path: '/categoria/Educação' },
     { name: 'Saúde', path: '/categoria/saude' },
     { name: 'Política', path: '/categoria/politica' },
     { name: 'Criminalidade', path: '/categoria/criminalidade' },

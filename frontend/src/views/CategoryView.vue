@@ -26,27 +26,35 @@
         <p>{{ error }}</p>
       </div>
 
-      <article v-for="analysis in analyses" :key="analysis.id" class="card-analysis">
-        <router-link :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }" class="card-image-link" v-if="analysis.cover_image_path">
-          <div class="card-image">
-            <img :src="getFullMediaPath(analysis.cover_image_path)" alt="Imagem de capa da análise">
+      <router-link 
+        v-for="analysis in analyses" 
+        :key="analysis.id" 
+        :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }"
+        class="card-link-wrapper"
+      >
+        <article class="card-analysis">
+          
+          <div v-if="analysis.cover_image_path" class="card-cover-image">
+            <img :src="getFullMediaPath(analysis.cover_image_path)" :alt="analysis.title">
           </div>
-        </router-link>
-        
-        <div class="card-content">
-          <div class="tags-container">
-            <span v-for="(tag, index) in processTags(analysis.tag)" :key="index" class="analysis-tag">
-              {{ tag }}
-            </span>
+          
+          <div class="card-content">
+            <div class="tags-container">
+              <span v-for="(tag, index) in processTags(analysis.tag)" :key="index" class="analysis-tag">
+                {{ tag }}
+              </span>
+            </div>
+            <h4>{{ analysis.title }}</h4>
+            <p class="author-info">Por {{ analysis.author }} em {{ new Date(analysis.created_at).toLocaleDateString() }}</p>
+            
+            <p class="card-description">{{ analysis.description }}</p>
+            
+            <div class="card-read-more">
+              Ler Análise Completa →
+            </div>
           </div>
-          <h4>{{ analysis.title }}</h4>
-          <p class="author-info">Por {{ analysis.author }} em {{ new Date(analysis.created_at).toLocaleDateString() }}</p>
-          <p class="card-description">{{ analysis.description }}</p>
-          <router-link :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }" class="card-link">
-            Ler Análise Completa →
-          </router-link>
-        </div>
-      </article>
+        </article>
+      </router-link>
 
       <div v-if="!isLoading && analyses.length === 0" class="feedback-container">
         <p>Nenhuma postagem encontrada nesta categoria.</p>
@@ -54,7 +62,7 @@
     </section>
 
     <section v-if="hasMore" class="load-more-container">
-      <button @click="loadMore" :disabled="isLoadingMore" class="btn-load-more">
+      <button @click.prevent="loadMore" :disabled="isLoadingMore" class="btn-load-more">
         <span v-if="isLoadingMore">A carregar...</span>
         <span v-else>Carregar Mais</span>
       </button>
@@ -77,16 +85,15 @@ const isLoading = ref(true);
 const isLoadingMore = ref(false);
 const error = ref(null);
 
-// Pega a categoria da URL
 const category = ref(route.params.categoryName);
 
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
-// Título dinâmico para a página
 const pageTitle = computed(() => {
   if (!category.value) return 'Postagens';
   return `${category.value.charAt(0).toUpperCase() + category.value.slice(1)}`;
 });
+
 const categoryNameForDescription = computed(() => category.value || 'diversos tópicos');
 
 const hasMore = computed(() => analyses.value.length < totalAnalyses.value);
@@ -120,7 +127,7 @@ const fetchAnalyses = async (isNewSearch = false) => {
       search: searchQuery.value,
       page: currentPage.value,
       limit: limit.value,
-      category: category.value // Envia a categoria para a API
+      category: category.value 
     };
 
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
@@ -129,11 +136,9 @@ const fetchAnalyses = async (isNewSearch = false) => {
     });
 
     const result = response.data;
-
     analyses.value = isNewSearch
       ? result.data.analyses
       : [...analyses.value, ...result.data.analyses];
-
     totalAnalyses.value = result.data.total;
 
   } catch (err) {
@@ -163,12 +168,11 @@ watch(searchQuery, () => {
   }, 500);
 });
 
-// Observa mudanças na rota para recarregar se o usuário navegar entre categorias
-watch(() => route.params.categoryName, (newCategory) => {
-    if (newCategory) {
-        category.value = newCategory;
-        fetchAnalyses(true);
-    }
+watch(() => route.params.categoryName, (newCategoryName) => {
+  if (newCategoryName !== category.value) {
+    category.value = newCategoryName;
+    fetchAnalyses(true);
+  }
 });
 
 onMounted(() => {
@@ -177,7 +181,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Os estilos são idênticos aos da página principal, pode colar o mesmo CSS aqui */
 .page-content {
     max-width: 1200px;
     margin: 0 auto;
@@ -200,9 +203,16 @@ onMounted(() => {
 }
 .analysis-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
 }
+
+.card-link-wrapper {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+}
+
 .card-analysis {
     border: 1px solid #e0e0e0;
     border-radius: 8px;
@@ -211,29 +221,31 @@ onMounted(() => {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
+    width: 100%; 
+    overflow: hidden;
 }
-.card-analysis:hover {
+.card-link-wrapper:hover .card-analysis { 
     transform: translateY(-5px);
     box-shadow: 0 8px 16px rgba(0,0,0,0.1);
 }
-.card-image-link {
-  display: block;
+
+.card-cover-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
 }
-.card-image {
-    height: 200px;
-    overflow: hidden;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+
+.card-cover-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
 }
-.card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-.card-analysis:hover .card-image img {
+
+.card-link-wrapper:hover .card-cover-image img {
     transform: scale(1.05);
 }
+
 .card-content {
     padding: 1.5rem;
     display: flex;
@@ -260,28 +272,44 @@ onMounted(() => {
     margin: 0 0 0.5rem 0;
     font-size: 1.25rem;
     color: #2c3e50;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .author-info {
     font-size: 0.85em;
     color: #6c757d;
     margin-bottom: 1rem;
 }
+
 .card-description {
     overflow-wrap: anywhere;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
     color: #555;
-    flex-grow: 1;
     line-height: 1.6;
+    flex-grow: 1;
+    
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.card-link {
-    text-decoration: none;
+
+.card-read-more {
     font-weight: 600;
     color: #007bff;
     align-self: flex-start;
+    transition: text-decoration 0.2s;
+    margin-top: 1rem;
 }
-.card-link:hover {
+.card-link-wrapper:hover .card-read-more {
     text-decoration: underline;
 }
+
 .search-container {
   display: flex;
   gap: 1rem;

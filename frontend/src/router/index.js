@@ -1,92 +1,111 @@
 import { createRouter, createWebHistory } from "vue-router";
+import axios from 'axios';
 
-// --- Layouts Principais ---
-import AdminLayout from '../views/admin/AdminLayout.vue';
-
-// --- Views Públicas ---
-import HomeView from "../views/HomeView.vue";
-import ContatoView from "../views/ContatoView.vue";
-import SobreView from "../views/Sobre.vue";
-import CategoryView from '../views/CategoryView.vue';
-import PostsDetailView from "../views/postagens/PostagensDetailView.vue";
-import AdminLogin from "@/views/admin/AdminLogin.vue";
-import NotFound from "../views/NotFound.vue";
-
-// --- Views aninhadas de "Admin" ---
-import AdminDashboardView from '../views/admin/AdminDashboard.vue';
-import ContentManagerView from '../views/admin/ContentManagerView.vue';
-import EditAnalysisView from '../views/admin/EditAnalysisView.vue';
+/**
+ * Função de segurança que valida o token com o backend.
+ * É a fonte de verdade para saber se o usuário está autenticado.
+ * @returns {Promise<boolean>} - Retorna true se autenticado, false caso contrário.
+ */
+const checkAuthStatus = async () => {
+  const token = localStorage.getItem('authToken');
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    // A URL completa da API deve ser configurada globalmente no Axios ou vir de variáveis de ambiente
+    // Ex: axios.defaults.baseURL = 'http://localhost:3000';
+    await axios.get('/api/auth/verify-token', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return true; // Token é válido.
+  } catch (error) {
+    console.error("Token inválido ou expirado. Removendo...");
+    localStorage.removeItem('authToken'); // Limpa o token inválido.
+    return false;
+  }
+};
 
 const routes = [
   // --- Rotas Públicas (acessíveis a todos) ---
   {
     path: "/",
     name: "Home",
-    component: HomeView,
-    meta: { requiresAuth: true } 
+    component: () => import("../views/HomeView.vue"),
   },
   {
     path: "/contato",
     name: "Contato",
-    component: ContatoView,
-    meta: { requiresAuth: true }
+    component: () => import("../views/ContatoView.vue"),
   },
   {
     path: "/sobre",
     name: "Sobre",
-    component: SobreView,
-    meta: { requiresAuth: true }
+    component: () => import("../views/Sobre.vue"),
   },
   {
-    path: '/categoria/:categoryName?', // Rota para listar por categoria ou todas
+    path: '/categoria/:categoryName?',
     name: 'CategoryView',
-    component: CategoryView,
-    meta: { requiresAuth: true }
+    component: () => import('../views/CategoryView.vue'),
   },
   {
-    // ROTA CORRIGIDA: Nome e caminho ajustados
-    path: '/postagem/:id', 
-    name: 'PostsDetail',
-    component: PostsDetailView,
-    meta: { requiresAuth: true }
+    path: '/postagem/:id',
+    name: 'AnalysisDetail',
+    component: () => import("../views/postagens/PostagensDetailView.vue"),
   },
   {
     path: '/login',
     name: 'AdminLogin',
-    component: AdminLogin,
-    meta: { requiresAuth: false, hideLayout: true} // Não requer autenticação
+    component: () => import("@/views/admin/AdminLogin.vue"),
+    meta: { hideLayout: true }
   },
 
-  // --- Rotas de Administração (já estavam aninhadas) ---
+  // --- Rotas de Administração (protegidas) ---
   {
     path: '/admin',
-    component: AdminLayout,
+    component: () => import('../views/admin/AdminLayout.vue'),
     meta: { requiresAuth: true, hideLayout: true },
+    // Guarda de segurança no "portão principal" do admin.
+    // Verifica a validade do token com o backend antes de entrar em QUALQUER rota filha.
+    beforeEnter: async (to, from, next) => {
+      const isAuthenticated = await checkAuthStatus();
+      if (isAuthenticated) {
+        next(); // Permite a entrada na área de admin.
+      } else {
+        next({ name: 'AdminLogin' }); // Bloqueia e redireciona para o login.
+      }
+    },
     children: [
       {
         path: 'dashboard',
         name: 'AdminDashboard',
-        component: AdminDashboardView,
+        component: () => import('../views/admin/AdminDashboard.vue'),
       },
       {
         path: 'content-manager',
         name: 'ContentManager',
-        component: ContentManagerView,
+        component: () => import('../views/admin/ContentManagerView.vue'),
       },
       {
-        path: 'edit-analysis',
+        path: 'edit-analysis/:id',
         name: 'EditAnalysis',
-        component: EditAnalysisView,
+        component: () => import('../views/admin/EditAnalysisView.vue'),
+        props: true
       },
       {
+        // Redireciona /admin para /admin/dashboard
         path: '',
         redirect: { name: 'AdminDashboard' },
       }
     ],
   },
 
-  // --- Rota 404 (deve ser a última) ---
-  { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound }
+  // --- Rota 404 (Not Found) ---
+  { 
+    path: "/:pathMatch(.*)*", 
+    name: "NotFound", 
+    component: () => import("../views/NotFound.vue") 
+  }
 ];
 
 const router = createRouter({
@@ -94,21 +113,30 @@ const router = createRouter({
   routes
 });
 
-// Navigation Guard: Protege as rotas de admin
-router.beforeEach((to, from, next) => {
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+// Guarda de Rota Global: lida com a lógica primária de navegação.
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('authToken');
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
 
-  if (to.name === 'AdminLogin' && token) {
-    // Se tentar acessar o login já logado, vai para o dashboard
-    next({ name: 'AdminDashboard' });
-  } else if (requiresAuth && !token) {
-    // Se a rota exige login e não há token, vai para o login
-    next({ name: 'AdminLogin' });
-  } else {
-    // Permite o acesso
-    next();
+  // 1. Verificação primária e mais rápida:
+  // Se a rota exige login e o usuário NÃO tem token, redireciona imediatamente.
+  if (requiresAuth && !token) {
+    return next({ name: 'AdminLogin' });
   }
+
+  // 2. Lógica para impedir que usuários logados acessem a página de login:
+  // Se o usuário tem um token e tenta acessar o login, verifica a validade
+  // e o redireciona para o dashboard se o token for válido.
+  if (to.name === 'AdminLogin' && token) {
+    const isAuthenticated = await checkAuthStatus();
+    if (isAuthenticated) {
+      return next({ name: 'AdminDashboard' });
+    }
+  }
+
+  // 3. Em todos os outros casos, permite a navegação.
+  // A validação de segurança mais profunda para rotas de admin será feita pelo 'beforeEnter'.
+  next();
 });
 
 export default router;

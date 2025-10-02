@@ -12,7 +12,7 @@ const {
 } = require('../middleware/s3Connection');
 
 // Listar análises para a pesquisa no frontend
-router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
+router.get('/analyses-list', asyncHandler(async (req, res) => {
   const { search, page = 1, limit = 10, category } = req.query;
   const offset = (page - 1) * limit;
 
@@ -59,7 +59,7 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
 
 
 // Rota para LER uma Análise Específica (sem alterações)
-router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
+router.get('/analyses/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
   if (results.length === 0) {

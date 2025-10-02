@@ -1,7 +1,7 @@
 // publicRoutes.js
 const express = require('express');
 const router = express.Router();
-const {asyncHandler} = require('../middleware/middlewares');
+const {asyncHandler, verifyToken} = require('../middleware/middlewares');
 const apiConnect = require('../api/apiConnect');
 const { testConnection } = require('../db/dbConnect');
 const { testConnectionData } = require('../middleware/s3Connection');
@@ -111,5 +111,17 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
 
   res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));
+
+router.get('/verify-token', verifyToken, (req, res) => {
+  // Se o código chegou até aqui, o middleware 'verifyToken' confirmou
+  // que o token é válido (assinatura e expiração corretas).
+  // Apenas retornamos uma resposta de sucesso.
+  res.status(200).json({ 
+    success: true, 
+    message: 'Token é válido.',
+    // Enviamos o ID do usuário de volta, o que pode ser útil no frontend
+    userId: req.user.id 
+  });
+});
 
 module.exports = router;
