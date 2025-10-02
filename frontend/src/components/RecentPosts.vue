@@ -18,7 +18,7 @@
         <div class="post-card-content">
           <h3>{{ post.title }}</h3>
           <p>{{ truncateText(post.description) }}</p>
-          <a :href="`/analises/${post.id}`" class="btn-secondary">Ler Análise <i class="fas fa-arrow-right"></i></a>
+          <a :href="`/postagem/${post.id}`" class="btn-secondary">Ler Análise <i class="fas fa-arrow-right"></i></a>
         </div>
       </div>
     </div>
