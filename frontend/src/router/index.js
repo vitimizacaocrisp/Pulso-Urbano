@@ -32,26 +32,31 @@ const routes = [
     path: "/",
     name: "Home",
     component: () => import("../views/HomeView.vue"),
+    meta: { requiresAuth: true }
   },
   {
     path: "/contato",
     name: "Contato",
     component: () => import("../views/ContatoView.vue"),
+    meta: { requiresAuth: true }
   },
   {
     path: "/sobre",
     name: "Sobre",
     component: () => import("../views/Sobre.vue"),
+    meta: { requiresAuth: true }
   },
   {
     path: '/categoria/:categoryName?',
     name: 'CategoryView',
     component: () => import('../views/CategoryView.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/postagem/:id',
     name: 'AnalysisDetail',
     component: () => import("../views/postagens/PostagensDetailView.vue"),
+    meta: { requiresAuth: true }
   },
   {
     path: '/login',

@@ -1,7 +1,7 @@
 // publicRoutes.js
 const express = require('express');
 const router = express.Router();
-const {asyncHandler, verifyToken} = require('../middleware/middlewares');
+const {asyncHandler} = require('../middleware/middlewares');
 const apiConnect = require('../api/apiConnect');
 const { testConnection } = require('../db/dbConnect');
 const { testConnectionData } = require('../middleware/s3Connection');
@@ -107,7 +107,7 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
   }
 
   const payload = { email: process.env.ADMIN_EMAIL };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '4h' });
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
   res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));

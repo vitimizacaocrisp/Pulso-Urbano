@@ -23,8 +23,67 @@ router.get('/verify-token', verifyToken, (req, res) => {
   });
 });
 
+// Rota para fornecer todos os dados agregados para o dashboard
+router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
+  console.log('[DEBUG] A buscar dados para o dashboard...');
+
+  // Executa todas as consultas em paralelo para máxima eficiência
+  const [
+    statsResult,
+    recentAnalysesResult,
+    chartDataResult
+  ] = await Promise.all([
+    // Consulta para os KPIs (cards de resumo)
+    sql`
+      SELECT
+        (SELECT COUNT(*) FROM analyses) AS "totalAnalyses",
+        (SELECT COUNT(*) FROM analyses WHERE created_at >= date_trunc('month', CURRENT_DATE)) AS "newThisMonth",
+        (SELECT COUNT(DISTINCT tag) FROM analyses WHERE tag IS NOT NULL AND tag != '') AS "uniqueTags"
+    `,
+    // Consulta para a tabela de análises recentes
+    sql`
+      SELECT id, title, tag, TO_CHAR(created_at, 'DD/MM/YYYY') as created_date 
+      FROM analyses 
+      ORDER BY created_at DESC 
+      LIMIT 5
+    `,
+    // Consulta para o gráfico de publicações mensais (últimos 6 meses)
+    sql`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', CURRENT_DATE) - interval '5 months',
+          date_trunc('month', CURRENT_DATE),
+          '1 month'::interval
+        ) AS month
+      )
+      SELECT
+        TO_CHAR(months.month, 'Mon') AS month_name,
+        COUNT(analyses.id) AS publication_count
+      FROM months
+      LEFT JOIN analyses ON date_trunc('month', analyses.created_at) = months.month
+      GROUP BY months.month
+      ORDER BY months.month;
+    `
+  ]);
+
+  // Formata os dados do gráfico para o Chart.js
+  const chartData = {
+    labels: chartDataResult.map(row => row.month_name),
+    data: chartDataResult.map(row => row.publication_count)
+  };
+
+  const responseData = {
+    stats: statsResult[0],
+    recentAnalyses: recentAnalysesResult,
+    chartData: chartData
+  };
+
+  console.log('[DEBUG] Dados do dashboard enviados com sucesso.');
+  res.json({ success: true, data: responseData });
+}));
+
 // Listar análises para a pesquisa no frontend
-router.get('/analyses-list', asyncHandler(async (req, res) => {
+router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   const { search, page = 1, limit = 10, category } = req.query;
   const offset = (page - 1) * limit;
 
@@ -71,7 +130,7 @@ router.get('/analyses-list', asyncHandler(async (req, res) => {
 
 
 // Rota para LER uma Análise Específica (sem alterações)
-router.get('/analyses/:id', asyncHandler(async (req, res) => {
+router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
   if (results.length === 0) {
@@ -158,7 +217,7 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
   });
 }));
 
-// Rota para ATUALIZAR Análises
+// Rota para ATUALIZAR Análises (TOTALMENTE ATUALIZADA)
 router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
   const isConnected = await testConnectionData();
   if (!isConnected) return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
@@ -241,7 +300,7 @@ router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, 
   });
 }));
 
-// Rota para DELETAR Análises
+// Rota para DELETAR Análises (sem alterações necessárias)
 router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
 

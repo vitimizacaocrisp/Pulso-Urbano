@@ -3,7 +3,7 @@
     <section class="hero-video">
       <div class="video-overlay"></div>
       <video 
-        src="https://videos.pexels.com/video-files/1851190/1851190-hd_1920_1080_30fps.mp4" 
+        src="https://www.pexels.com/pt-br/download/video/1851190/" 
         autoplay 
         loop 
         muted 
