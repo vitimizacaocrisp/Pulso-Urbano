@@ -262,17 +262,41 @@ function randomSuffix() {
   return Math.floor(Math.random() * 1e6).toString();
 }
 
+// --- LÓGICA DE RENDERIZAÇÃO DE CONTEÚDO MELHORADA ---
 const renderedContent = computed(() => {
-  let processedContent = newAnalysis.value.content;
-  if (contentImages.value.size > 0) {
-    for (const [placeholderId, mediaData] of contentImages.value.entries()) {
-      if (mediaData.blobUrl) {
-        const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-        processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
-      }
+  if (!newAnalysis.value.content) return '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+  
+  let processedContent = newAnalysis.value.content.trim();
+
+  // Processa placeholders de mídia
+  for (const [placeholderId, mediaData] of contentImages.value.entries()) {
+    if (mediaData.blobUrl) {
+      const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+      processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
     }
   }
-  return processedContent ? marked(processedContent) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+
+  // CASO 1: É um bloco de código markdown com ```html
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    // Extrai o conteúdo HTML de dentro do bloco de código
+    const htmlContent = processedContent
+      .replace(/^```html\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+    
+    return htmlContent;
+  }
+  
+  // CASO 2: É HTML puro (sem delimitadores markdown)
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) {
+    return processedContent;
+  }
+  
+  // CASO 3: É Markdown normal
+  return marked(processedContent);
 });
 
 // ---- SALVAR RASCUNHO ----
@@ -416,26 +440,15 @@ const handleFileSelection = (event, fieldName) => {
     if (imagePreviewUrl.value) {
         URL.revokeObjectURL(imagePreviewUrl.value);
     }
-    // A variável correta depende do componente, use a que corresponde:
-    // Para o componente de EDIÇÃO:
-    // editingAnalysis.value.coverImage = files[0];
-    
-    // Para o componente de CRIAÇÃO:
     newAnalysis.value.coverImage = files[0];
-
     imagePreviewUrl.value = URL.createObjectURL(files[0]);
 
   } else {
     // Lógica para múltiplos arquivos (adiciona à lista existente)
-    // Para o componente de EDIÇÃO:
-    // editingAnalysis.value[fieldName] = [...editingAnalysis.value[fieldName], ...Array.from(files)];
-
-    // Para o componente de CRIAÇÃO:
     newAnalysis.value[fieldName] = [...newAnalysis.value[fieldName], ...Array.from(files)];
   }
   // A linha 'event.target.value = null;' foi removida daqui para corrigir o bug visual.
 };
-
 
 const removeFile = (index, fieldName) => {
   newAnalysis.value[fieldName].splice(index, 1);

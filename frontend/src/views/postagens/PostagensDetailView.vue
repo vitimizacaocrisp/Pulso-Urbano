@@ -87,12 +87,33 @@ const getFullMediaPath = (path) => {
 
 const renderedContent = computed(() => {
   if (!analysis.value?.content) return '';
-  let processedContent = analysis.value.content;
+  
+  let processedContent = analysis.value.content.trim();
 
-  // Garante que os caminhos de mídia no conteúdo sejam absolutos
+  // Processa caminhos de mídia relativos
   const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
   processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
 
+  // CASO 1: É um bloco de código markdown com ```html
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    // Extrai o conteúdo HTML de dentro do bloco de código
+    const htmlContent = processedContent
+      .replace(/^```html\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+    
+    return htmlContent;
+  }
+  
+  // CASO 2: É HTML puro (sem delimitadores markdown)
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) {
+    return processedContent;
+  }
+  
+  // CASO 3: É Markdown normal
   return marked(processedContent);
 });
 

@@ -467,18 +467,45 @@ const confirmDelete = async () => {
 // --- FUNÇÕES HELPER ---
 const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.author || !editingAnalysis.value.category || !editingAnalysis.value.coverImage);
 
+// --- LÓGICA DE RENDERIZAÇÃO DE CONTEÚDO MELHORADA ---
 const renderedContent = computed(() => {
-  let processedContent = editingAnalysis.value.content || '';
+  if (!editingAnalysis.value.content) return '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+  
+  let processedContent = editingAnalysis.value.content.trim();
+
+  // Processa placeholders de mídia
   for (const [placeholderId, mediaData] of contentImages.value.entries()) {
     if (mediaData.blobUrl) {
       const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
       processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
     }
   }
-  const relativeImagePathRegex = /(!\[.*?\]\()(\/uploads\/.*?)\)/g;
-  processedContent = processedContent.replace(relativeImagePathRegex, `$1${API_BASE_URL}$2)`);
+
+  // Processa caminhos de mídia relativos
+  const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
+  processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
+
+  // CASO 1: É um bloco de código markdown com ```html
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    // Extrai o conteúdo HTML de dentro do bloco de código
+    const htmlContent = processedContent
+      .replace(/^```html\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+    
+    return htmlContent;
+  }
   
-  return processedContent ? marked(processedContent) : '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+  // CASO 2: É HTML puro (sem delimitadores markdown)
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) {
+    return processedContent;
+  }
+  
+  // CASO 3: É Markdown normal
+  return marked(processedContent);
 });
 
 const cleanupBlobUrls = () => {
