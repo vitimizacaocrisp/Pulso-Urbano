@@ -110,28 +110,27 @@ const router = createRouter({
 
 // Guarda de Rota Global: lida com a lógica primária de navegação.
 router.beforeEach(async (to, from, next) => {
-  const token = localStorage.getItem('authToken');
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const requiresAuth = to.matched.some(r => r.meta.requiresAuth);
 
-  // 1. Verificação primária e mais rápida:
-  // Se a rota exige login e o usuário NÃO tem token, redireciona imediatamente.
-  if (requiresAuth && !token) {
-    return next({ name: 'AdminLogin' });
-  }
-
-  // 2. Lógica para impedir que usuários logados acessem a página de login:
-  // Se o usuário tem um token e tenta acessar o login, verifica a validade
-  // e o redireciona para o dashboard se o token for válido.
-  if (to.name === 'AdminLogin' && token) {
-    const isAuthenticated = await checkAuthStatus();
-    if (isAuthenticated) {
-      return next({ name: 'AdminDashboard' });
+  if (requiresAuth) {
+    const isAuth = await checkAuthStatus();
+    if (!isAuth) {
+      return next({ name: 'AdminLogin' });
     }
   }
 
-  // 3. Em todos os outros casos, permite a navegação.
-  // A validação de segurança mais profunda para rotas de admin será feita pelo 'beforeEnter'.
-  next();
+  if (to.name === 'AdminLogin') {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const isAuth = await checkAuthStatus();
+      if (isAuth) {
+        return next({ name: 'AdminDashboard' });
+      }
+    }
+  }
+
+  return next();
 });
+
 
 export default router;
