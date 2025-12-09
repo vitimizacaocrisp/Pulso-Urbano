@@ -592,7 +592,7 @@ const publishAnalysis = async () => {
 const openDataModal = (file) => { selectedFileForModal.value = file; };
 const closeDataModal = () => { selectedFileForModal.value = null; };
 
-</script>
+</script> 
 
 <style scoped>
 /* ESTILOS GERAIS DO FORMULÁRIO */

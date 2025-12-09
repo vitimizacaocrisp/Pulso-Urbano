@@ -69,7 +69,7 @@
           <div class="content-card table-section">
             <div class="card-header">
               <h2>Análises Recentes</h2>
-              <router-link :to="{ name: 'ContentManager' }" class="text-link">Ver todas</router-link>
+              <router-link :to="{ name: 'CategoryView' }" class="text-link">Ver todas</router-link>
             </div>
             
             <div v-if="error" class="error-alert">{{ error }}</div>
