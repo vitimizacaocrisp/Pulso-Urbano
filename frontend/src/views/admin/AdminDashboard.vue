@@ -1,103 +1,102 @@
 <template>
   <div class="dashboard-view">
     <header class="view-header">
-      <div class="header-content">
-        <div class="header-titles">
-          <h1>Visão Geral</h1>
-          <p class="subtitle">Bem-vindo ao painel de administração.</p>
-        </div>
-        <!-- Botão oculto no mobile (classe .desktop-only) -->
-        <router-link :to="{ name: 'ContentManager' }" class="btn-primary desktop-only">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Nova Análise
-        </router-link>
+      <div class="header-titles">
+        <h1 class="welcome-text">Olá, Administrador 👋</h1>
+        <p class="subtitle">Aqui está o que está acontecendo no seu observatório hoje.</p>
       </div>
+      <!-- Botão CTA Desktop -->
+      <router-link :to="{ name: 'ContentManager' }" class="btn-create desktop-only">
+        <span class="icon-plus">+</span> Nova Análise
+      </router-link>
     </header>
 
     <main class="view-content">
-      <div v-if="isLoading" class="loading-state">
+      <div v-if="isLoading" class="loading-container">
         <div class="spinner"></div>
-        <p>A carregar dados...</p>
+        <p>Sincronizando dados...</p>
       </div>
 
       <div v-else class="content-wrapper">
-        <!-- Cards de Estatísticas -->
-        <div class="stats-grid">
-          <div class="stat-card primary-border">
-            <div class="stat-icon bg-blue">
+        <!-- Cards de Estatísticas (KPIs) -->
+        <div class="kpi-grid">
+          <div class="kpi-card blue">
+            <div class="kpi-content">
+              <span class="kpi-label">Total Publicado</span>
+              <h3 class="kpi-value">{{ stats.totalAnalyses }}</h3>
+            </div>
+            <div class="kpi-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             </div>
-            <div class="stat-info">
-              <h3>{{ stats.totalAnalyses }}</h3>
-              <p>Publicadas</p>
-            </div>
           </div>
 
-          <div class="stat-card success-border">
-            <div class="stat-icon bg-green">
+          <div class="kpi-card green">
+            <div class="kpi-content">
+              <span class="kpi-label">Novas (Mês)</span>
+              <h3 class="kpi-value">{{ stats.newThisMonth }}</h3>
+            </div>
+            <div class="kpi-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
-            <div class="stat-info">
-              <h3>{{ stats.newThisMonth }}</h3>
-              <p>Novas este Mês</p>
-            </div>
           </div>
 
-          <div class="stat-card purple-border">
-            <div class="stat-icon bg-purple">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          <div class="kpi-card purple">
+            <div class="kpi-content">
+              <span class="kpi-label">Tags Ativas</span>
+              <h3 class="kpi-value">{{ stats.uniqueTags }}</h3>
             </div>
-            <div class="stat-info">
-              <h3>{{ stats.uniqueTags }}</h3>
-              <p>Tags Únicas</p>
+            <div class="kpi-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
             </div>
           </div>
         </div>
 
-        <!-- Grid de Gráfico e Tabela -->
-        <div class="main-grid">
+        <!-- Seção Principal: Gráfico e Lista -->
+        <div class="dashboard-grid">
           
-          <div class="content-card chart-section">
-            <div class="card-header">
-              <h2>Publicações (6 Meses)</h2>
+          <!-- Gráfico -->
+          <div class="panel-card chart-panel">
+            <div class="panel-header">
+              <h2>Tendência de Publicações</h2>
+              <span class="badge">Últimos 6 meses</span>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-container">
               <canvas id="monthlyPublicationsChart"></canvas>
             </div>
           </div>
 
-          <div class="content-card table-section">
-            <div class="card-header">
-              <h2>Análises Recentes</h2>
-              <router-link :to="{ name: 'CategoryView' }" class="text-link">Ver todas</router-link>
+          <!-- Tabela Recentes -->
+          <div class="panel-card list-panel">
+            <div class="panel-header">
+              <h2>Adicionados Recentemente</h2>
+              <router-link :to="{ name: 'EditAnalysis' }" class="link-action">Gerenciar tudo</router-link>
             </div>
             
-            <div v-if="error" class="error-alert">{{ error }}</div>
+            <div v-if="error" class="alert error">{{ error }}</div>
             
-            <div v-if="!error && recentAnalyses.length > 0" class="table-container">
-              <table class="styled-table">
+            <div v-if="!error && recentAnalyses.length > 0" class="table-responsive">
+              <table class="modern-table">
                 <thead>
                   <tr>
-                    <th>Título</th>
-                    <th>Tag</th>
+                    <th>Análise</th>
                     <th>Data</th>
-                    <th class="text-right">Ação</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="item in recentAnalyses" :key="item.id">
-                    <td class="title-cell" :title="item.title">{{ item.title }}</td>
                     <td>
-                      <div class="tags-wrapper">
-                        <span v-for="(tag, index) in splitTags(item.tag)" :key="index" class="tag-badge">
-                          {{ tag }}
-                        </span>
+                      <div class="item-info">
+                        <span class="item-title" :title="item.title">{{ item.title }}</span>
+                        <div class="item-tags">
+                            <span class="mini-tag">{{ item.category }}</span>
+                        </div>
                       </div>
                     </td>
-                    <td class="date-cell">{{ formatDate(item.created_date) }}</td>
-                    <td class="text-right">
-                      <router-link :to="{ name: 'EditAnalysis', query: { id: item.id } }" class="btn-icon" title="Editar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <td class="item-date">{{ formatDate(item.created_date) }}</td>
+                    <td class="item-action">
+                      <router-link :to="{ name: 'EditAnalysis', query: { id: item.id } }" class="action-btn" title="Editar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </router-link>
                     </td>
                   </tr>
@@ -135,14 +134,9 @@ const stats = ref({
   uniqueTags: 0
 });
 
-const splitTags = (tagString) => {
-  if (!tagString) return [];
-  return tagString.split(',').map(t => t.trim()).filter(t => t.length > 0);
-};
-
 const formatDate = (dateString) => {
   if (!dateString) return '-';
-  const options = { day: '2-digit', month: '2-digit', year: '2-digit' };
+  const options = { day: '2-digit', month: 'short' }; // Ex: 10 Out
   try {
       return new Date(dateString).toLocaleDateString('pt-PT', options);
   } catch (e) {
@@ -169,6 +163,7 @@ const fetchDashboardData = async () => {
     const data = response.data.data;
     recentAnalyses.value = data.recentAnalyses;
     stats.value = data.stats;
+    
     // Pequeno delay para garantir que o DOM do canvas existe
     setTimeout(() => createChart(data.chartData), 100);
 
@@ -177,9 +172,9 @@ const fetchDashboardData = async () => {
       error.value = 'Sessão expirada. Faça login novamente.';
       setTimeout(() => router.push({ name: 'AdminLogin' }), 2000);
     } else {
-      console.error(err); // Log silencioso
-      // Mock para não quebrar a UI se a API falhar (Opcional, pode remover em produção)
-      stats.value = { totalAnalyses: '-', newThisMonth: '-', uniqueTags: '-' };
+      console.error(err);
+      // Mock para UI não quebrar
+      stats.value = { totalAnalyses: '--', newThisMonth: '--', uniqueTags: '--' };
     }
   } finally {
     isLoading.value = false;
@@ -192,32 +187,47 @@ const createChart = (chartData) => {
     
     if (chartInstance) chartInstance.destroy();
     
+    // Configuração visual do gráfico
     chartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: 'line', // Mudança para linha para mostrar tendência melhor
         data: {
             labels: chartData.labels,
             datasets: [{
                 label: 'Publicações',
                 data: chartData.data,
-                backgroundColor: '#3B82F6',
-                borderRadius: 4,
-                barPercentage: 0.6,
+                backgroundColor: 'rgba(99, 102, 241, 0.1)', // Indigo com transparência
+                borderColor: '#6366f1',
+                borderWidth: 2,
+                tension: 0.4, // Curva suave
+                fill: true,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#6366f1',
+                pointRadius: 4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false
+                }
             },
             scales: {
                 y: { 
                     beginAtZero: true,
-                    grid: { color: '#f1f5f9' },
-                    ticks: { stepSize: 1 }
+                    grid: { color: '#f1f5f9', borderDash: [5, 5] },
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                    border: { display: false }
                 },
                 x: {
-                    grid: { display: false }
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } },
+                    border: { display: false }
                 }
             }
         }
@@ -232,29 +242,24 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Container Principal da View (Classe renomeada para evitar conflito) */
 .dashboard-view {
   padding: 2rem;
-  max-width: 1600px;
+  max-width: 1400px;
   margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
+  animation: fadeIn 0.5s ease-out;
 }
 
-/* Header */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* HEADER */
 .view-header {
-  margin-bottom: 2rem;
-}
-
-.header-content {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 2.5rem;
 }
 
-.header-titles h1 {
+.welcome-text {
   font-size: 1.75rem;
   font-weight: 800;
   color: #0f172a;
@@ -264,262 +269,127 @@ onBeforeUnmount(() => {
 
 .subtitle {
   color: #64748b;
-  margin: 0.25rem 0 0 0;
+  margin: 0.5rem 0 0 0;
   font-size: 0.95rem;
 }
 
-/* Botão Primário */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #2563eb;
+.btn-create {
+  background-color: #0f172a;
   color: white;
   padding: 0.75rem 1.25rem;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.15);
 }
+.btn-create:hover { background-color: #1e293b; transform: translateY(-1px); }
+.icon-plus { font-size: 1.2rem; line-height: 1; }
 
-.btn-primary:hover {
-  background-color: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-/* Grid de Estatísticas */
-.stats-grid {
+/* KPI CARDS */
+.kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.stat-card {
+.kpi-card {
   background: white;
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: 16px;
   display: flex;
-  align-items: center;
-  gap: 1.25rem;
+  justify-content: space-between;
+  align-items: flex-start;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border-left: 4px solid transparent;
-  transition: transform 0.2s;
+  border: 1px solid rgba(0,0,0,0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
+.kpi-label { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0.5rem 0 0 0; line-height: 1; }
 
-.primary-border { border-left-color: #3b82f6; }
-.success-border { border-left-color: #10b981; }
-.purple-border { border-left-color: #8b5cf6; }
-
-.stat-icon {
-  width: 52px;
-  height: 52px;
+.kpi-icon {
+  width: 48px; height: 48px;
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
 }
 
-.bg-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.bg-green { background: linear-gradient(135deg, #10b981, #059669); }
-.bg-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+/* Cores dos KPIs */
+.kpi-card.blue .kpi-icon { background-color: #eff6ff; color: #3b82f6; }
+.kpi-card.green .kpi-icon { background-color: #f0fdf4; color: #10b981; }
+.kpi-card.purple .kpi-icon { background-color: #f5f3ff; color: #8b5cf6; }
 
-.stat-info h3 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  color: #0f172a;
-}
-
-.stat-info p {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.875rem;
-}
-
-/* Grid Principal (Gráfico e Tabela) */
-.main-grid {
+/* DASHBOARD GRID */
+.dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr; /* Gráfico maior que a lista */
   gap: 1.5rem;
 }
 
-.content-card {
+.panel-card {
   background: white;
-  border-radius: 12px;
-  max-height: 600px;
+  border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  border: 1px solid rgba(0,0,0,0.02);
+  display: flex; flex-direction: column;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 1.5rem;
 }
+.panel-header h2 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0; }
 
-.card-header h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0;
-  color: #1e293b;
+.badge { background: #f1f5f9; color: #64748b; padding: 0.25rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+.link-action { color: #6366f1; font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+.link-action:hover { text-decoration: underline; }
+
+.chart-container { height: 300px; position: relative; width: 100%; }
+
+/* TABELA MODERNA */
+.table-responsive { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; }
+.modern-table th {
+  text-align: left; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;
+  font-weight: 700; padding-bottom: 1rem; border-bottom: 1px solid #f1f5f9;
 }
+.modern-table td { padding: 1rem 0; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.modern-table tr:last-child td { border-bottom: none; }
 
-.chart-wrapper {
-  flex: 1;
-  min-height: 300px;
-  position: relative;
+.item-title { display: block; font-weight: 600; color: #334155; font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.mini-tag { font-size: 0.7rem; background: #f1f5f9; color: #64748b; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 500; }
+.item-date { font-size: 0.85rem; color: #94a3b8; white-space: nowrap; }
+.action-btn { color: #94a3b8; transition: color 0.2s; padding: 0.5rem; }
+.action-btn:hover { color: #6366f1; }
+
+/* LOADING */
+.loading-container {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 400px; color: #94a3b8;
 }
-
-/* Tabela */
-.table-container {
-  overflow-x: auto;
-  border-radius: 6px;
-  border: 1px solid #f1f5f9;
-}
-
-.styled-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-  min-width: 500px; /* Força scroll horizontal se muito pequeno */
-}
-
-.styled-table th {
-  text-align: left;
-  padding: 1rem;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.styled-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  vertical-align: middle;
-}
-
-.title-cell {
-  font-weight: 500;
-  color: #0f172a;
-  max-width: 180px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tags-wrapper {
-  display: flex;
-  flex-wrap: wrap; 
-  gap: 4px; 
-}
-
-.tag-badge {
-  background-color: #f1f5f9;
-  color: #475569;
-  padding: 0.25rem 0.6rem;
-  border-radius: 99px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  border: 1px solid #e2e8f0;
-}
-
-.date-cell {
-  white-space: nowrap;
-  color: #64748b;
-}
-
-.text-link {
-  color: #2563eb;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.btn-icon {
-  color: #94a3b8;
-  padding: 0.5rem;
-  border-radius: 6px;
-  display: inline-flex;
-  transition: all 0.2s;
-}
-
-.btn-icon:hover {
-  background-color: #eff6ff;
-  color: #2563eb;
-}
-
-.text-right { text-align: right; }
-
-/* Loading */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  color: #94a3b8;
-}
-
 .spinner {
-  border: 3px solid #e2e8f0;
-  border-top: 3px solid #3b82f6;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
+  width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #6366f1;
+  border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* ============ RESPONSIVIDADE ============ */
-
-/* Tablets e Telas Menores */
+/* RESPONSIVIDADE */
 @media (max-width: 1024px) {
-  .main-grid {
-    grid-template-columns: 1fr; /* Um card por linha */
-  }
+  .dashboard-grid { grid-template-columns: 1fr; }
 }
 
-/* Mobile */
 @media (max-width: 640px) {
-  .dashboard-view {
-    padding: 1rem;
-  }
-  
-  /* Oculta botão duplicado no mobile */
-  .desktop-only {
-    display: none !important;
-  }
-
-  .header-titles h1 {
-    font-size: 1.5rem;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr; /* Um card por linha no mobile */
-  }
-
-  .content-card {
-    padding: 1rem;
-  }
+  .dashboard-view { padding: 1.5rem; }
+  .desktop-only { display: none !important; }
+  .view-header { margin-bottom: 1.5rem; }
+  .welcome-text { font-size: 1.5rem; }
+  .kpi-grid { grid-template-columns: 1fr; }
 }
 </style>

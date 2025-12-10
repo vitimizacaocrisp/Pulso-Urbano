@@ -1,55 +1,83 @@
 <template>
   <div class="dashboard-body"> 
     <div class="dashboard-container">
-      <!-- Sidebar Desktop (Mantida igual) -->
+      <!-- Sidebar Desktop Modernizada -->
       <aside class="dashboard-sidebar">
         <div class="sidebar-header">
-          <span>Painel Admin</span>
+          <router-link to="/admin" class="admin-logo">
+            Pulso<span class="highlight">Admin</span>
+          </router-link>
         </div>
 
         <nav class="sidebar-nav">
+          <div class="nav-section-label">GERAL</div>
           <ul>
             <li>
               <router-link :to="{ name: 'AdminDashboard' }">
-                <Icon icon="mdi:view-dashboard" /> Início
+                <Icon icon="mdi:view-dashboard-outline" width="20" /> Visão Geral
               </router-link>
             </li>
+          </ul>
+
+          <div class="nav-section-label">CONTEÚDO</div>
+          <ul>
             <li>
               <router-link :to="{ name: 'ContentManager' }">
-                <Icon icon="mdi:plus-circle" /> Nova Análise
+                <Icon icon="mdi:plus-circle-outline" width="20" /> Nova Análise
               </router-link>
             </li>
             <li>
               <router-link :to="{ name: 'EditAnalysis' }">
-                <Icon icon="mdi:pencil" /> Editar / Excluir
+                <Icon icon="mdi:file-document-edit-outline" width="20" /> Gerenciar Publicações
               </router-link>
             </li>
-            <li class="separator"></li>
+          </ul>
+
+          <div class="separator"></div>
+
+          <ul>
             <li>
-              <router-link to="/" target="_blank">
-                <Icon icon="mdi:home" /> Ir para o Site
+              <router-link to="/" target="_blank" class="nav-external">
+                <Icon icon="mdi:open-in-new" width="20" /> Ver Site Público
               </router-link>
             </li>
           </ul>
         </nav>
 
         <div class="sidebar-footer">
-          <button @click="logout" class="btn-logout">
-            <Icon icon="mdi:logout" /> Sair
+          <div class="user-mini-profile">
+            <div class="avatar-circle">A</div>
+            <div class="user-info">
+              <span class="user-name">Administrador</span>
+              <span class="user-role">Super Admin</span>
+            </div>
+          </div>
+          <button @click="logout" class="btn-logout-icon" title="Sair">
+            <Icon icon="mdi:logout" width="20" />
           </button>
         </div>
       </aside>
 
       <!-- Área Principal -->
       <main class="dashboard-main">
-        <router-view />
+        <!-- Topbar Mobile/Desktop Opcional para Breadcrumbs ou Título -->
+        <header class="mobile-header">
+           <span class="mobile-logo">Pulso<strong>Admin</strong></span>
+        </header>
+        
+        <div class="main-content-scroll">
+            <router-view v-slot="{ Component }">
+                <transition name="fade-page" mode="out-in">
+                    <component :is="Component" />
+                </transition>
+            </router-view>
+        </div>
       </main>
     </div>
 
-    <!-- NOVA BARRA DE NAVEGAÇÃO MOBILE (Bottom Bar) -->
-    <!-- Substitui o antigo menu flutuante -->
+    <!-- MOBILE BOTTOM BAR (Mantida e Estilizada) -->
     <nav class="mobile-navbar">
-      <router-link to="/" class="nav-item" title="Ir para o Site">
+      <router-link to="/" class="nav-item">
         <Icon icon="mdi:home-outline" class="nav-icon" />
         <span class="nav-label">Site</span>
       </router-link>
@@ -59,17 +87,15 @@
         <span class="nav-label">Início</span>
       </router-link>
 
-      <!-- Botão Central Destacado para Nova Análise -->
-      <router-link :to="{ name: 'ContentManager' }" class="nav-item center-item" title="Nova Análise">
+      <router-link :to="{ name: 'ContentManager' }" class="nav-item center-item">
         <div class="center-icon-bg">
           <Icon icon="mdi:plus" class="nav-icon white-icon" />
         </div>
-        <span class="nav-label">Novo</span>
       </router-link>
 
       <router-link :to="{ name: 'EditAnalysis' }" class="nav-item">
-        <Icon icon="mdi:file-document-edit-outline" class="nav-icon" />
-        <span class="nav-label">Editar</span>
+        <Icon icon="mdi:file-document-multiple-outline" class="nav-icon" />
+        <span class="nav-label">Conteúdo</span>
       </router-link>
 
       <button @click="logout" class="nav-item logout-btn">
@@ -84,14 +110,7 @@
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 
-// Imports CSS
-import '../../assets/css/admin/base.css'
-import '../../assets/css/admin/components.css'
-import '../../assets/css/admin/layout.css'
-import '../../assets/css/admin/responsive-lg.css'
-import '../../assets/css/admin/responsive-md.css'
-import '../../assets/css/admin/responsive-sm.css'
-
+// Importando CSS base se necessário, mas focando em scoped styles para garantir o visual
 const router = useRouter()
 
 const logout = () => {
@@ -101,11 +120,12 @@ const logout = () => {
 </script>
 
 <style scoped>
-/* ----------- Layout Principal -----------*/
+/* RESET & BASE */
 .dashboard-body {
   display: flex;
   min-height: 100vh;
-  background-color: #f4f6f8;
+  background-color: #f1f5f9; /* Slate-100 */
+  font-family: 'Inter', sans-serif;
 }
 
 .dashboard-container {
@@ -113,195 +133,184 @@ const logout = () => {
   width: 100%;
 }
 
-/* ----------- Sidebar Desktop -----------*/
+/* SIDEBAR DESKTOP */
 .dashboard-sidebar {
-  width: 250px;
-  background-color: #1e293b;
-  color: #ecf0f1;
+  width: 260px;
+  background-color: #0f172a; /* Slate-900 */
+  color: #cbd5e1; /* Slate-300 */
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   height: 100vh;
   position: sticky;
   top: 0;
-  left: 0;
-  z-index: 100;
+  border-right: 1px solid #1e293b;
+  z-index: 50;
+  transition: width 0.3s;
 }
 
 .sidebar-header {
-  padding: 1.5rem;
-  text-align: center;
-  border-bottom: 1px solid #334155;
-  font-weight: 700;
-  font-size: 1.2rem;
-  background-color: #0f172a;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid #1e293b;
 }
+
+.admin-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  letter-spacing: -0.5px;
+}
+.highlight { color: #6366f1; }
 
 .sidebar-nav {
   flex: 1;
-  padding-top: 1rem;
+  padding: 1.5rem 1rem;
   overflow-y: auto;
 }
 
-.sidebar-nav ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.nav-section-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+  margin: 1.5rem 0 0.5rem 0.75rem;
+  font-weight: 600;
 }
+.nav-section-label:first-child { margin-top: 0; }
+
+.sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
 
 .sidebar-nav a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   color: #94a3b8;
   text-decoration: none;
-  transition: all 0.2s;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   font-size: 0.95rem;
+  margin-bottom: 0.25rem;
 }
 
-.sidebar-nav a:hover,
+.sidebar-nav a:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
 .sidebar-nav a.router-link-active {
-  background-color: #334155;
-  color: white;
-  border-right: 3px solid #3b82f6;
+  background-color: #6366f1;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .separator {
-  margin: 1rem 1.5rem;
-  border-top: 1px solid #334155;
+  height: 1px;
+  background-color: #1e293b;
+  margin: 1.5rem 0;
 }
 
 .sidebar-footer {
-  padding: 1.5rem;
-  border-top: 1px solid #334155;
-  background-color: #0f172a;
-}
-
-.btn-logout {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: transparent;
-  border: 1px solid #ef4444;
-  border-radius: 6px;
-  color: #ef4444;
+  padding: 1rem;
+  border-top: 1px solid #1e293b;
+  background-color: #0b1120;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  justify-content: space-between;
 }
 
-.btn-logout:hover {
-  background-color: #ef4444;
+.user-mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-circle {
+  width: 36px; height: 36px;
+  background-color: #3b82f6;
   color: white;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold;
 }
 
-/* ----------- Área Principal -----------*/
+.user-info { display: flex; flex-direction: column; }
+.user-name { color: #fff; font-size: 0.9rem; font-weight: 600; }
+.user-role { color: #64748b; font-size: 0.75rem; }
+
+.btn-logout-icon {
+  background: none; border: none; color: #94a3b8; cursor: pointer;
+  padding: 0.5rem; transition: color 0.2s;
+}
+.btn-logout-icon:hover { color: #ef4444; }
+
+/* MAIN AREA */
 .dashboard-main {
   flex-grow: 1;
-  width: calc(100% - 250px);
-  overflow-y: auto;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden; /* Scroll interno */
 }
 
-/* ----------- Mobile Navigation Bar (NOVO ESTILO) ----------- */
+.mobile-header { display: none; } /* Só aparece no mobile */
+
+.main-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0; /* Padding gerido pelas views */
+}
+
+/* MOBILE NAVBAR */
 .mobile-navbar {
-  display: none; /* Desktop: Oculto */
+  display: none;
   position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 70px; /* Altura fixa da barra */
-  background-color: white;
+  bottom: 0; left: 0; width: 100%; height: 65px;
+  background-color: #fff;
   border-top: 1px solid #e2e8f0;
-  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  z-index: 100;
   padding: 0 1rem;
-  justify-content: space-between; /* Distribui os itens igualmente */
+  justify-content: space-around;
   align-items: center;
 }
 
 .nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 500;
-  gap: 4px;
-  flex: 1; /* Cada item ocupa espaço igual */
-  height: 100%;
-  cursor: pointer;
-  background: none;
-  border: none;
+  display: flex; flex-direction: column; align-items: center;
+  text-decoration: none; color: #94a3b8; font-size: 0.7rem; gap: 4px;
+  background: none; border: none; cursor: pointer;
 }
+.nav-item.router-link-active { color: #6366f1; }
+.nav-icon { font-size: 1.5rem; }
 
-.nav-icon {
-  font-size: 1.5rem;
-  transition: color 0.2s;
-}
-
-/* Estado Ativo */
-.nav-item.router-link-active,
-.nav-item:hover {
-  color: #3b82f6;
-}
-
-.nav-item.router-link-active .nav-icon {
-  color: #3b82f6;
-}
-
-/* Botão de Logout Específico */
-.logout-btn:hover {
-  color: #ef4444;
-}
-
-/* Botão Central (Novo) com destaque */
-.center-item {
-  position: relative;
-  top: -10px; /* Eleva o botão um pouco acima da barra */
-}
-
+.center-item { position: relative; top: -20px; }
 .center-icon-bg {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
-  border: 4px solid #f4f6f8; /* Borda da cor do fundo do site para criar "corte" */
-  transition: transform 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 15px rgba(99, 102, 241, 0.4);
+  border: 4px solid #f1f5f9;
 }
+.white-icon { color: white; font-size: 1.8rem; }
 
-.center-item:active .center-icon-bg {
-  transform: scale(0.95);
-}
+/* TRANSITIONS */
+.fade-page-enter-active, .fade-page-leave-active { transition: opacity 0.2s ease; }
+.fade-page-enter-from, .fade-page-leave-to { opacity: 0; }
 
-.white-icon {
-  color: white;
-  font-size: 1.75rem;
-}
-
-/* ----------- Responsividade ----------- */
+/* RESPONSIVIDADE */
 @media (max-width: 768px) {
-  .dashboard-sidebar {
-    display: none; /* Sidebar some no mobile */
-  }
-
-  .dashboard-main {
-    width: 100%;
-    /* Adiciona padding no final para o conteúdo não ficar escondido atrás da barra */
-    padding-bottom: 80px; 
-  }
-
-  .mobile-navbar {
-    display: flex; /* Barra aparece no mobile */
+  .dashboard-sidebar { display: none; }
+  .mobile-navbar { display: flex; }
+  .dashboard-main { padding-bottom: 70px; } /* Espaço para a barra mobile */
+  
+  .mobile-header {
+    display: flex; align-items: center; justify-content: center;
+    height: 60px; background: #fff; border-bottom: 1px solid #e2e8f0;
+    font-size: 1.2rem; color: #0f172a;
   }
 }
 </style>

@@ -1,26 +1,24 @@
 <template>
   <div>
-    <section class="hero-video">
-      <div class="video-overlay"></div>
-      <video 
-        src="https://www.pexels.com/pt-br/download/video/1851190/" 
-        autoplay 
-        loop 
-        muted 
-        playsinline
-      >
-        Seu navegador não suporta o elemento de vídeo.
-      </video>
+    <!-- Substituição da Section de Vídeo por Canvas Interativo -->
+    <section class="hero-canvas-container" ref="heroContainer">
+      <canvas ref="canvasRef" class="interactive-canvas"></canvas>
+      <div class="canvas-overlay"></div>
+      
       <div class="hero-content">
-        <h1>Pulso Urbano</h1>
-        <p>Analisando os ritmos da segurança pública e justiça no Brasil.</p>
+        <h1 class="fade-in-up">Pulso Urbano</h1>
+        <p class="fade-in-up delay-1">Analisando os ritmos da segurança pública e justiça no Brasil.</p>
       </div>
     </section>
 
     <div class="page-container">
       <main class="main-content">
         
-        <article class="featured-article card">
+        <!-- Adicionado scroll-reveal aqui -->
+        <section class="section-label scroll-reveal">Destaque do Dia</section>
+        
+        <!-- Adicionado scroll-reveal aqui -->
+        <article class="featured-article card-modern scroll-reveal">
           <div v-if="dailyHighlight.isLoading" class="status-message">
             <div class="spinner-large"></div>
             <p>Gerando destaque do dia...</p>
@@ -29,37 +27,50 @@
             {{ dailyHighlight.error }}
           </div>
           <template v-else-if="dailyHighlight.data">
-            <header class="article-header">
-              <router-link :to="`/categoria/${dailyHighlight.data.category.toLowerCase()}`" class="category-tag">
-                {{ dailyHighlight.data.category }}
-              </router-link>
-              <h1>{{ dailyHighlight.data.title }}</h1>
-              <div class="article-meta">
-                <span><i class="fas fa-calendar-alt"></i> {{ new Date(dailyHighlight.data.created_at).toLocaleDateString() }}</span>
-                <span><i class="fas fa-user"></i> Por {{ dailyHighlight.data.author }}</span>
+            <div class="featured-grid">
+              <figure class="featured-image-wrapper">
+                <img :src="getFullMediaPath(dailyHighlight.data.cover_image_path)" alt="Imagem de capa do destaque">
+                <router-link :to="`/categoria/${dailyHighlight.data.category.toLowerCase()}`" class="category-badge-overlay">
+                  {{ dailyHighlight.data.category }}
+                </router-link>
+              </figure>
+              <div class="featured-content">
+                <header class="article-header">
+                  <div class="article-meta">
+                    <span><i class="far fa-calendar"></i> {{ new Date(dailyHighlight.data.created_at).toLocaleDateString() }}</span>
+                  </div>
+                  <h1>{{ dailyHighlight.data.title }}</h1>
+                  <div class="author-meta">
+                     <span class="author-name">Por <strong>{{ dailyHighlight.data.author }}</strong></span>
+                  </div>
+                </header>
+                <p class="lead">
+                  {{ dailyHighlight.data.description }}
+                </p>
+                <router-link :to="{ name: 'AnalysisDetail', params: { id: dailyHighlight.data.id } }" class="btn-text">
+                  Ler Análise Completa <i class="fas fa-arrow-right"></i>
+                </router-link>
               </div>
-            </header>
-            <figure class="featured-image">
-              <img :src="getFullMediaPath(dailyHighlight.data.cover_image_path)" alt="Imagem de capa do destaque">
-            </figure>
-            <div class="article-content">
-              <p class="lead">
-                {{ dailyHighlight.data.description }}
-              </p>
-              <router-link :to="{ name: 'AnalysisDetail', params: { id: dailyHighlight.data.id } }" class="btn-primary">
-                Ler Análise Completa →
-              </router-link>
             </div>
           </template>
         </article>
 
-        <RecentPosts :post-count="6" />
+        <!-- Adicionado scroll-reveal aqui -->
+        <section class="section-header-row scroll-reveal">
+           <h3 class="section-label">Recentes</h3>
+        </section>
+        
+        <!-- Wrapper para animar a lista de posts -->
+        <div class="scroll-reveal delay-1">
+            <RecentPosts :post-count="6" />
+        </div>
 
       </main>
 
       <aside class="sidebar">
-        <div class="sidebar-widget card">
-          <h3 class="widget-title">Categorias</h3>
+        <!-- Widget: Categorias (scroll-reveal) -->
+        <div class="sidebar-widget card-modern scroll-reveal delay-1">
+          <h3 class="widget-title">Explorar Tópicos</h3>
           <div v-if="categories.isLoading" class="status-message small">
             <div class="spinner-badge"></div> Carregando...
           </div>
@@ -68,37 +79,43 @@
           </div>
           <ul v-else class="category-list">
             <li v-for="category in categories.data" :key="category.name">
-              <router-link :to="`/categoria/${category.name.toLowerCase()}`">
-                {{ category.name }}
-                <span class="count">{{ category.count }}</span>
+              <router-link :to="`/categoria/${category.name.toLowerCase()}`" class="category-item">
+                <span class="cat-name">{{ category.name }}</span>
+                <span class="cat-count">{{ category.count }}</span>
               </router-link>
             </li>
           </ul>
         </div>
-        <div class="sidebar-widget card">
-          <h3 class="widget-title">Contexto Nacional</h3>
+
+        <!-- Widget: Contexto Nacional (scroll-reveal) -->
+        <div class="sidebar-widget card-modern context-widget scroll-reveal delay-2">
+          <h3 class="widget-title">Dados em Foco</h3>
             <div v-if="population.isLoading" class="status-message small">
-              <div class="spinner-badge"></div> Carregando...
+              <div class="spinner-badge"></div>
             </div>
             <div v-else-if="population.error" class="status-message small error">Falha ao carregar.</div>
             <div v-else class="stats-list">
-              <div class="stat-item">
-                <span>População Total ({{ population.data.ano }})</span>
-                <strong>{{ formatNumber(population.data.total) }}</strong>
+              <div class="stat-card">
+                <span class="stat-label">População Brasil ({{ population.data.ano }})</span>
+                <strong class="stat-number">{{ formatNumber(population.data.total) }}</strong>
               </div>
-              <div v-if="population.data.topState" class="stat-item">
-                <span>Estado mais populoso</span>
-                <strong>{{ population.data.topState.uf }}</strong>
+              <div v-if="population.data.topState" class="stat-card highlight">
+                <span class="stat-label">Maior Estado ({{ population.data.topState.uf }})</span>
+                <strong class="stat-number small">{{ formatNumber(population.data.topState.populacao) }}</strong>
               </div>
             </div>
         </div>
-        <div class="sidebar-widget card newsletter-widget">
-          <h3 class="widget-title">Inscreva-se</h3>
-          <p>Receba as últimas análises e destaques diretamente no seu email.</p>
-          <form class="subscribe-form">
-            <input type="email" placeholder="Seu melhor email">
-            <button type="submit" class="btn-primary">Inscrever</button>
-          </form>
+
+        <!-- Widget: Newsletter (scroll-reveal) -->
+        <div class="sidebar-widget card-modern newsletter-widget scroll-reveal delay-3">
+          <div class="newsletter-content">
+            <h3 class="widget-title inverted">Newsletter</h3>
+            <p>Receba as análises mais profundas sobre segurança pública diretamente no seu email.</p>
+            <form class="subscribe-form" @submit.prevent>
+              <input type="email" placeholder="Seu melhor email">
+              <button type="submit" class="btn-subscribe">Inscrever-se</button>
+            </form>
+          </div>
         </div>
       </aside>
     </div>
@@ -106,13 +123,218 @@
 </template>
 
 <script setup>
-import {reactive, onMounted } from 'vue';
+import {reactive, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import axios from 'axios';
 import RecentPosts from '@/components/RecentPosts.vue';
 
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
-// --- Estado Reativo ---
+// --- Scroll Animation Logic (Intersection Observer) ---
+const setupScrollAnimations = () => {
+    const observerOptions = {
+        root: null, // viewport
+        rootMargin: '0px',
+        threshold: 0.1 // Ativa quando 10% do elemento está visível
+    };
+
+    const observer = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target); // Anima apenas uma vez
+            }
+        });
+    }, observerOptions);
+
+    // Seleciona todos os elementos com a classe .scroll-reveal
+    const elements = document.querySelectorAll('.scroll-reveal');
+    elements.forEach(el => observer.observe(el));
+};
+
+
+// --- Canvas Animation Logic ---
+const canvasRef = ref(null);
+const heroContainer = ref(null);
+let animationFrameId = null;
+let particles = [];
+let mouse = { x: null, y: null };
+// Variáveis para a animação "Idle" (automática)
+let idleTime = 0; 
+let autoMouse = { x: 0, y: 0 };
+
+class Particle {
+  constructor(canvasWidth, canvasHeight) {
+    this.x = Math.random() * canvasWidth;
+    this.y = Math.random() * canvasHeight;
+    this.vx = (Math.random() - 0.5) * 0.5; // Velocidade base lenta
+    this.vy = (Math.random() - 0.5) * 0.5;
+    this.size = Math.random() * 2 + 1;
+    this.baseX = this.x;
+    this.baseY = this.y;
+    this.density = (Math.random() * 30) + 1;
+  }
+
+  update(mouseX, mouseY, width, height) {
+    // Cálculo da distância até o alvo (mouse ou autoMouse)
+    let dx = mouseX - this.x;
+    let dy = mouseY - this.y;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Raio de força de atração
+    let forceDirectionX = dx / distance;
+    let forceDirectionY = dy / distance;
+    let maxDistance = 300; // Distância de interação
+    let force = (maxDistance - distance) / maxDistance;
+    let directionX = forceDirectionX * force * this.density;
+    let directionY = forceDirectionY * force * this.density;
+
+    if (distance < maxDistance) {
+      // Atrair para o mouse
+      this.x += directionX;
+      this.y += directionY;
+    } else {
+      // Movimento natural se longe do mouse
+      if (this.x !== this.baseX) {
+        let dxBase = this.baseX - this.x;
+        this.x += dxBase * 0.05; // Retorno elástico lento
+      }
+      if (this.y !== this.baseY) {
+        let dyBase = this.baseY - this.y;
+        this.y += dyBase * 0.05;
+      }
+    }
+    
+    // Movimento constante de "drift" para não ficar estático
+    this.baseX += this.vx;
+    this.baseY += this.vy;
+
+    // Rebater nas bordas
+    if (this.baseX < 0 || this.baseX > width) this.vx = -this.vx;
+    if (this.baseY < 0 || this.baseY > height) this.vy = -this.vy;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.8)'; // Cor principal (Indigo)
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+const initCanvas = () => {
+  const canvas = canvasRef.value;
+  const ctx = canvas.getContext('2d');
+  
+  // Ajustar tamanho
+  const resize = () => {
+    canvas.width = heroContainer.value.offsetWidth;
+    canvas.height = heroContainer.value.offsetHeight;
+    initParticles(canvas.width, canvas.height);
+  };
+  
+  window.addEventListener('resize', resize);
+  resize(); // Chamada inicial
+
+  // Event Listeners do Mouse
+  const handleMouseMove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+    idleTime = 0; // Resetar tempo ocioso
+  };
+
+  const handleMouseLeave = () => {
+    mouse.x = null;
+    mouse.y = null;
+  };
+
+  heroContainer.value.addEventListener('mousemove', handleMouseMove);
+  heroContainer.value.addEventListener('mouseleave', handleMouseLeave);
+
+  // Animation Loop
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Lógica do "Auto Pilot" (quando mouse não está presente)
+    let targetX = mouse.x;
+    let targetY = mouse.y;
+
+    if (mouse.x === null) {
+        idleTime += 0.01;
+        // Movimento senoidal suave para simular um "pulso" ou busca
+        autoMouse.x = (canvas.width / 2) + Math.cos(idleTime) * (canvas.width / 3);
+        autoMouse.y = (canvas.height / 2) + Math.sin(idleTime * 1.5) * (canvas.height / 4);
+        targetX = autoMouse.x;
+        targetY = autoMouse.y;
+    }
+
+    // Desenhar partículas
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].update(targetX, targetY, canvas.width, canvas.height);
+      particles[i].draw(ctx);
+
+      // Desenhar conexões (linhas)
+      for (let j = i; j < particles.length; j++) {
+        let dx = particles[i].x - particles[j].x;
+        let dy = particles[i].y - particles[j].y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 100) {
+          ctx.beginPath();
+          // Opacidade baseada na distância
+          ctx.strokeStyle = `rgba(99, 102, 241, ${1 - distance / 100})`; 
+          ctx.lineWidth = 0.5;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    
+    // Desenhar linha de conexão com o "cursor" (seja real ou automático)
+    if (targetX !== null) {
+       for (let i = 0; i < particles.length; i++) {
+          let dx = particles[i].x - targetX;
+          let dy = particles[i].y - targetY;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < 150) {
+             ctx.beginPath();
+             ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 - distance / 150})`;
+             ctx.lineWidth = 1;
+             ctx.moveTo(particles[i].x, particles[i].y);
+             ctx.lineTo(targetX, targetY);
+             ctx.stroke();
+          }
+       }
+    }
+
+    animationFrameId = requestAnimationFrame(animate);
+  };
+  
+  animate();
+
+  // Cleanup function
+  return () => {
+    window.removeEventListener('resize', resize);
+    // Verificação de segurança adicionada: só remove eventos se o elemento ainda existir
+    if (heroContainer.value) {
+      heroContainer.value.removeEventListener('mousemove', handleMouseMove);
+      heroContainer.value.removeEventListener('mouseleave', handleMouseLeave);
+    }
+    cancelAnimationFrame(animationFrameId);
+  };
+};
+
+const initParticles = (width, height) => {
+  particles = [];
+  const numberOfParticles = (width * height) / 9000; // Densidade baseada na área
+  for (let i = 0; i < numberOfParticles; i++) {
+    particles.push(new Particle(width, height));
+  }
+};
+
+// --- Estado Reativo Existente ---
 const population = reactive({
   isLoading: true,
   error: null,
@@ -176,7 +398,6 @@ const fetchAnalysesData = async () => {
   dailyHighlight.isLoading = true;
   categories.isLoading = true;
   try {
-    // Usando a nova rota pública
     const response = await axios.get(`${API_BASE_URL}/api/analyses-list`);
     const analyses = response.data?.data?.analyses;
 
@@ -208,258 +429,410 @@ const fetchAnalysesData = async () => {
   }
 };
 
-// --- Hook de Ciclo de Vida ---
+let cleanupCanvas;
+
 onMounted(() => {
   fetchPopulationData();
   fetchAnalysesData();
+  cleanupCanvas = initCanvas();
+  
+  // Inicia as animações de scroll após um pequeno delay para garantir que o DOM esteja montado
+  nextTick(() => {
+    setupScrollAnimations();
+  });
+});
+
+onUnmounted(() => {
+  if (cleanupCanvas) cleanupCanvas();
 });
 </script>
 
 <style scoped>
-/* SEÇÃO HERO VIDEO */
-.hero-video {
+/* --- Variáveis de Tema (Local Scope) --- */
+.page-container {
+  --primary-color: #0f172a;
+  --accent-color: #6366f1;
+  --text-main: #334155;
+  --text-light: #64748b;
+  --bg-card: #ffffff;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* --- SCROLL ANIMATIONS (Estilo Samsung/Premium) --- */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(60px); /* Começa mais abaixo */
+    /* Curva bezier suave para efeito "premium" */
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.scroll-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Delays para efeito cascata (staggering) */
+.delay-1 { transition-delay: 0.1s; }
+.delay-2 { transition-delay: 0.2s; }
+.delay-3 { transition-delay: 0.3s; }
+
+
+/* SEÇÃO HERO CANVAS (Substitui Video) */
+.hero-canvas-container {
   position: relative;
-  height: 60vh;
+  height: 91vh; /* Aumentado para mais impacto */
   width: 100%;
   overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #111827;
+  background-color: #0f172a; /* Cor de fundo base escura */
 }
-.hero-video video {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
-  z-index: 1;
-}
-.video-overlay {
+
+.interactive-canvas {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(17, 24, 39, 0.6);
-  z-index: 2;
+  z-index: 1;
 }
+
+.canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Gradiente radial para destacar o centro ou seguir o mouse, mas aqui estático para legibilidade */
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%);
+  z-index: 2;
+  pointer-events: none; /* Permite que o mouse interaja com o canvas abaixo */
+}
+
 .hero-content {
   position: relative;
   z-index: 3;
   color: #fff;
   text-align: center;
   padding: 2rem;
+  max-width: 800px;
+  pointer-events: none; /* Permite ver a animação do mouse através do texto */
 }
 .hero-content h1 {
-  font-size: 4rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+  font-size: 5rem;
+  font-weight: 800;
+  margin: 0 0 1rem 0;
+  letter-spacing: -2px;
+  line-height: 1;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 .hero-content p {
-  font-size: 1.25rem;
-  max-width: 600px;
+  font-size: 1.5rem;
+  font-weight: 300;
+  max-width: 700px;
   margin: 0 auto;
-  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+  opacity: 0.9;
+}
+
+/* Animações de entrada */
+.fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+.delay-1 { animation-delay: 0.3s; }
+
+@keyframes fadeInUp {
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* GERAL E LAYOUT */
 .page-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  gap: 3rem;
+  max-width: 1280px;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+  font-family: 'Inter', sans-serif;
 }
 .main-content {
   flex: 3;
-  min-width: 60%;
+  min-width: 0; /* Fix flexbox overflow */
 }
 .sidebar {
   flex: 1;
-  min-width: 300px;
-}
-.card {
-  background-color: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-/* ARTIGO EM DESTAQUE */
-.article-header {
-  margin-bottom: 1.5rem;
-}
-.category-tag {
-  display: inline-block;
-  background-color: #e0e7ff;
-  color: #4338ca;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  text-decoration: none;
-  transition: background-color 0.2s;
-}
-.category-tag:hover {
-  background-color: #c7d2fe;
-}
-.article-header h1 {
-  font-size: 2.5rem;
-  color: #111827;
-  line-height: 1.2;
-  margin: 0;
-}
-.article-meta {
-  display: flex;
-  gap: 1.5rem;
-  color: #6b7280;
-  font-size: 0.9rem;
-  margin-top: 1rem;
-}
-.article-meta i {
-  margin-right: 0.5rem;
-}
-.featured-image {
-  margin: 0 0 1.5rem 0;
-}
-.featured-image img {
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-.article-content .lead {
-  font-size: 1.1rem;
-  color: #4b5563;
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
-}
-.article-content .btn-primary {
-  display: inline-block;
-  margin-top: 1rem;
-  text-decoration: none;
+  min-width: 320px;
 }
 
-/* BARRA LATERAL (SIDEBAR) */
+.section-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  border-left: 3px solid #6366f1;
+  padding-left: 0.75rem;
+}
+
+/* CARDS GERAIS */
+.card-modern {
+  background-color: var(--bg-card);
+  border: none;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+}
+.card-modern:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ARTIGO EM DESTAQUE (LAYOUT HORIZONTAL) */
+.featured-article {
+  padding: 0; /* Remover padding padrão para imagem sangrada */
+}
+.featured-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  min-height: 400px;
+}
+.featured-image-wrapper {
+  position: relative;
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.featured-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.featured-article:hover .featured-image-wrapper img {
+  transform: scale(1.03);
+}
+.category-badge-overlay {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  background: rgba(255,255,255,0.95);
+  color: #6366f1;
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.category-badge-overlay:hover {
+  background: #fff;
+}
+.featured-content {
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.article-header h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.1;
+  margin: 0.5rem 0 1rem 0;
+  letter-spacing: -0.5px;
+}
+.article-meta {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.lead {
+  font-size: 1.05rem;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.author-name {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.btn-text {
+  color: #6366f1;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  transition: gap 0.2s;
+}
+.btn-text:hover {
+  gap: 0.75rem;
+  color: #4f46e5;
+}
+
+/* SIDEBAR WIDGETS */
 .sidebar-widget {
   padding: 1.5rem;
+  margin-bottom: 2rem;
+  background: #fff;
 }
 .widget-title {
-  font-size: 1.3rem;
-  color: #111827;
-  margin: 0 0 1rem 0;
-  border-bottom: 1px solid #e9ecef;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 1.25rem 0;
   padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f1f5f9;
 }
+
+/* Lista Categorias */
 .category-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.category-list li a {
+.category-item {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0;
-  color: #4b5563;
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+  color: #475569;
   text-decoration: none;
-  border-bottom: 1px solid #f3f4f6;
-  transition: color 0.2s;
+  border-radius: 6px;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f8fafc;
 }
-.category-list li a:hover {
+.category-item:hover {
+  background-color: #f8fafc;
   color: #6366f1;
+  padding-left: 1rem; /* Efeito de slide */
 }
-.category-list .count {
-  background-color: #e9ecef;
-  color: #6b7280;
-  font-size: 0.8rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 8px;
+.cat-count {
+  background-color: #f1f5f9;
+  color: #64748b;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 99px;
+  font-weight: 600;
 }
+
+/* Stats Widget */
 .stats-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
+.stat-card {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #cbd5e1;
 }
-.stat-item strong {
-  font-size: 1.1rem;
-  color: #111827;
+.stat-card.highlight {
+  border-left-color: #6366f1;
+  background: #eef2ff;
 }
-.newsletter-widget p {
-  color: #4b5563;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.stat-number {
+  font-size: 1.5rem;
+  color: #1e293b;
+  font-weight: 700;
+  display: block;
+}
+
+/* Newsletter Widget */
+.newsletter-widget {
+  background: #1e293b; /* Dark bg */
+  color: white;
+  text-align: center;
+  padding: 2rem;
+}
+.widget-title.inverted {
+  color: white;
+  border-color: rgba(255,255,255,0.1);
+}
+.newsletter-content p {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
 }
 .subscribe-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 .subscribe-form input {
-  padding: 0.75rem;
-  border: 1px solid #ced4da;
+  padding: 0.85rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
   border-radius: 6px;
-  font-size: 1rem;
+  color: white;
+  text-align: center;
 }
 .subscribe-form input:focus {
   outline: none;
+  background: rgba(255,255,255,0.1);
   border-color: #6366f1;
-  box-shadow: 0 0 0 2px #e0e7ff;
 }
-.btn-primary {
-  padding: 0.75rem 1rem;
+.btn-subscribe {
+  padding: 0.85rem;
   border-radius: 6px;
   border: none;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  text-align: center;
-  transition: background-color 0.2s, transform 0.2s;
   background-color: #6366f1;
   color: white;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  transition: background 0.2s;
 }
-.btn-primary:hover {
+.btn-subscribe:hover {
   background-color: #4f46e5;
-  transform: translateY(-2px);
 }
 
-/* UTILITÁRIOS E SPINNERS */
+/* UTILITÁRIOS */
 @keyframes spin { to { transform: rotate(360deg); } }
-.spinner-badge {
-  width: 16px; height: 16px; border: 2px solid #ced4da;
-  border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite;
-  display: inline-block;
-}
-.spinner-large {
-  width: 40px; height: 40px; border: 4px solid #e9ecef;
-  border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite;
-  margin: 0 auto 1rem auto;
-}
-.status-message {
-  padding: 2rem; text-align: center; color: #6b7280;
-}
-.status-message.small { padding: 1rem; display: flex; align-items: center; gap: 0.5rem; justify-content: center; }
-.status-message.error { color: #991b1b; }
+.spinner-badge { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+.spinner-large { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto; }
+.status-message { padding: 3rem; text-align: center; color: #64748b; }
+.status-message.error { color: #ef4444; }
 
 /* RESPONSIVIDADE */
 @media (max-width: 992px) {
+  .hero-canvas-container { height: 90vh; }
+  .featured-grid { grid-template-columns: 1fr; }
+  .featured-image-wrapper { height: 250px; }
+  .hero-content h1 { font-size: 3.5rem; }
   .page-container { flex-direction: column; }
-  .main-content, .sidebar { min-width: 100%; }
-  .article-header h1 { font-size: 2rem; }
 }
 @media (max-width: 768px) {
   .hero-content h1 { font-size: 2.5rem; }
   .hero-content p { font-size: 1.1rem; }
+  .featured-content { padding: 1.5rem; }
 }
 </style>
