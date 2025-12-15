@@ -44,7 +44,7 @@
                 <!-- Item Publicações com Dropdown Hover -->
                 <li class="nav-item has-dropdown" @mouseenter="submenuOpen = true" @mouseleave="submenuOpen = false">
                     <router-link to="/categoria" class="nav-link">
-                        Publicações <i class="fas fa-chevron-down icon-tiny"></i>
+                        Biblioteca <i class="fas fa-chevron-down icon-tiny"></i>
                     </router-link>
                     
                     <transition name="pop-up">
@@ -99,10 +99,10 @@
 
         <ul class="mobile-menu-list">
             <li><router-link to="/" @click="toggleMenu">Início</router-link></li>
-            <li><router-link to="/categoria" @click="toggleMenu">Publicações</router-link></li>
+            <li><router-link to="/categoria" @click="toggleMenu">Biblioteca</router-link></li>
             
             <li class="mobile-categories-label">Categorias</li>
-            <li v-for="cat in categories.slice(0, 5)" :key="cat.path" class="mobile-sub-item">
+            <li v-for="cat in categories.slice(0, 8)" :key="cat.path" class="mobile-sub-item">
                 <router-link :to="cat.path" @click="toggleMenu">{{ cat.name }}</router-link>
             </li>
 
@@ -124,7 +124,7 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 
 const menuOpen = ref(false);
-const submenuOpen = ref(false); // Controle do dropdown desktop
+const submenuOpen = ref(false);
 const isScrolled = ref(false);
 const searchQuery = ref('');
 const isDropdownVisible = ref(false);
@@ -135,25 +135,41 @@ let hasLoadedOnce = false;
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 const router = useRouter();
 
-// Lista de categorias simples (para mobile/geral)
+// 1. Definição das Categorias Estáticas (Nomes e Links)
 const categories = ref([
-    { name: 'Educação', path: '/categoria/Educação' },
-    { name: 'Saúde', path: '/categoria/Saúde' },
-    { name: 'Segurança', path: '/categoria/Criminalidade' },
-    { name: 'Tecnologia', path: '/categoria/Tecnologia' },
-    { name: 'Economia', path: '/categoria/Economia' },
+    { name: 'Metodologia e Amostra', path: '/categoria/metodologia-e-amostra' },
+    { name: 'Crimes Contra o Patrimônio', path: '/categoria/crimes-contra-patrimonio' },
+    { name: 'Crimes Contra a Pessoa', path: '/categoria/crimes-contra-pessoa' },
+    { name: 'Sensação de Segurança', path: '/categoria/sensacao-de-seguranca' },
+    { name: 'Subnotificação (Cifras Ocultas)', path: '/categoria/subnotificacao' },
+    { name: 'Perfil das Vítimas', path: '/categoria/perfil-das-vitimas' },
+    { name: 'Violência Doméstica e Gênero', path: '/categoria/violencia-domestica-genero' },
 ]);
 
-// Lista detalhada com contadores para o Popover Desktop
-const categoriesWithCounts = ref([
-    { name: 'Economia', path: '/categoria/Economia', count: 38 },
-    { name: 'Transportes', path: '/categoria/Transportes', count: 33 },
-    { name: 'Agricultura', path: '/categoria/Agricultura', count: 25 },
-    { name: 'Saúde', path: '/categoria/Saúde', count: 21 },
-    { name: 'Política', path: '/categoria/Política', count: 20 },
-    { name: 'Educação', path: '/categoria/Educação', count: 8 },
-    { name: 'Segurança', path: '/categoria/Criminalidade', count: 15 },
-]);
+// 2. Computed Property para calcular os contadores reais dinamicamente
+const categoriesWithCounts = computed(() => {
+    // Se ainda não carregou as análises, retorna 0 para todos
+    if (allAnalyses.value.length === 0) {
+        return categories.value.map(cat => ({ ...cat, count: 0 }));
+    }
+
+    return categories.value.map(cat => {
+        // Filtra todas as análises para contar quantas pertencem a esta categoria
+        const count = allAnalyses.value.filter(analysis => {
+            // Verifica o campo 'category' ou 'tag' vindo da API
+            // Normaliza para minúsculas para evitar erros de digitação (Ex: "Saúde" vs "saúde")
+            const apiCategory = (analysis.category || analysis.tag || '').toLowerCase().trim();
+            const localCategory = cat.name.toLowerCase().trim();
+            
+            return apiCategory === localCategory;
+        }).length;
+
+        return {
+            ...cat,
+            count: count
+        };
+    });
+});
 
 // Scroll Listener para efeito glass
 const handleScroll = () => {
@@ -162,7 +178,10 @@ const handleScroll = () => {
 
 onMounted(() => {
     window.addEventListener('scroll', handleScroll);
+    // Carrega os dados ao montar a página para preencher os contadores
+    loadAllAnalyses();
 });
+
 onUnmounted(() => {
     window.removeEventListener('scroll', handleScroll);
 });
@@ -179,21 +198,30 @@ const filteredAnalyses = computed(() => {
 
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value;
-  if(menuOpen.value) loadAllAnalyses(); // Pre-load para mobile se precisar
+  // Não precisa chamar loadAllAnalyses aqui se já chamamos no onMounted, 
+  // mas pode manter para garantir atualização caso tenha falhado
+  if(menuOpen.value && !hasLoadedOnce) loadAllAnalyses();
 };
 
 const loadAllAnalyses = async () => {
-  isDropdownVisible.value = true;
+  // Apenas seta dropdown visível se for chamado pelo input de busca (verificando o contexto de uso)
+  // Se for chamado no onMounted, não queremos abrir o dropdown automaticamente
+  if (searchQuery.value) isDropdownVisible.value = true;
+
   if (hasLoadedOnce) return;
   
   isLoading.value = true;
   try {
     const token = localStorage.getItem('authToken');
+    // Ajuste: Certifique-se que esta rota retorna TODAS as análises ou paginadas em grande quantidade
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    // Ajuste de segurança para garantir que é um array
     const data = response.data?.data?.analyses;
     allAnalyses.value = Array.isArray(data) ? data : [];
+    
     hasLoadedOnce = true;
   } catch (err) {
     console.error("Erro na busca:", err);
@@ -212,9 +240,13 @@ const selectAnalysis = (analysis) => {
 };
 
 const onSearch = () => {
-  if (searchQuery.value.trim() && filteredAnalyses.value.length > 0) {
-      selectAnalysis(filteredAnalyses.value[0]);
-  }
+    // Ao focar ou digitar, garantimos que o dropdown apareça
+    isDropdownVisible.value = true;
+    if (!hasLoadedOnce) loadAllAnalyses();
+
+    if (searchQuery.value.trim() && filteredAnalyses.value.length > 0) {
+        selectAnalysis(filteredAnalyses.value[0]);
+    }
 };
 </script>
 

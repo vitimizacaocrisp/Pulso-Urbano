@@ -105,7 +105,7 @@ const category = ref(route.params.categoryName);
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 const pageTitle = computed(() => {
-  if (!category.value) return 'Postagens';
+  if (!category.value) return 'Biblioteca';
   return `${category.value.charAt(0).toUpperCase() + category.value.slice(1)}`;
 });
 const categoryNameForDescription = computed(() => category.value || 'diversos tópicos');
