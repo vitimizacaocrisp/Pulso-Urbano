@@ -29,12 +29,6 @@ const checkAuthStatus = async () => {
 const routes = [
   // --- Rotas Públicas (acessíveis a todos) ---
   {
-    path: '/loading',
-    name: 'Loading',
-    component: () => import('../views/LoadingView.vue'),
-    meta: { hideLayout: true }
-  },
-  {
     path: "/",
     name: "Home",
     component: () => import("../views/HomeView.vue"),
@@ -114,31 +108,8 @@ const router = createRouter({
   routes
 });
 
-const checkBackendOnline = async () => {
-  try {
-    await axios.get(API_BASE_URL + '/health', { timeout: 3000 });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-
 // Guarda de Rota Global: lida com a lógica primária de navegação.
 router.beforeEach(async (to, from, next) => {
-  // Evita loop infinito
-  if (to.name === 'Loading') {
-    return next();
-  }
-
-  // 1. Verifica se backend está online
-  const backendOnline = await checkBackendOnline();
-
-  if (!backendOnline) {
-    return next({ name: 'Loading' });
-  }
-
-  // 2. Verifica autenticação se necessário
   const requiresAuth = to.matched.some(r => r.meta.requiresAuth);
 
   if (requiresAuth) {
@@ -148,7 +119,6 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 3. Evita login se já autenticado
   if (to.name === 'AdminLogin') {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -161,7 +131,6 @@ router.beforeEach(async (to, from, next) => {
 
   return next();
 });
-
 
 
 export default router;

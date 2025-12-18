@@ -854,12 +854,7 @@ const publishAnalysis = async () => {
     color: #666;
     margin-bottom: 1.5rem;
 }
-.resource-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 1.5rem;
-    padding: 0.5rem;
-}
+.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; }
 .resource-btn {
     display: flex;
     flex-direction: column;
@@ -905,10 +900,8 @@ const publishAnalysis = async () => {
     background-color: rgba(0,0,0,0.5);
     display: flex; justify-content: center; align-items: center; z-index: 2000;
 }
-.modal-content {
-    background: white; padding: 0; width: 90%; max-width: 500px;
-    border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden;
-}
+.modal-content { background: white; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden; }
+
 .modal-header {
     background: #f8f9fa; padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0;
 }

@@ -1,10 +1,117 @@
 <template>
   <div>
-    <DataVisualizationModal
-        v-if="selectedFileForModal"
-        :file="selectedFileForModal"
-        @close="closeDataModal"
-    />
+    <!-- MODAL 1: MENU DE SELEÇÃO DE TIPO (GRADE DE ÍCONES) -->
+    <div v-if="showResourceTypeMenu" class="modal-overlay" @click.self="closeResourceMenu">
+      <div class="modal-content menu-content">
+        <div class="modal-header">
+          <h3>Adicionar ao Conteúdo</h3>
+          <button @click="closeResourceMenu" class="btn-close-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="menu-instruction">Escolha o tipo de recurso que deseja inserir:</p>
+          <div class="resource-grid">
+            <!-- Mídia -->
+            <button @click="selectResourceType('image')" class="resource-btn">
+              <span class="icon">🖼️</span>
+              <span class="label">Imagem</span>
+            </button>
+            <button @click="selectResourceType('audio')" class="resource-btn">
+              <span class="icon">🎵</span>
+              <span class="label">Áudio</span>
+            </button>
+            <button @click="selectResourceType('video')" class="resource-btn">
+              <span class="icon">🎥</span>
+              <span class="label">Vídeo</span>
+            </button>
+            
+            <!-- Código e Análise -->
+            <button @click="selectResourceType('notebook')" class="resource-btn highlight-purple">
+              <span class="icon">🐍</span>
+              <span class="label">Notebook</span>
+            </button>
+            <button @click="selectResourceType('script')" class="resource-btn highlight-purple">
+              <span class="icon">📜</span>
+              <span class="label">Script</span>
+            </button>
+
+            <!-- Documentos e Dados -->
+            <button @click="selectResourceType('document')" class="resource-btn highlight-blue">
+              <span class="icon">📄</span>
+              <span class="label">Documento</span>
+            </button>
+            <button @click="selectResourceType('data')" class="resource-btn highlight-green">
+              <span class="icon">📊</span>
+              <span class="label">Dados (CSV/XLS)</span>
+            </button>
+            
+            <!-- Extra: Link Genérico -->
+            <button @click="selectResourceType('link')" class="resource-btn">
+              <span class="icon">🔗</span>
+              <span class="label">Link Card</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: INPUT DE URL OU UPLOAD -->
+    <div v-if="showMediaModal" class="modal-overlay" @click.self="closeMediaModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Inserir {{ mediaTypeLabels[activeMediaType] }}</h3>
+          <button @click="closeMediaModal" class="btn-close-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-tabs">
+            <button 
+              :class="['tab-btn', { active: mediaInputType === 'url' }]" 
+              @click="mediaInputType = 'url'"
+            >
+              🔗 Via URL
+            </button>
+            <button 
+              v-if="activeMediaType !== 'link'"
+              :class="['tab-btn', { active: mediaInputType === 'file' }]" 
+              @click="mediaInputType = 'file'"
+            >
+              📂 Upload do Computador
+            </button>
+          </div>
+
+          <div v-if="mediaInputType === 'url'" class="input-section">
+            <label>Cole o link aqui:</label>
+            <input 
+              type="text" 
+              v-model="mediaUrlInput" 
+              placeholder="https://..." 
+              class="modal-input"
+            >
+          </div>
+
+          <div v-if="mediaInputType === 'file' && activeMediaType !== 'link'" class="input-section">
+            <label>Selecione o arquivo:</label>
+            <div class="file-upload-box">
+              <input 
+                type="file" 
+                ref="mediaFileInputRef" 
+                @change="handleModalFileChange" 
+                :accept="getAcceptAttribute(activeMediaType)"
+                class="file-input-hidden"
+                id="modalFileUpload"
+              >
+              <label for="modalFileUpload" class="file-upload-label">
+                <span v-if="selectedMediaFile">✅ {{ selectedMediaFile.name }}</span>
+                <span v-else>Escolher Arquivo...</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="returnToMenu" class="btn-back">⬅ Voltar</button>
+          <button @click="confirmMediaInsertion" class="btn-confirm">Inserir</button>
+        </div>
+      </div>
+    </div>
 
     <header class="main-header-bar">
       <div class="header-content">
@@ -105,15 +212,16 @@
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
            <label for="content">Conteúdo Completo (suporta Markdown) <span class="required">*</span></label>
-           <div class="content-toolbar">
-             <button type="button" @click="triggerImageUpload" class="toolbar-btn">+ Inserir Imagem</button>
-             <button type="button" @click="triggerAudioUpload" class="toolbar-btn">+ Inserir Áudio</button>
-             <button type="button" @click="triggerVideoUpload" class="toolbar-btn">+ Inserir Vídeo</button>
-             <input type="file" ref="imageUploader" @change="uploadAndInsertImage" style="display: none;" accept="image/*" multiple>
-             <input type="file" ref="audioUploader" @change="uploadAndInsertAudio" style="display: none;" accept="audio/*" multiple>
-             <input type="file" ref="videoUploader" @change="uploadAndInsertVideo" style="display: none;" accept="video/*" multiple>
+           
+           <!-- TOOLBAR ATUALIZADA (Botão Único) -->
+           <div class="content-toolbar single-button-toolbar">
+             <button type="button" @click="openResourceMenu" class="toolbar-main-btn">
+               <span class="plus-icon">➕</span> Adicionar Arquivo / Recurso
+             </button>
+             <span class="toolbar-hint">Clique para adicionar imagens, vídeos, notebooks, documentos, etc.</span>
            </div>
-           <textarea id="content" ref="contentTextArea" v-model="editingAnalysis.content" rows="15" required></textarea>
+
+           <textarea id="content" ref="contentTextArea" v-model="editingAnalysis.content" rows="15" required class="main-textarea"></textarea>
          </div>
        </fieldset>
 
@@ -130,34 +238,27 @@
               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview" />
           </div>
 
-          <div class="form-group">
-              <label>Documentos Originais (PDF/Word)</label>
-              <label for="documentFiles" class="file-input-label">
-                  <span class="file-input-button">Adicionar arquivos</span>
-                  <span class="file-input-text">{{ documentFilesLabel }}</span>
-              </label>
-              <input type="file" id="documentFiles" @change="handleFileSelection($event, 'documentFiles')" accept=".pdf,.doc,.docx" multiple style="display: none;">
-              <div v-if="editingAnalysis.documentFiles.length > 0" class="file-list">
+          <!-- Listas apenas para exibir/remover arquivos ANTIGOS (Legacy) -->
+          <div class="form-group" v-if="editingAnalysis.documentFiles.length > 0">
+              <label>Documentos Anexados (Legado)</label>
+              <div class="file-list">
                   <div v-for="(file, index) in editingAnalysis.documentFiles" :key="file.name + index" class="file-list-item">
                       <span>{{ file.name }}</span>
                       <button type="button" @click="removeFile(index, 'documentFiles')" class="btn-remove-file">×</button>
                   </div>
               </div>
+              <small class="hint-text">Para adicionar novos documentos, use o botão "Adicionar Arquivo / Recurso" acima.</small>
           </div>
 
-          <div class="form-group">
-              <label>Ficheiros de Dados (CSV/Excel)</label>
-              <label for="dataFiles" class="file-input-label">
-                  <span class="file-input-button">Adicionar arquivos</span>
-                  <span class="file-input-text">{{ dataFilesLabel }}</span>
-              </label>
-              <input type="file" id="dataFiles" @change="handleFileSelection($event, 'dataFiles')" accept=".csv,.xls,.xlsx" multiple style="display: none;">
-              <div v-if="editingAnalysis.dataFiles.length > 0" class="file-list">
+          <div class="form-group" v-if="editingAnalysis.dataFiles.length > 0">
+              <label>Ficheiros de Dados Anexados (Legado)</label>
+              <div class="file-list">
                   <div v-for="(file, index) in editingAnalysis.dataFiles" :key="file.name + index" class="file-list-item">
                       <span>{{ file.name }}</span>
                       <button type="button" @click="removeFile(index, 'dataFiles')" class="btn-remove-file">×</button>
                   </div>
               </div>
+              <small class="hint-text">Para adicionar novos dados, use o botão "Adicionar Arquivo / Recurso" acima.</small>
           </div>
           
           <div class="form-group">
@@ -204,32 +305,28 @@
             {{ editingAnalysis.description || '' }}
         </div>
         <div class="preview-content" v-html="renderedContent"></div>
-        <div v-if="editingAnalysis.referenceLinks || editingAnalysis.documentFiles.length > 0 || editingAnalysis.dataFiles.length > 0">
-            <h3 class="preview-section-title">Referências e Anexos:</h3>
-            
-            <ul class="preview-links" v-if="editingAnalysis.referenceLinks">
+        <div v-if="editingAnalysis.referenceLinks">
+            <h3 class="preview-section-title">Referências:</h3>
+            <ul class="preview-links">
                 <li v-for="(link, idx) in (editingAnalysis.referenceLinks || '').split('\n').filter(l => l.trim() !== '')" :key="idx">
                 <a :href="link.startsWith('http') ? link : `//${link}`" target="_blank" rel="noopener noreferrer">{{ link }}</a>
                 </li>
             </ul>
-
-            <div class="preview-attachments">
-                <div v-if="editingAnalysis.documentFiles.length > 0" class="attachment-group">
-                    <strong>Documentos Originais:</strong>
-                    <ul>
-                        <li v-for="doc in editingAnalysis.documentFiles" :key="doc.name">{{ doc.name }}</li>
-                    </ul>
-                </div>
-                
-                <div v-if="editingAnalysis.dataFiles.length > 0" class="attachment-group">
-                    <strong>Ficheiros de Dados:</strong>
-                    <ul>
-                        <li v-for="file in editingAnalysis.dataFiles" :key="file.name" class="data-file-item">
-                            <span>{{ file.name }}</span>
-                            <button type="button" @click="openDataModal(file)" class="btn-visualizar">Visualizar Dados</button>
-                        </li>
-                    </ul>
-                </div>
+        </div>
+        
+        <!-- Exibição de arquivos legados, se houver -->
+        <div v-if="editingAnalysis.documentFiles.length > 0 || editingAnalysis.dataFiles.length > 0" class="preview-attachments">
+             <div v-if="editingAnalysis.documentFiles.length > 0" class="attachment-group">
+                <strong>Documentos (Legado):</strong>
+                <ul>
+                    <li v-for="doc in editingAnalysis.documentFiles" :key="doc.name">{{ doc.name }}</li>
+                </ul>
+            </div>
+            <div v-if="editingAnalysis.dataFiles.length > 0" class="attachment-group">
+                <strong>Dados (Legado):</strong>
+                <ul>
+                    <li v-for="file in editingAnalysis.dataFiles" :key="file.name">{{ file.name }}</li>
+                </ul>
             </div>
         </div>
     </section>
@@ -253,7 +350,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import axios from 'axios';
-import DataVisualizationModal from '../../components/DataVisualizationModal.vue';
 
 // --- CONFIGURAÇÕES ---
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
@@ -263,7 +359,6 @@ const isPreviewMode = ref(false);
 const isLoading = ref(false);
 const isLoadingSearch = ref(false);
 const feedback = ref({ message: '', type: '' });
-const selectedFileForModal = ref(null);
 const isDeleteModalVisible = ref(false);
 
 // --- ESTADO DA PESQUISA ---
@@ -282,30 +377,185 @@ const editingAnalysis = ref(getInitialAnalysisState());
 const contentImages = ref(new Map());
 const imagePreviewUrl = ref('');
 
-// --- RASTREAMENTO DE ARQUIVOS ---
-const originalServerFiles = ref(new Set()); // Guarda os caminhos dos arquivos originais do servidor
-const filesToDelete = ref([]); // Guarda os caminhos dos arquivos a serem excluídos
-
-// --- Refs de elementos do DOM ---
-const imageUploader = ref(null);
-const audioUploader = ref(null);
-const videoUploader = ref(null);
+// --- Refs para Modais e Mídia ---
+const showResourceTypeMenu = ref(false);
+const showMediaModal = ref(false);
+const activeMediaType = ref('');
+const mediaInputType = ref('url');
+const mediaUrlInput = ref('');
+const mediaFileInputRef = ref(null);
+const selectedMediaFile = ref(null);
 const contentTextArea = ref(null);
 
-// --- LÓGICA DE SELEÇÃO E CARREGAMENTO DE ANÁLISE ---
+const mediaTypeLabels = {
+    'image': 'Imagem',
+    'audio': 'Áudio',
+    'video': 'Vídeo',
+    'notebook': 'Notebook Python',
+    'script': 'Script',
+    'document': 'Documento (PDF/Word)',
+    'data': 'Base de Dados (CSV/Excel)',
+    'link': 'Link Externo'
+};
+
+// --- RASTREAMENTO DE ARQUIVOS ---
+const originalServerFiles = ref(new Set());
+const filesToDelete = ref([]);
+
+// --- CONTROLE DOS MENUS E MODAIS ---
+const openResourceMenu = () => { showResourceTypeMenu.value = true; };
+const closeResourceMenu = () => { showResourceTypeMenu.value = false; };
+
+const selectResourceType = (type) => {
+    activeMediaType.value = type;
+    showResourceTypeMenu.value = false;
+    mediaInputType.value = 'url';
+    mediaUrlInput.value = '';
+    selectedMediaFile.value = null;
+    if (mediaFileInputRef.value) mediaFileInputRef.value.value = '';
+    showMediaModal.value = true;
+};
+
+const returnToMenu = () => {
+    showMediaModal.value = false;
+    showResourceTypeMenu.value = true;
+};
+
+const closeMediaModal = () => { showMediaModal.value = false; };
+
+const getAcceptAttribute = (type) => {
+    switch(type) {
+        case 'image': return 'image/*';
+        case 'audio': return 'audio/*';
+        case 'video': return 'video/*';
+        case 'notebook': return '.ipynb,.html';
+        case 'script': return '.py,.js,.r,.txt,.sh';
+        case 'document': return '.pdf,.doc,.docx,.ppt,.pptx';
+        case 'data': return '.csv,.xls,.xlsx,.json,.xml';
+        default: return '*/*';
+    }
+};
+
+const handleModalFileChange = (event) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+        selectedMediaFile.value = files[0];
+    }
+};
+
+const confirmMediaInsertion = () => {
+    if (mediaInputType.value === 'url') {
+        if (!mediaUrlInput.value) {
+            alert("Por favor, insira uma URL válida.");
+            return;
+        }
+        insertUrlMedia(mediaUrlInput.value, activeMediaType.value);
+    } else {
+        if (!selectedMediaFile.value && activeMediaType.value !== 'link') {
+            alert("Por favor, selecione um arquivo.");
+            return;
+        }
+        insertFileMedia(selectedMediaFile.value, activeMediaType.value);
+    }
+    closeMediaModal();
+};
+
+function randomSuffix() { return Math.floor(Math.random() * 1e6).toString(); }
+
+const insertUrlMedia = (url, type) => {
+    let htmlToInsert = '';
+    if (type === 'image') {
+        htmlToInsert = `\n<figure style="text-align: center;"><img src="${url}" alt="Imagem" style="width: 50%; height: auto;"><figcaption><em>Legenda</em></figcaption></figure>\n`;
+    } else if (type === 'audio') {
+        htmlToInsert = `\n<figure class="audio-figure"><audio controls src="${url}"></audio><figcaption><em>Áudio</em></figcaption></figure>\n`;
+    } else if (type === 'video') {
+        htmlToInsert = `\n<figure class="video-figure"><video controls src="${url}"></video><figcaption><em>Vídeo</em></figcaption></figure>\n`;
+    } else if (type === 'notebook') {
+        const nbViewerUrl = `https://nbviewer.org/urls/${url.replace(/^https?:\/\//, '')}`;
+        let colabUrl = '';
+        if (url.includes('github') || url.includes('raw.githubusercontent.com')) {
+             const parts = url.split('/');
+             let userIndex = parts.findIndex(p => p === 'raw.githubusercontent.com' || p === 'github.com');
+             if (userIndex !== -1 && parts.length >= userIndex + 3) {
+                 const user = parts[userIndex + 1];
+                 const repo = parts[userIndex + 2];
+                 let rest = parts.slice(userIndex + 3).join('/');
+                 if (rest.startsWith('refs/heads/')) rest = rest.replace('refs/heads/', '');
+                 if (rest.startsWith('blob/')) rest = rest.replace('blob/', '');
+                 colabUrl = `https://colab.research.google.com/github/${user}/${repo}/blob/${rest}`;
+             }
+        }
+        htmlToInsert = `
+<div class="resource-card notebook">
+  <div class="resource-icon">🐍</div>
+  <div class="resource-info">
+    <strong>Notebook Python</strong>
+    <div class="resource-links">
+        <a href="${url}" target="_blank" rel="noopener noreferrer" class="resource-link raw">📄 JSON</a>
+        ${colabUrl ? `<a href="${colabUrl}" target="_blank" rel="noopener noreferrer" class="resource-link colab">🚀 Colab</a>` : ''}
+        <a href="${nbViewerUrl}" target="_blank" rel="noopener noreferrer" class="resource-link nbviewer">👀 NbViewer</a>
+    </div>
+  </div>
+</div>`;
+    } else if (type === 'script') {
+        htmlToInsert = `\n<div class="resource-card script"><div class="resource-icon">📜</div><div class="resource-info"><strong>Script</strong><a href="${url}" target="_blank">Acessar Script</a></div></div>\n`;
+    } else if (type === 'document') {
+        htmlToInsert = `\n<div class="resource-card document"><div class="resource-icon">📄</div><div class="resource-info"><strong>Documento</strong><a href="${url}" target="_blank">Acessar Documento</a></div></div>\n`;
+    } else if (type === 'data') {
+        htmlToInsert = `\n<div class="resource-card data"><div class="resource-icon">📊</div><div class="resource-info"><strong>Dados</strong><a href="${url}" target="_blank">Baixar Dados</a></div></div>\n`;
+    } else if (type === 'link') {
+        htmlToInsert = `\n<div class="resource-card link-card"><div class="resource-icon">🔗</div><div class="resource-info"><strong>Link</strong><a href="${url}" target="_blank">${url}</a></div></div>\n`;
+    }
+    insertMediaIntoTextarea(htmlToInsert);
+};
+
+const insertFileMedia = (file, type) => {
+    const placeholderId = `${type}_${Date.now()}_${randomSuffix()}`;
+    contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) });
+    
+    let htmlToInsert = '';
+    if (type === 'image') {
+        htmlToInsert = `\n<figure style="text-align: center;"><img src="${placeholderId}" alt="${file.name}" style="width: 50%; height: auto;"><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+    } else if (type === 'audio') {
+        htmlToInsert = `\n<figure class="audio-figure"><audio controls src="${placeholderId}"></audio><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+    } else if (type === 'video') {
+        htmlToInsert = `\n<figure class="video-figure"><video controls src="${placeholderId}"></video><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+    } else if (type === 'notebook') {
+        htmlToInsert = `\n<div class="resource-card notebook"><div class="resource-icon">🐍</div><div class="resource-info"><strong>Notebook: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+    } else if (type === 'script') {
+        htmlToInsert = `\n<div class="resource-card script"><div class="resource-icon">📜</div><div class="resource-info"><strong>Script: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+    } else if (type === 'document') {
+        htmlToInsert = `\n<div class="resource-card document"><div class="resource-icon">📄</div><div class="resource-info"><strong>Documento: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+    } else if (type === 'data') {
+        htmlToInsert = `\n<div class="resource-card data"><div class="resource-icon">📊</div><div class="resource-info"><strong>Dados: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+    }
+    insertMediaIntoTextarea(htmlToInsert);
+};
+
+const insertMediaIntoTextarea = (htmlToInsert) => {
+  const textarea = contentTextArea.value;
+  if (!textarea) {
+      editingAnalysis.value.content += '\n' + htmlToInsert;
+      return;
+  }
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  editingAnalysis.value.content = editingAnalysis.value.content.substring(0, start) + htmlToInsert + editingAnalysis.value.content.substring(end);
+};
+
+// --- LÓGICA DE CARREGAMENTO ---
 const fetchFile = async (url, defaultName) => {
     try {
         const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
         const response = await fetch(fullUrl);
-        if (!response.ok) throw new Error(`Resposta de rede não foi OK para ${fullUrl}`);
+        if (!response.ok) throw new Error(`Status ${response.status}`);
         const blob = await response.blob();
         const file = new File([blob], defaultName, { type: blob.type });
-        file.serverPath = url; // Adiciona o caminho original para rastreamento
+        file.serverPath = url; 
         return file;
     } catch (error) {
-        console.error(`Falha ao buscar arquivo de ${url}:`, error);
-        feedback.value = { message: `Não foi possível carregar o anexo: ${defaultName}`, type: 'error'};
-        return null;
+        console.error(`Erro ao carregar ${url}:`, error);
+        return null; // Falha silenciosa ou trate conforme necessidade
     }
 };
 
@@ -317,6 +567,7 @@ const selectAnalysis = async (analysisStub) => {
   editingAnalysis.value = getInitialAnalysisState();
   filesToDelete.value = [];
   originalServerFiles.value.clear();
+  contentImages.value.clear();
 
   try {
     const token = localStorage.getItem('authToken');
@@ -339,6 +590,7 @@ const selectAnalysis = async (analysisStub) => {
           originalServerFiles.value.add(file.serverPath);
         }
     }
+    // Carrega arquivos legacy para as listas
     if (serverData.document_file_path && Array.isArray(serverData.document_file_path)) {
         const files = (await Promise.all(serverData.document_file_path.map(f => fetchFile(f.path, f.originalName)))).filter(Boolean);
         analysisState.documentFiles = files;
@@ -351,10 +603,9 @@ const selectAnalysis = async (analysisStub) => {
     }
 
     editingAnalysis.value = analysisState;
-    feedback.value = { message: 'Análise carregada com sucesso.', type: 'success' };
-
+    feedback.value = { message: 'Análise carregada.', type: 'success' };
   } catch (err) {
-    feedback.value = { message: err.response?.data?.message || 'Falha ao carregar a análise do servidor.', type: 'error' };
+    feedback.value = { message: 'Erro ao carregar análise.', type: 'error' };
   } finally {
     isLoading.value = false;
   }
@@ -378,7 +629,7 @@ const loadAllAnalyses = async () => {
     hasLoadedOnce = true;
     isDropdownVisible.value = true;
   } catch (err) {
-    feedback.value = { message: 'Falha ao carregar lista de análises.', type: 'error' };
+    feedback.value = { message: 'Falha ao buscar análises.', type: 'error' };
   } finally {
     isLoadingSearch.value = false;
   }
@@ -395,46 +646,55 @@ onBeforeUnmount(() => cleanupBlobUrls());
 // --- AÇÕES DO FORMULÁRIO ---
 const updateAnalysis = async () => {
     if (!editingAnalysis.value.id || isFormInvalid.value) {
-      feedback.value = { message: 'Por favor, preencha todos os campos obrigatórios.', type: 'error' };
+      feedback.value = { message: 'Preencha os campos obrigatórios.', type: 'error' };
       return;
     }
     isLoading.value = true;
-    feedback.value = { message: 'Salvando alterações...', type: 'info' };
+    feedback.value = { message: 'Salvando...', type: 'info' };
+
+    let finalContent = editingAnalysis.value.content;
+    // Processa placeholders antes do envio
+    for (const [placeholder, data] of contentImages.value.entries()) {
+        if (data.blobUrl) {
+            const regex = new RegExp(data.blobUrl.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+            finalContent = finalContent.replace(regex, placeholder);
+        }
+    }
 
     const formData = new FormData();
     Object.entries(editingAnalysis.value).forEach(([key, value]) => {
-        if (!['coverImage', 'documentFiles', 'dataFiles', 'id'].includes(key)) {
+        if (!['coverImage', 'documentFiles', 'dataFiles', 'id', 'content'].includes(key)) {
             formData.append(key, value ?? '');
         }
     });
+    formData.append('content', finalContent);
 
     if (editingAnalysis.value.coverImage instanceof File) formData.append('coverImage', editingAnalysis.value.coverImage);
+    // Arquivos Legacy
     editingAnalysis.value.documentFiles.forEach(file => { if(file instanceof File) formData.append('documentFiles', file) });
     editingAnalysis.value.dataFiles.forEach(file => { if(file instanceof File) formData.append('dataFiles', file) });
+    
+    // Novos Arquivos Incorporados
     contentImages.value.forEach((mediaData, placeholder) => { if(mediaData.file instanceof File) formData.append(placeholder, mediaData.file) });
     
-    // Envia a lista de arquivos para exclusão
     formData.append('filesToDelete', JSON.stringify(filesToDelete.value));
 
     try {
         const token = localStorage.getItem('authToken');
-        const response = await axios.put(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, formData, {
+        await axios.put(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, formData, {
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
         });
-        feedback.value = { message: response.data.message, type: 'success' };
-        
-        // Recarrega do servidor para ter os dados mais recentes
+        feedback.value = { message: 'Análise atualizada com sucesso!', type: 'success' };
         await selectAnalysis({ id: editingAnalysis.value.id, title: editingAnalysis.value.title });
-
     } catch (err) {
-        feedback.value = { message: err.response?.data?.message || 'Falha ao atualizar.', type: 'error' };
+        feedback.value = { message: 'Erro ao salvar.', type: 'error' };
     } finally {
         isLoading.value = false;
     }
 };
 
 const confirmAndResetForm = async () => {
-  if (window.confirm('Tem certeza que deseja resetar todas as alterações? Os dados originais da análise serão recarregados do servidor.')) {
+  if (window.confirm('Resetar alterações? Dados não salvos serão perdidos.')) {
     if (!editingAnalysis.value.id) return;
     await selectAnalysis({ id: editingAnalysis.value.id, title: searchQuery.value });
   }
@@ -446,67 +706,22 @@ const confirmDelete = async () => {
     isDeleteModalVisible.value = false;
     try {
         const token = localStorage.getItem('authToken');
-        const response = await axios.delete(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, {
+        await axios.delete(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        feedback.value = { message: response.data.message, type: 'success' };
+        feedback.value = { message: 'Análise excluída.', type: 'success' };
         editingAnalysis.value = getInitialAnalysisState();
         searchQuery.value = '';
-        hasLoadedOnce = false;
         allAnalyses.value = [];
         router.push({ path: '/admin/edit-analysis' });
-
     } catch (err) {
-        feedback.value = { message: err.response?.data?.message || 'Falha ao excluir.', type: 'error' };
+        feedback.value = { message: 'Erro ao excluir.', type: 'error' };
     } finally {
         isLoading.value = false;
     }
 };
 
-// --- FUNÇÕES HELPER ---
-const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.author || !editingAnalysis.value.category || !editingAnalysis.value.coverImage);
-
-// --- LÓGICA DE RENDERIZAÇÃO DE CONTEÚDO MELHORADA ---
-const renderedContent = computed(() => {
-  if (!editingAnalysis.value.content) return '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
-  
-  let processedContent = editingAnalysis.value.content.trim();
-
-  // Processa placeholders de mídia
-  for (const [placeholderId, mediaData] of contentImages.value.entries()) {
-    if (mediaData.blobUrl) {
-      const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-      processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
-    }
-  }
-
-  // Processa caminhos de mídia relativos
-  const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
-  processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
-
-  // CASO 1: É um bloco de código markdown com ```html
-  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
-    // Extrai o conteúdo HTML de dentro do bloco de código
-    const htmlContent = processedContent
-      .replace(/^```html\s*/i, '')
-      .replace(/\s*```$/, '')
-      .trim();
-    
-    return htmlContent;
-  }
-  
-  // CASO 2: É HTML puro (sem delimitadores markdown)
-  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
-  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
-  
-  if (hasHTMLTags && !hasMarkdownSyntax) {
-    return processedContent;
-  }
-  
-  // CASO 3: É Markdown normal
-  return marked(processedContent);
-});
+const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.category);
 
 const cleanupBlobUrls = () => {
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
@@ -525,224 +740,151 @@ const handleFileSelection = (event, fieldName) => {
         filesToDelete.value.push(oldFile.serverPath);
     }
     if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
-    
     editingAnalysis.value.coverImage = files[0];
     imagePreviewUrl.value = URL.createObjectURL(files[0]);
-  } else {
-    editingAnalysis.value[fieldName].push(...files);
   }
-  event.target.value = null; // Limpa para permitir selecionar o mesmo arquivo novamente
+  event.target.value = null; 
 };
 
 const removeFile = (index, fieldName) => {
   const fileToRemove = editingAnalysis.value[fieldName][index];
-  
   if (fileToRemove.serverPath && originalServerFiles.value.has(fileToRemove.serverPath)) {
       filesToDelete.value.push(fileToRemove.serverPath);
   }
-
-  if (fieldName === 'coverImage') {
-      URL.revokeObjectURL(imagePreviewUrl.value);
-      imagePreviewUrl.value = '';
-      editingAnalysis.value.coverImage = null;
-  } else {
-      editingAnalysis.value[fieldName].splice(index, 1);
-  }
+  editingAnalysis.value[fieldName].splice(index, 1);
 };
 
 const coverImageLabel = computed(() => editingAnalysis.value.coverImage ? `Capa: ${editingAnalysis.value.coverImage.name}` : 'Nenhum arquivo escolhido');
-const documentFilesLabel = computed(() => editingAnalysis.value.documentFiles.length > 0 ? `${editingAnalysis.value.documentFiles.length} documento(s) na lista` : 'Nenhum arquivo escolhido');
-const dataFilesLabel = computed(() => editingAnalysis.value.dataFiles.length > 0 ? `${editingAnalysis.value.dataFiles.length} ficheiro(s) na lista` : 'Nenhum arquivo escolhido');
 
+// --- RENDERIZAÇÃO ---
+const renderedContent = computed(() => {
+  if (!editingAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
+  
+  let processedContent = editingAnalysis.value.content.trim();
 
-function randomSuffix() { return Math.floor(Math.random() * 1e6).toString(); }
-const triggerImageUpload = () => imageUploader.value.click();
-const triggerAudioUpload = () => audioUploader.value.click();
-const triggerVideoUpload = () => videoUploader.value.click();
-
-const insertMediaIntoTextarea = (htmlToInsert) => {
-  const textarea = contentTextArea.value;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  editingAnalysis.value.content = editingAnalysis.value.content.substring(0, start) + htmlToInsert + editingAnalysis.value.content.substring(end);
-};
-
-const uploadAndInsertImage = (event) => {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
-  let htmlToInsert = '';
-  for (const file of files) {
-    const placeholderId = `placeholder_${Date.now()}_${randomSuffix()}`;
-    contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) });
-    htmlToInsert += `\n<figure style="text-align: center;"><img src="${placeholderId}" alt="${file.name}" style="width: 50%; height: auto;"><figcaption><em>espaço para legenda</em></figcaption></figure>\n`;
+  for (const [placeholderId, mediaData] of contentImages.value.entries()) {
+    if (mediaData.blobUrl) {
+      const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+      processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
+    }
   }
-  insertMediaIntoTextarea(htmlToInsert);
-  event.target.value = null;
-};
-const uploadAndInsertAudio = (event) => {
-  const files = event.target.files; if (!files || files.length === 0) return; let htmlToInsert = '';
-  for (const file of files) { const placeholderId = `audio_placeholder_${Date.now()}_${randomSuffix()}`; contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) }); htmlToInsert += `\n<figure class="audio-figure"><audio controls src="${placeholderId}"></audio><figcaption><em>espaço para legenda</em></figcaption></figure>\n`; }
-  insertMediaIntoTextarea(htmlToInsert); event.target.value = null;
-};
-const uploadAndInsertVideo = (event) => {
-  const files = event.target.files; if (!files || files.length === 0) return; let htmlToInsert = '';
-  for (const file of files) { const placeholderId = `video_placeholder_${Date.now()}_${randomSuffix()}`; contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) }); htmlToInsert += `\n<figure class="video-figure"><video controls src="${placeholderId}"></video><figcaption><em>espaço para legenda</em></figcaption></figure>\n`; }
-  insertMediaIntoTextarea(htmlToInsert); event.target.value = null;
-};
 
-const openDataModal = (file) => { selectedFileForModal.value = file; };
-const closeDataModal = () => { selectedFileForModal.value = null; };
+  const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
+  processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
+
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+  
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
+  return marked(processedContent);
+});
 
 </script>
 
 <style scoped>
-/* ESTILOS GERAIS UNIFICADOS */
-.main-header-bar { background-color: #fff; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+/* ESTILOS DA UI GERAL */
+.main-header-bar { background-color: #fff; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .header-content h1 { margin: 0; }
-.header-content p { margin: 0; color: #6c757d; }
 .btn-toggle-preview { background-color: transparent; border: 1px solid #007bff; color: #007bff; padding: .5rem 1rem; border-radius: 5px; cursor: pointer; font-weight: 500; }
 .btn-toggle-preview:hover { background-color: #007bff; color: #fff; }
-.btn-toggle-preview:disabled { border-color: #adb5bd; color: #adb5bd; cursor: not-allowed; }
+.btn-toggle-preview:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+
+/* MODAIS E MENUS */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+.modal-content { background: white; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden; }
+.menu-content { max-width: 650px; }
+.modal-header { background: #f8f9fa; padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0; }
+.modal-body { padding: 1.5rem; }
+.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; }
+.resource-btn { display: flex; flex-direction: column; align-items: center; padding: 1rem; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; cursor: pointer; transition: all 0.2s; }
+.resource-btn:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #007bff; }
+.resource-btn .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.resource-btn .label { font-size: 0.9rem; font-weight: 600; color: #444; }
+.highlight-purple .icon { filter: drop-shadow(0 0 5px rgba(138,43,226,0.3)); }
+.highlight-blue .icon { filter: drop-shadow(0 0 5px rgba(0,123,255,0.3)); }
+.highlight-green .icon { filter: drop-shadow(0 0 5px rgba(40,167,69,0.3)); }
+.modal-tabs { display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid #eee; }
+.tab-btn { background: none; border: none; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent; }
+.tab-btn.active { color: #007bff; border-bottom: 2px solid #007bff; font-weight: 600; }
+.modal-input { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+.file-upload-box { border: 2px dashed #ccc; padding: 2rem; text-align: center; border-radius: 4px; cursor: pointer; }
+.file-upload-box:hover { background: #f9f9f9; }
+.modal-footer { padding: 1rem; background: #f8f9fa; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 0.5rem; }
+.btn-back, .btn-close-modal { border: none; background: transparent; cursor: pointer; }
+.btn-confirm { padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+
+/* TOOLBAR */
+.single-button-toolbar { background: #f8f9fa; padding: 0.75rem 1rem; border: 1px solid #ccc; border-bottom: none; border-radius: 4px 4px 0 0; display: flex; align-items: center; gap: 1rem; }
+.toolbar-main-btn { background: #007bff; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 30px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+.toolbar-main-btn:hover { background: #0056b3; }
+.toolbar-hint { color: #666; font-size: 0.9rem; font-style: italic; }
+
+/* FORMS */
 .content-section { padding: 2rem; max-width: 1200px; margin: 0 auto; }
-.form-container, .search-fieldset { background-color: #fff; padding: 2.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
-.search-fieldset { margin-bottom: 2rem; }
-.form-container { margin-top: 0; }
-.editing-title { margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; font-size: 1.5rem; }
-fieldset { display: contents; border: 1px solid #e0e0e0; border-radius: 8px; padding: 2rem; margin-bottom: 2rem; }
-legend { font-size: 1.2rem; font-weight: 600; padding: 0 .5rem; color: #333; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 1.5rem; }
+.form-container, .search-fieldset { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.1); margin-bottom: 2rem; }
+fieldset { border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+legend { font-weight: 600; padding: 0 0.5rem; color: #333; }
 .form-group { margin-bottom: 1.5rem; }
-.form-group label { display: block; margin-bottom: .5rem; font-weight: 500; color: #555; }
-.form-group input, .form-group textarea, .form-group select { width: 100%; padding: .75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
-.required { color: #dc3545; }
-.content-toolbar { background-color: #f8f9fa; padding: .5rem; border: 1px solid #ccc; border-bottom: none; border-top-left-radius: 4px; border-top-right-radius: 4px; }
-.toolbar-btn { background-color: #6c757d; color: #fff; border: none; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; margin-right: 0.5rem; }
-#content { border-top-left-radius: 0; border-top-right-radius: 0; }
-.form-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.btn-publish { padding: .8rem 2rem; background-color: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 700; }
-.btn-publish:disabled { background-color: #a5d6a7; cursor: not-allowed; }
-.btn-clear { padding: .8rem 1.5rem; background-color: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 500; }
-.btn-clear:hover { background-color: #5a6268; }
-.image-preview { max-width: 200px; margin-top: 1rem; border-radius: 4px; border: 1px solid #ddd; }
-.feedback-message { margin: 1rem 0; padding: 1rem; border-radius: 4px; font-weight: 500; }
-.feedback-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-.feedback-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-.file-list { margin-top: 1rem; border: 1px solid #e0e0e0; border-radius: 4px; padding: .5rem; }
-.file-list-item { display: flex; justify-content: space-between; align-items: center; padding: .5rem; background-color: #f8f9fa; border-radius: 4px; margin-bottom: .5rem; }
-.file-list-item:last-child { margin-bottom: 0; }
-.btn-remove-file { background: 0 0; border: none; color: #dc3545; font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 .5rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+.form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+.main-textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+.file-input-label { display: flex; align-items: center; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; overflow: hidden; }
+.file-input-button { background: #e9ecef; border-right: 1px solid #ccc; padding: 0.5rem 1rem; }
+.file-input-text { padding: 0 1rem; color: #495057; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+.file-list-item { display: flex; justify-content: space-between; padding: 0.5rem; background: #f8f9fa; margin-bottom: 0.5rem; border-radius: 4px; }
+.hint-text { color: #888; font-style: italic; }
 
-/* --- SEÇÃO CORRIGIDA --- */
-/* Estilos para o container do input de arquivo personalizado */
-.file-input-label {
-  display: flex;
-  align-items: center;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: .25rem;
-  cursor: pointer;
-  overflow: hidden; /* Força o conteúdo a ficar dentro dos limites */
-}
-.file-input-label:hover .file-input-button {
-  background-color: #d2d8de;
-}
-
-/* Estilos para o botão falso */
-.file-input-button {
-  background-color: #e9ecef;
-  border-right: 1px solid #ccc;
-  padding: .5rem 1rem;
-  white-space: nowrap;
-  flex-shrink: 0; /* Impede que o botão seja espremido */
-}
-
-/* Estilos para o texto do nome do arquivo */
-.file-input-text {
-  padding: 0 1rem;
-  color: #495057;
-  white-space: nowrap;
-  overflow-wrap: anywhere; /* Permite que o texto quebre em qualquer ponto */
-  text-overflow: ellipsis; /* Adiciona reticências quando o texto é muito longo */
-  flex-grow: 1;   /* Faz o texto ocupar todo o espaço restante */
-  min-width: 0;   /* Essencial para permitir que o elemento encolha e aplique a elipse */
-}
-/* --- FIM DA SEÇÃO CORRIGIDA --- */
-
-/* ESTILOS DA PESQUISA */
+/* PESQUISA */
 .search-wrapper { position: relative; }
-.search-input { width: 100%; }
-.search-loader { position: absolute; right: 10px; top: 50%; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; transform: translateY(-50%); }
-@keyframes spin { 0% { transform: translateY(-50%) rotate(0deg); } 100% { transform: translateY(-50%) rotate(360deg); } }
-.search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background-color: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; max-height: 250px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 .search-dropdown ul { list-style: none; margin: 0; padding: 0; }
-.search-dropdown li { padding: 0.8rem 1rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-.search-dropdown li:last-child { border-bottom: none; }
-.search-dropdown li:hover { background-color: #f0f0f0; }
-.search-dropdown li small { color: #6c757d; }
-.search-dropdown.no-results { padding: 1rem; color: #6c757d; }
+.search-dropdown li { padding: 0.8rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.search-dropdown li:hover { background: #f0f0f0; }
 
-/* ESTILOS DA ZONA DE PERIGO E MODAL */
-.danger-zone { margin-top: 2rem; border: 2px solid #dc3545; border-radius: 8px; padding: 1.5rem; background-color: #fff8f8; }
-.danger-zone h4 { color: #dc3545; margin-top: 0; }
-.danger-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.btn-delete { background-color: #dc3545; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; font-weight: 500; }
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background-color: #fff; padding: 2rem; border-radius: 8px; width: 90%; max-width: 550px; text-align: center; }
-.warning-text { color: #721c24; font-weight: 500; }
-.modal-actions { margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; }
-.btn-cancel, .btn-confirm-delete { padding: 0.6rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-.btn-cancel { background-color: #6c757d; color: white; }
-.btn-confirm-delete { background-color: #dc3545; color: white; }
+/* PREVIEW */
+.news-preview { max-width: 1000px; margin: 2rem auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; padding-bottom: 2rem; }
+.preview-header { padding: 2rem; }
+.preview-title { font-size: 2.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 0.5rem; }
+.preview-subtitle { color: #009dc4; font-size: 1.2rem; }
+.preview-meta { margin-top: 1rem; color: #888; display: flex; gap: 1rem; font-size: 0.9rem; }
+.preview-content { padding: 0 2rem; font-size: 1.1rem; line-height: 1.6; }
+.cover-image { width: 100%; max-height: 400px; object-fit: cover; }
 
-/* ESTILOS DA PRÉ-VISUALIZAÇÃO */
-.news-preview { max-width: 1200px; margin: 1rem auto 3rem; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.07); overflow: hidden; padding-bottom: 2rem; }
-.preview-cover { width: 100%; }
-.cover-image { width: 100%; max-height: 320px; object-fit: cover; display: block; }
-.preview-header { padding: 1.5rem 2rem 0.5rem 2rem; text-align: left; }
-.preview-title { font-size: 2.5rem; color: #222; margin-bottom: 0.25rem; line-height: 1.1; font-weight: 900; letter-spacing: -1px; }
-.preview-subtitle { font-size: 1.25rem; color: #009dc4; font-weight: 500; margin-bottom: 0.25rem; }
-.preview-meta { font-size: 0.92rem; color: #888; margin-bottom: 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
-.preview-category { background: #009dc4; color: #fff; font-weight: 600; padding: 0.1em 0.75em; border-radius: 36px; font-size: 0.9em; }
-.preview-description {  text-overflow: ellipsis; overflow-wrap: anywhere; padding: 0 2rem 1rem 2rem; font-size: 1.22rem; color: #333; font-weight: 400; }
-.preview-content { padding: 1rem 2rem 0 2rem; font-size: 1.08rem; color: #212121; word-break: break-word; }
-.preview-section-title { padding: 1.5rem 2rem 0.5rem 2rem; color: #009dc4; font-weight: bold; font-size: 1.1rem; }
-.preview-links { padding: 0 2rem 1rem 2rem; list-style: disc inside; margin-bottom: 1rem; }
-.preview-links a { color: #0079ba; text-decoration: underline; }
-.preview-attachments { padding: 0 2rem 2rem 2rem; }
-.preview-attachments ul { padding-left: 20px; list-style: disc; }
-.preview-attachments strong { font-weight: 600; }
-.attachment-group { margin-top: 1.5rem; }
-.data-file-item { display: flex; justify-content: space-between; align-items: center; margin-left: -20px; padding: 0.25rem 0; }
-.btn-visualizar { margin-left: 1rem; padding: 0.25rem 0.75rem; font-size: 0.85rem; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
-.btn-visualizar:hover { background-color: #e0e0e0; }
+/* CARDS NO PREVIEW */
+:deep(.resource-card) { display: flex; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; border-left: 4px solid #007bff; padding: 1rem; margin: 1.5rem 0; border-radius: 4px; }
+:deep(.resource-card.notebook) { border-left-color: #ffca28; background: #fffbf0; }
+:deep(.resource-card.script) { border-left-color: #594099; background: #f6f4fa; }
+:deep(.resource-card.document) { border-left-color: #17a2b8; background: #eef9fb; }
+:deep(.resource-card.data) { border-left-color: #28a745; background: #f0fff4; }
+:deep(.resource-card.link-card) { border-left-color: #6c757d; background: #fff; }
+:deep(.resource-icon) { font-size: 2rem; margin-right: 1rem; }
+:deep(.resource-info) { display: flex; flex-direction: column; width: 100%; }
+:deep(.resource-links) { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+:deep(.resource-link) { font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; }
+:deep(.resource-link.raw) { background: #eee; color: #333; }
+:deep(.resource-link.colab) { background: #f9ab00; color: #fff; }
+:deep(.resource-link.nbviewer) { background: #e67e22; color: #fff; }
+
+/* ESTILOS DE MÍDIA INCORPORADA */
 :deep(.preview-content figure) { margin: 2rem auto; text-align: center; }
 :deep(.preview-content figcaption) { margin-top: 0.75rem; color: #6c757d; font-size: 0.9rem; font-style: italic; }
 :deep(.preview-content img) { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 :deep(.preview-content video) { max-width: 800px; width: 80%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background-color: #000; outline: none; }
 :deep(.preview-content audio) { width: 100%; max-width: 600px; margin: 1em auto; display: block; accent-color: #007bff; }
 
-/* ESTILOS DE RESPONSIVIDADE */
+/* ZONA DE PERIGO */
+.danger-zone { margin-top: 2rem; border: 2px solid #dc3545; background: #fff8f8; padding: 1.5rem; border-radius: 8px; }
+.danger-content { display: flex; justify-content: space-between; align-items: center; }
+.btn-delete { background: #dc3545; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; cursor: pointer; }
+
+/* RESPONSIVO */
 @media (max-width: 768px) {
-  .content-section { padding: 0; }
-  .form-container, .search-fieldset, fieldset { padding: 1.5rem; }
-  .main-header-bar { justify-content: center; text-align: center; }
   .form-grid { grid-template-columns: 1fr; }
-  .form-actions { justify-content: center; }
-  .form-actions button { width: 100%; max-width: 300px; }
-}
-@media (max-width: 800px) {
-  .news-preview { max-width: 100%; border-radius: 0; }
-  .cover-image { max-height: 200px; }
-  .preview-header, .preview-description, .preview-content, .preview-section-title, .preview-links, .preview-attachments { padding-left: 1rem; padding-right: 1rem; }
-  .preview-title { font-size: 2rem; }
-}
-@media (max-width: 500px) {
-  .form-container, .search-fieldset, fieldset { padding: 1rem; }
-  .news-preview { box-shadow: none; padding-bottom: 0.7rem; }
-  .preview-title { font-size: 1.35rem; }
-  .cover-image { max-height: 140px; }
-  .preview-header, .preview-description, .preview-content, .preview-section-title, .preview-links, .preview-attachments { padding-left: 1rem; padding-right: 1rem; }
-  .preview-description { font-size: 1rem; }
-  .preview-content { font-size: 0.95rem; }
+  .resource-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .danger-content { flex-direction: column; gap: 1rem; text-align: center; }
 }
 </style>
