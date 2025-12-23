@@ -150,7 +150,7 @@
            </div>
            <div class="form-group">
              <label for="lastUpdate">Data da Última Atualização</label>
-             <input type="date" id="lastUpdate" v-model="newAnalysis.lastUpdate">
+             <input type="date" id="lastUpdate" required v-model="newAnalysis.lastUpdate">
            </div>
            <div class="form-group">
              <label for="studyPeriod">Período de Estudo</label>
@@ -931,6 +931,11 @@ const publishAnalysis = async () => {
 .btn-confirm { padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
 .btn-confirm:hover { background: #0056b3; }
 
+.fieldset-image {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
 /* TOOLBAR SIMPLIFICADA */
 .single-button-toolbar {
@@ -963,7 +968,7 @@ const publishAnalysis = async () => {
 .plus-icon { font-size: 1.1rem; }
 .toolbar-hint { color: #666; font-size: 0.9rem; font-style: italic; }
 
-.main-textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+.main-textarea { height: 600px; border-top-left-radius: 0; border-top-right-radius: 0; }
 
 /* DEMAIS ESTILOS MANTIDOS */
 .main-header-bar { background-color: #fff; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }

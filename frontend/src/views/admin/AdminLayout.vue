@@ -254,6 +254,7 @@ const logout = () => {
   flex-direction: column;
   height: 100vh;
   overflow: hidden; /* Scroll interno */
+  padding: 0%; 
 }
 
 .mobile-header { display: none; } /* Só aparece no mobile */

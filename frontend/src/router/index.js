@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import axios from 'axios';
 
+//const API_BASE_URL = 'http://localhost:3000';
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 /**
  * Função de segurança que valida o token com o backend.
@@ -26,6 +27,16 @@ const checkAuthStatus = async () => {
   }
 };
 
+const checkBackendOnline = async () => {
+  try {
+    await axios.get(API_BASE_URL + '/health', { timeout: 30000 });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+
 const routes = [
   // --- Rotas Públicas (acessíveis a todos) ---
   {
@@ -33,6 +44,12 @@ const routes = [
     name: "Home",
     component: () => import("../views/HomeView.vue"),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/loading',
+    name: 'Loading',
+    component: () => import('../views/LoadingView.vue'),
+    meta: { hideLayout: true }
   },
   {
     path: "/contato",
@@ -110,6 +127,28 @@ const router = createRouter({
 
 // Guarda de Rota Global: lida com a lógica primária de navegação.
 router.beforeEach(async (to, from, next) => {
+  const backendOnline = await checkBackendOnline();
+
+  /* ─────────────────────────────
+     BACKEND OFFLINE
+  ───────────────────────────── */
+  if (!backendOnline) {
+    if (to.name !== 'Loading') {
+      return next({ name: 'Loading' });
+    }
+    return next();
+  }
+
+  /* ─────────────────────────────
+     BACKEND ONLINE
+  ───────────────────────────── */
+  if (to.name === 'Loading') {
+    return next({ name: 'AdminLogin' });
+  }
+
+  /* ─────────────────────────────
+     AUTENTICAÇÃO
+  ───────────────────────────── */
   const requiresAuth = to.matched.some(r => r.meta.requiresAuth);
 
   if (requiresAuth) {
@@ -119,6 +158,9 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  /* ─────────────────────────────
+     EVITA LOGIN DUPLICADO
+  ───────────────────────────── */
   if (to.name === 'AdminLogin') {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -131,6 +173,7 @@ router.beforeEach(async (to, from, next) => {
 
   return next();
 });
+
 
 
 export default router;

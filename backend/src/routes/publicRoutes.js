@@ -107,7 +107,7 @@ router.post('/admin-auth', asyncHandler(async (req, res) => {
   }
 
   const payload = { email: process.env.ADMIN_EMAIL };
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '168h' });
 
   res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));

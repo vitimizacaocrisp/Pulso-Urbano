@@ -11,7 +11,10 @@ router.use('/', publicRoutes);
 router.use('/api/admin', adminRoutes);
 
 router.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Backend is online' });
-}).status(200);
+  res.status(200).json({
+    status: 'OK',
+    message: 'Backend is online'
+  });
+});
 
 module.exports = router;
