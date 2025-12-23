@@ -211,17 +211,49 @@
        <fieldset>
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
-           <label for="content">Conteúdo Completo (suporta Markdown) <span class="required">*</span></label>
+           <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>
            
-           <!-- TOOLBAR ATUALIZADA (Botão Único) -->
+           <!-- TOOLBAR DO EDITOR -->
            <div class="content-toolbar single-button-toolbar">
              <button type="button" @click="openResourceMenu" class="toolbar-main-btn">
-               <span class="plus-icon">➕</span> Adicionar Arquivo / Recurso
+               <span class="plus-icon">➕</span> Adicionar Recurso
              </button>
              <span class="toolbar-hint">Clique para adicionar imagens, vídeos, notebooks, documentos, etc.</span>
+             
+             <!-- Botões de formatação -->
+             <div class="editor-format-buttons">
+               <button type="button" @click="formatText('bold')" title="Negrito (Ctrl+B)" class="format-btn">
+                 <strong>B</strong>
+               </button>
+               <button type="button" @click="formatText('italic')" title="Itálico (Ctrl+I)" class="format-btn">
+                 <em>I</em>
+               </button>
+               <button type="button" @click="formatText('heading')" title="Título" class="format-btn">
+                 H
+               </button>
+               <button type="button" @click="formatText('list')" title="Lista" class="format-btn">
+                 ••
+               </button>
+               <button type="button" @click="formatText('code')" title="Código" class="format-btn">
+                 { }
+               </button>
+               <button type="button" @click="formatText('link')" title="Link" class="format-btn">
+                 🔗
+               </button>
+               <button type="button" @click="formatText('image')" title="Imagem" class="format-btn">
+                 🖼️
+               </button>
+               <button type="button" @click="formatText('quote')" title="Citação" class="format-btn">
+                 "
+               </button>
+             </div>
            </div>
 
-           <textarea id="content" ref="contentTextArea" v-model="editingAnalysis.content" rows="15" required class="main-textarea"></textarea>
+           <!-- Monaco Editor Container -->
+           <div id="editor-container" ref="editorContainer" class="editor-container"></div>
+           
+           <!-- Textarea oculto para compatibilidade -->
+           <textarea id="content" v-model="editingAnalysis.content" style="display: none;"></textarea>
          </div>
        </fieldset>
 
@@ -346,13 +378,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import axios from 'axios';
+import * as monaco from 'monaco-editor';
 
 // --- CONFIGURAÇÕES ---
-//const API_BASE_URL = 'http://localhost:3000';
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 // --- ESTADO DA UI ---
@@ -367,6 +399,11 @@ const allAnalyses = ref([]);
 const isDropdownVisible = ref(false);
 const searchQuery = ref('');
 let hasLoadedOnce = false;
+
+// --- MONACO EDITOR ---
+const editorContainer = ref(null);
+let editor = null;
+let isEditorInitialized = ref(false);
 
 // --- ESTADO DO FORMULÁRIO DE EDIÇÃO ---
 const getInitialAnalysisState = () => ({
@@ -386,7 +423,6 @@ const mediaInputType = ref('url');
 const mediaUrlInput = ref('');
 const mediaFileInputRef = ref(null);
 const selectedMediaFile = ref(null);
-const contentTextArea = ref(null);
 
 const mediaTypeLabels = {
     'image': 'Imagem',
@@ -402,6 +438,344 @@ const mediaTypeLabels = {
 // --- RASTREAMENTO DE ARQUIVOS ---
 const originalServerFiles = ref(new Set());
 const filesToDelete = ref([]);
+
+// --- MONACO EDITOR ---
+const initMonacoEditor = () => {
+  if (!editorContainer.value || isEditorInitialized.value) return;
+
+  // Verifique se Monaco já está carregado
+  if (typeof window !== 'undefined' && window.monaco) {
+    createEditor();
+    return;
+  }
+
+  // Tente carregar o Monaco
+  try {
+    createEditor();
+  } catch (error) {
+    console.error('Erro ao inicializar Monaco Editor:', error);
+    // Fallback: use o textarea normal
+    const textarea = document.createElement('textarea');
+    textarea.id = 'content';
+    textarea.vModel = 'editingAnalysis.content';
+    textarea.rows = 15;
+    textarea.className = 'main-textarea';
+    textarea.required = true;
+    editorContainer.value.innerHTML = '';
+    editorContainer.value.appendChild(textarea);
+  }
+};
+
+const createEditor = () => {
+  if (!editorContainer.value || editor) return;
+
+  // Configure o editor
+  editor = monaco.editor.create(editorContainer.value, {
+    value: editingAnalysis.value.content || '',
+    language: 'markdown',
+    theme: 'vs-dark',
+    fontSize: 14,
+    lineNumbers: 'on',
+    minimap: { enabled: true },
+    scrollBeyondLastLine: false,
+    wordWrap: 'on',
+    wrappingIndent: 'same',
+    automaticLayout: true,
+    formatOnPaste: true,
+    formatOnType: true,
+    suggestOnTriggerCharacters: true,
+    quickSuggestions: true,
+    folding: true,
+    renderLineHighlight: 'all',
+    scrollbar: {
+      vertical: 'visible',
+      horizontal: 'visible',
+      useShadows: false
+    },
+    lineDecorationsWidth: 10,
+    lineNumbersMinChars: 3,
+    overviewRulerLanes: 0,
+    hideCursorInOverviewRuler: true,
+    glyphMargin: false,
+    fixedOverflowWidgets: true,
+    renderWhitespace: 'selection',
+    tabSize: 2,
+    insertSpaces: true,
+  });
+
+  // Sincronize o conteúdo do editor com o v-model
+  editor.onDidChangeModelContent(() => {
+    editingAnalysis.value.content = editor.getValue();
+  });
+
+  // Adicionar atalhos de teclado
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+    formatText('bold');
+  });
+
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+    formatText('italic');
+  });
+
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
+    formatText('heading');
+  });
+
+  // Configure sugestões para Markdown
+  monaco.languages.registerCompletionItemProvider('markdown', {
+    provideCompletionItems: (model, position) => {
+      const word = model.getWordUntilPosition(position);
+      const range = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: word.startColumn,
+        endColumn: word.endColumn
+      };
+
+      return {
+        suggestions: [
+          {
+            label: '# Título 1',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: '# ',
+            range: range
+          },
+          {
+            label: '## Título 2',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: '## ',
+            range: range
+          },
+          {
+            label: '### Título 3',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: '### ',
+            range: range
+          },
+          {
+            label: '**negrito**',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '**${1:texto}**',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range
+          },
+          {
+            label: '*itálico*',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '*${1:texto}*',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range
+          },
+          {
+            label: '[link](url)',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '[${1:texto}](${2:url})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range
+          },
+          {
+            label: '![imagem](url)',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '![${1:alt}](${2:url})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range
+          },
+          {
+            label: '```code```',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '```\n${1:code}\n```',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range
+          },
+          {
+            label: '> citação',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '> ',
+            range: range
+          },
+          {
+            label: '- lista',
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '- ',
+            range: range
+          },
+        ]
+      };
+    }
+  });
+
+  // Adicionar hover para Markdown
+  monaco.languages.registerHoverProvider('markdown', {
+    provideHover: (model, position) => {
+      const word = model.getWordAtPosition(position);
+      if (word) {
+        const markdownTips = {
+          '#': 'Cabeçalho Nível 1',
+          '##': 'Cabeçalho Nível 2',
+          '###': 'Cabeçalho Nível 3',
+          '**': 'Texto em negrito',
+          '*': 'Texto em itálico',
+          '```': 'Bloco de código',
+          '>': 'Citação',
+          '-': 'Item de lista',
+          '[': 'Link',
+          '![': 'Imagem'
+        };
+        
+        const tip = markdownTips[word.word];
+        if (tip) {
+          return {
+            contents: [
+              { value: `**${tip}**` },
+              { value: 'Sintaxe Markdown' }
+            ]
+          };
+        }
+      }
+      return null;
+    }
+  });
+
+  isEditorInitialized.value = true;
+};
+
+// --- FUNÇÕES DE FORMATAÇÃO ---
+const formatText = (type) => {
+  if (!editor) return;
+
+  const selection = editor.getSelection();
+  const model = editor.getModel();
+  const text = model.getValueInRange(selection);
+  const position = selection.getStartPosition();
+
+  let newText = '';
+  let range = null;
+
+  switch (type) {
+    case 'bold':
+      newText = text ? `**${text}**` : '**texto**';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'italic':
+      newText = text ? `*${text}*` : '*texto*';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'heading':
+      newText = text ? `# ${text}` : '# Título';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'list':
+      newText = text ? `- ${text}` : '- Item da lista';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'code':
+      if (text) {
+        newText = `\`${text}\``;
+        range = new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column + newText.length
+        );
+      } else {
+        newText = '```\n\n```';
+        range = new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber + 2,
+          3
+        );
+      }
+      break;
+      
+    case 'link':
+      newText = text ? `[${text}](url)` : '[texto](url)';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'image':
+      newText = text ? `![${text}](url)` : '![alt](url)';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+      
+    case 'quote':
+      newText = text ? `> ${text}` : '> Citação';
+      range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column + newText.length
+      );
+      break;
+  }
+
+  if (text) {
+    // Se há texto selecionado, substitua
+    editor.executeEdits('', [
+      {
+        range: selection,
+        text: newText,
+        forceMoveMarkers: true
+      }
+    ]);
+  } else {
+    // Se não há texto selecionado, insira no cursor
+    editor.executeEdits('', [
+      {
+        range: range,
+        text: newText,
+        forceMoveMarkers: true
+      }
+    ]);
+    
+    // Coloque o cursor dentro do texto inserido
+    if (type === 'bold' || type === 'italic' || type === 'code' && !text) {
+      setTimeout(() => {
+        const newPosition = new monaco.Position(
+          position.lineNumber,
+          type === 'bold' || type === 'italic' ? position.column + 2 : 
+          type === 'code' ? position.lineNumber + 1 : position.column + 1
+        );
+        editor.setPosition(newPosition);
+        editor.focus();
+      }, 10);
+    }
+  }
+};
 
 // --- CONTROLE DOS MENUS E MODAIS ---
 const openResourceMenu = () => { showResourceTypeMenu.value = true; };
@@ -464,14 +838,17 @@ const confirmMediaInsertion = () => {
 function randomSuffix() { return Math.floor(Math.random() * 1e6).toString(); }
 
 const insertUrlMedia = (url, type) => {
-    let htmlToInsert = '';
+    let markdownToInsert = '';
+    
+    // Tratamento específico para URLs
     if (type === 'image') {
-        htmlToInsert = `\n<figure style="text-align: center;"><img src="${url}" alt="Imagem" style="width: 50%; height: auto;"><figcaption><em>Legenda</em></figcaption></figure>\n`;
+        markdownToInsert = `![Imagem externa](${url})`;
     } else if (type === 'audio') {
-        htmlToInsert = `\n<figure class="audio-figure"><audio controls src="${url}"></audio><figcaption><em>Áudio</em></figcaption></figure>\n`;
+        markdownToInsert = `\`\`\`audio\n${url}\n\`\`\``;
     } else if (type === 'video') {
-        htmlToInsert = `\n<figure class="video-figure"><video controls src="${url}"></video><figcaption><em>Vídeo</em></figcaption></figure>\n`;
+        markdownToInsert = `\`\`\`video\n${url}\n\`\`\``;
     } else if (type === 'notebook') {
+        // Lógica de Notebook do GitHub (Raw -> NbViewer/Colab)
         const nbViewerUrl = `https://nbviewer.org/urls/${url.replace(/^https?:\/\//, '')}`;
         let colabUrl = '';
         if (url.includes('github') || url.includes('raw.githubusercontent.com')) {
@@ -486,62 +863,79 @@ const insertUrlMedia = (url, type) => {
                  colabUrl = `https://colab.research.google.com/github/${user}/${repo}/blob/${rest}`;
              }
         }
-        htmlToInsert = `
-<div class="resource-card notebook">
-  <div class="resource-icon">🐍</div>
-  <div class="resource-info">
-    <strong>Notebook Python</strong>
-    <div class="resource-links">
-        <a href="${url}" target="_blank" rel="noopener noreferrer" class="resource-link raw">📄 JSON</a>
-        ${colabUrl ? `<a href="${colabUrl}" target="_blank" rel="noopener noreferrer" class="resource-link colab">🚀 Colab</a>` : ''}
-        <a href="${nbViewerUrl}" target="_blank" rel="noopener noreferrer" class="resource-link nbviewer">👀 NbViewer</a>
-    </div>
-  </div>
-</div>`;
+
+        markdownToInsert = `\n[Notebook Python](${url})\n`;
+        if (colabUrl) {
+            markdownToInsert += `[Executar no Colab](${colabUrl})\n`;
+        }
+        markdownToInsert += `[Visualizar no NbViewer](${nbViewerUrl})\n`;
     } else if (type === 'script') {
-        htmlToInsert = `\n<div class="resource-card script"><div class="resource-icon">📜</div><div class="resource-info"><strong>Script</strong><a href="${url}" target="_blank">Acessar Script</a></div></div>\n`;
+        markdownToInsert = `\n[Script](${url})\n`;
     } else if (type === 'document') {
-        htmlToInsert = `\n<div class="resource-card document"><div class="resource-icon">📄</div><div class="resource-info"><strong>Documento</strong><a href="${url}" target="_blank">Acessar Documento</a></div></div>\n`;
+        markdownToInsert = `\n[Documento de Referência](${url})\n`;
     } else if (type === 'data') {
-        htmlToInsert = `\n<div class="resource-card data"><div class="resource-icon">📊</div><div class="resource-info"><strong>Dados</strong><a href="${url}" target="_blank">Baixar Dados</a></div></div>\n`;
+        markdownToInsert = `\n[Base de Dados](${url})\n`;
     } else if (type === 'link') {
-        htmlToInsert = `\n<div class="resource-card link-card"><div class="resource-icon">🔗</div><div class="resource-info"><strong>Link</strong><a href="${url}" target="_blank">${url}</a></div></div>\n`;
+        markdownToInsert = `\n[${url}](${url})\n`;
     }
-    insertMediaIntoTextarea(htmlToInsert);
+
+    insertMediaIntoTextarea(markdownToInsert);
 };
 
 const insertFileMedia = (file, type) => {
     const placeholderId = `${type}_${Date.now()}_${randomSuffix()}`;
     contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) });
     
-    let htmlToInsert = '';
+    let markdownToInsert = '';
+
     if (type === 'image') {
-        htmlToInsert = `\n<figure style="text-align: center;"><img src="${placeholderId}" alt="${file.name}" style="width: 50%; height: auto;"><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+        markdownToInsert = `![${file.name}](${placeholderId})`;
     } else if (type === 'audio') {
-        htmlToInsert = `\n<figure class="audio-figure"><audio controls src="${placeholderId}"></audio><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+        markdownToInsert = `\`\`\`audio\n${placeholderId}\n\`\`\``;
     } else if (type === 'video') {
-        htmlToInsert = `\n<figure class="video-figure"><video controls src="${placeholderId}"></video><figcaption><em>${file.name}</em></figcaption></figure>\n`;
+        markdownToInsert = `\`\`\`video\n${placeholderId}\n\`\`\``;
     } else if (type === 'notebook') {
-        htmlToInsert = `\n<div class="resource-card notebook"><div class="resource-icon">🐍</div><div class="resource-info"><strong>Notebook: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+        markdownToInsert = `\n[Notebook: ${file.name}](${placeholderId})\n`;
     } else if (type === 'script') {
-        htmlToInsert = `\n<div class="resource-card script"><div class="resource-icon">📜</div><div class="resource-info"><strong>Script: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+        markdownToInsert = `\n[Script: ${file.name}](${placeholderId})\n`;
     } else if (type === 'document') {
-        htmlToInsert = `\n<div class="resource-card document"><div class="resource-icon">📄</div><div class="resource-info"><strong>Documento: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+        markdownToInsert = `\n[Documento: ${file.name}](${placeholderId})\n`;
     } else if (type === 'data') {
-        htmlToInsert = `\n<div class="resource-card data"><div class="resource-icon">📊</div><div class="resource-info"><strong>Dados: ${file.name}</strong><a href="${placeholderId}" download="${file.name}">⬇️ Baixar</a></div></div>\n`;
+        markdownToInsert = `\n[Dados: ${file.name}](${placeholderId})\n`;
     }
-    insertMediaIntoTextarea(htmlToInsert);
+
+    insertMediaIntoTextarea(markdownToInsert);
 };
 
-const insertMediaIntoTextarea = (htmlToInsert) => {
-  const textarea = contentTextArea.value;
-  if (!textarea) {
-      editingAnalysis.value.content += '\n' + htmlToInsert;
+const insertMediaIntoTextarea = (markdownToInsert) => {
+  if (!editor) {
+      editingAnalysis.value.content += '\n' + markdownToInsert;
       return;
   }
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  editingAnalysis.value.content = editingAnalysis.value.content.substring(0, start) + htmlToInsert + editingAnalysis.value.content.substring(end);
+  
+  const position = editor.getPosition();
+  const range = new monaco.Range(
+    position.lineNumber,
+    position.column,
+    position.lineNumber,
+    position.column
+  );
+  
+  editor.executeEdits('', [
+    {
+      range: range,
+      text: '\n' + markdownToInsert + '\n',
+      forceMoveMarkers: true
+    }
+  ]);
+  
+  // Mova o cursor para o final do conteúdo inserido
+  const newPosition = new monaco.Position(
+    position.lineNumber + 1,
+    markdownToInsert.length + 1
+  );
+  editor.setPosition(newPosition);
+  editor.focus();
 };
 
 // --- LÓGICA DE CARREGAMENTO ---
@@ -556,7 +950,7 @@ const fetchFile = async (url, defaultName) => {
         return file;
     } catch (error) {
         console.error(`Erro ao carregar ${url}:`, error);
-        return null; // Falha silenciosa ou trate conforme necessidade
+        return null;
     }
 };
 
@@ -604,6 +998,22 @@ const selectAnalysis = async (analysisStub) => {
     }
 
     editingAnalysis.value = analysisState;
+    
+    // Atualize o editor com o conteúdo carregado
+    if (editor && analysisState.content) {
+      editor.setValue(analysisState.content);
+    } else if (!editor) {
+      // Se o editor não foi inicializado ainda, marque para inicializar depois
+      nextTick(() => {
+        initMonacoEditor();
+        if (editor && analysisState.content) {
+          setTimeout(() => {
+            editor.setValue(analysisState.content);
+          }, 100);
+        }
+      });
+    }
+    
     feedback.value = { message: 'Análise carregada.', type: 'success' };
   } catch (err) {
     feedback.value = { message: 'Erro ao carregar análise.', type: 'error' };
@@ -641,8 +1051,29 @@ const hideDropdown = () => setTimeout(() => { isDropdownVisible.value = false; }
 // --- LIFECYCLE ---
 const route = useRoute();
 const router = useRouter();
-onMounted(() => { if (route.query.id) selectAnalysis({ id: route.query.id, title: `Análise #${route.query.id}` }); });
-onBeforeUnmount(() => cleanupBlobUrls());
+
+onMounted(() => { 
+  // Inicialize o editor após o próximo tick
+  nextTick(() => {
+    initMonacoEditor();
+  });
+  
+  // Se houver um ID na URL, carregue a análise
+  if (route.query.id) {
+    // Dê tempo para o editor ser inicializado
+    setTimeout(() => {
+      selectAnalysis({ id: route.query.id, title: `Análise #${route.query.id}` });
+    }, 500);
+  } 
+});
+
+onBeforeUnmount(() => {
+  cleanupBlobUrls();
+  if (editor) {
+    editor.dispose();
+    editor = null;
+  }
+});
 
 // --- AÇÕES DO FORMULÁRIO ---
 const updateAnalysis = async () => {
@@ -773,14 +1204,7 @@ const renderedContent = computed(() => {
   const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
   processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
 
-  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
-    return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
-  }
-  
-  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
-  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
-  
-  if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
+  // Converte markdown para HTML
   return marked(processedContent);
 });
 
@@ -820,11 +1244,91 @@ const renderedContent = computed(() => {
 .btn-cancel, .btn-confirm-delete { padding: 0.6rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
 .btn-cancel { background-color: #6c757d; color: white; }
 .btn-confirm-delete { background-color: #dc3545; color: white; }
-/* TOOLBAR */
-.single-button-toolbar { background: #f8f9fa; padding: 0.75rem 1rem; border: 1px solid #ccc; border-bottom: none; border-radius: 4px 4px 0 0; display: flex; align-items: center; gap: 1rem; }
-.toolbar-main-btn { background: #007bff; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 30px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+
+/* TOOLBAR DO EDITOR */
+.single-button-toolbar { 
+    background: #f8f9fa; 
+    padding: 0.75rem 1rem; 
+    border: 1px solid #ccc; 
+    border-bottom: none; 
+    border-radius: 4px 4px 0 0; 
+    display: flex; 
+    align-items: center; 
+    gap: 1rem; 
+    flex-wrap: wrap;
+}
+.toolbar-main-btn { 
+    background: #007bff; 
+    color: white; 
+    border: none; 
+    padding: 0.6rem 1.2rem; 
+    border-radius: 30px; 
+    font-weight: 600; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    transition: background 0.2s; 
+}
 .toolbar-main-btn:hover { background: #0056b3; }
-.toolbar-hint { color: #666; font-size: 0.9rem; font-style: italic; }
+.toolbar-hint { 
+    color: #666; 
+    font-size: 0.9rem; 
+    font-style: italic;
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Botões de formatação */
+.editor-format-buttons {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.format-btn {
+    background: #2d2d2d;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.format-btn:hover {
+    background: #3d3d3d;
+    border-color: #007bff;
+}
+
+.format-btn strong, .format-btn em {
+    font-size: 13px;
+}
+
+/* Monaco Editor Container */
+.editor-container {
+    height: 600px;
+    border: 1px solid #ccc;
+    border-radius: 0 0 4px 4px;
+    border-top: none;
+    overflow: hidden;
+}
+
+/* Para tema claro do editor */
+:deep(.vs) {
+    --monaco-editor-background: #ffffff;
+}
+
+:deep(.vs-dark) {
+    --monaco-editor-background: #1e1e1e;
+}
 
 /* FORMS */
 .content-section { padding: 2rem; max-width: 1200px; margin: 0 auto; }
@@ -835,7 +1339,6 @@ legend { font-weight: 600; padding: 0 0.5rem; color: #333; }
 .form-group { margin-bottom: 1.5rem; }
 .form-group label { margin-bottom: 0.5rem; font-weight: 500; }
 .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-.main-textarea { height: 600px; border-top-left-radius: 0; border-top-right-radius: 0; }
 .file-input-label { display: flex; align-items: center; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; overflow: hidden; }
 .file-input-button { background: #e9ecef; border-right: 1px solid #ccc; padding: 0.5rem 1rem; }
 .file-input-text { padding: 0 1rem; color: #495057; }
@@ -912,7 +1415,17 @@ legend { font-weight: 600; padding: 0 0.5rem; color: #333; }
 
   .image-preview { max-width: 40%; height: auto; margin: 1rem auto; display: block; }
 
+  .single-button-toolbar { flex-direction: column; align-items: flex-start; }
+  .toolbar-hint { margin-top: 10px; }
+  .editor-format-buttons { margin-left: 0; margin-top: 10px; width: 100%; justify-content: flex-start; }
+  .editor-container { height: 400px; }
+
   .form-actions { justify-content: center; }
   .form-actions button { width: 100%; max-width: 300px; }
+}
+
+@media (max-width: 480px) {
+  .editor-container { height: 300px; }
+  .image-preview { max-width: 100%; }
 }
 </style>
