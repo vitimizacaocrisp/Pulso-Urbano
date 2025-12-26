@@ -178,7 +178,7 @@
          </div>
        </fieldset>
 
-       <fieldset>
+       <fieldset class="main-content">
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
            <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>

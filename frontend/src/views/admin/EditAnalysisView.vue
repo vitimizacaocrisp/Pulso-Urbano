@@ -129,7 +129,7 @@
       </div>
     </header>
 
-    <section v-if="!isPreviewMode" class="content-section">
+    <section v-show="!isPreviewMode" class="content-section">
       <fieldset class="search-fieldset">
         <legend>Pesquisar Análise</legend>
         <div class="search-wrapper">
@@ -156,7 +156,7 @@
 
       <div v-if="feedback.message" :class="['feedback-message', feedback.type]">{{ feedback.message }}</div>
       
-      <form v-if="editingAnalysis.id" @submit.prevent="updateAnalysis" class="form-container">
+      <form v-show="editingAnalysis.id" @submit.prevent="updateAnalysis" class="form-container">
         <h3 class="editing-title">Editando: {{ editingAnalysis.title }}</h3>
         
         <fieldset>
@@ -208,7 +208,7 @@
          </div>
        </fieldset>
 
-       <fieldset>
+       <fieldset class="main-content">
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
            <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>
@@ -320,7 +320,7 @@
 
     </section>
 
-    <section v-else class="news-preview">
+    <section v-show="isPreviewMode" class="news-preview">
         <div class="preview-cover" v-if="imagePreviewUrl">
             <img :src="imagePreviewUrl" alt="Imagem de Capa" class="cover-image" />
         </div>
@@ -378,7 +378,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import axios from 'axios';
@@ -441,203 +441,79 @@ const filesToDelete = ref([]);
 
 // --- MONACO EDITOR ---
 const initMonacoEditor = () => {
-  if (!editorContainer.value || isEditorInitialized.value) return;
+  // 1. Verifica se o container existe no DOM
+  if (!editorContainer.value) return;
 
-  // Verifique se Monaco já está carregado
-  if (typeof window !== 'undefined' && window.monaco) {
-    createEditor();
-    return;
+  // 2. Se já existir uma instância do editor, precisamos destruí-la 
+  // antes de criar uma nova para evitar vazamento de memória e conflitos de DOM
+  if (editor) {
+    editor.dispose();
+    editor = null;
   }
 
-  // Tente carregar o Monaco
   try {
-    createEditor();
+    // 3. Cria a nova instância do Monaco
+    editor = monaco.editor.create(editorContainer.value, {
+      value: editingAnalysis.value.content || '',
+      language: 'markdown',
+      theme: 'vs-dark',
+      fontSize: 14,
+      lineNumbers: 'on',
+      minimap: { enabled: true },
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      wrappingIndent: 'same',
+      automaticLayout: true, // Importante para redimensionar sozinho
+      formatOnPaste: true,
+      formatOnType: true,
+      suggestOnTriggerCharacters: true,
+      quickSuggestions: true,
+      folding: true,
+      renderLineHighlight: 'all',
+      scrollbar: {
+        vertical: 'visible',
+        horizontal: 'visible',
+        useShadows: false
+      },
+      tabSize: 2,
+      insertSpaces: true,
+    });
+
+    // 4. Sincroniza as alterações do Editor de volta para o seu ref 'editingAnalysis'
+    editor.onDidChangeModelContent(() => {
+      editingAnalysis.value.content = editor.getValue();
+    });
+
+    // 5. Registra novamente os atalhos de teclado (shortcuts)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+      formatText('bold');
+    });
+
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+      formatText('italic');
+    });
+
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
+      formatText('heading');
+    });
+
+    isEditorInitialized.value = true;
+    
+    // Pequeno ajuste de layout após a criação para garantir que ele preencha o container
+    setTimeout(() => {
+      editor.layout();
+    }, 500);
+
   } catch (error) {
-    console.error('Erro ao inicializar Monaco Editor:', error);
-    // Fallback: use o textarea normal
-    const textarea = document.createElement('textarea');
-    textarea.id = 'content';
-    textarea.vModel = 'editingAnalysis.content';
-    textarea.rows = 15;
-    textarea.className = 'main-textarea';
-    textarea.required = true;
-    editorContainer.value.innerHTML = '';
-    editorContainer.value.appendChild(textarea);
+    console.error('Erro crítico ao inicializar Monaco Editor:', error);
+    
+    // Fallback caso o Monaco falhe (opcional)
+    const fallbackTextarea = document.getElementById('content');
+    if (fallbackTextarea) fallbackTextarea.style.display = 'block';
   }
 };
 
-const createEditor = () => {
-  if (!editorContainer.value || editor) return;
 
-  // Configure o editor
-  editor = monaco.editor.create(editorContainer.value, {
-    value: editingAnalysis.value.content || '',
-    language: 'markdown',
-    theme: 'vs-dark',
-    fontSize: 14,
-    lineNumbers: 'on',
-    minimap: { enabled: true },
-    scrollBeyondLastLine: false,
-    wordWrap: 'on',
-    wrappingIndent: 'same',
-    automaticLayout: true,
-    formatOnPaste: true,
-    formatOnType: true,
-    suggestOnTriggerCharacters: true,
-    quickSuggestions: true,
-    folding: true,
-    renderLineHighlight: 'all',
-    scrollbar: {
-      vertical: 'visible',
-      horizontal: 'visible',
-      useShadows: false
-    },
-    lineDecorationsWidth: 10,
-    lineNumbersMinChars: 3,
-    overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true,
-    glyphMargin: false,
-    fixedOverflowWidgets: true,
-    renderWhitespace: 'selection',
-    tabSize: 2,
-    insertSpaces: true,
-  });
-
-  // Sincronize o conteúdo do editor com o v-model
-  editor.onDidChangeModelContent(() => {
-    editingAnalysis.value.content = editor.getValue();
-  });
-
-  // Adicionar atalhos de teclado
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
-    formatText('bold');
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    formatText('italic');
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
-    formatText('heading');
-  });
-
-  // Configure sugestões para Markdown
-  monaco.languages.registerCompletionItemProvider('markdown', {
-    provideCompletionItems: (model, position) => {
-      const word = model.getWordUntilPosition(position);
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn
-      };
-
-      return {
-        suggestions: [
-          {
-            label: '# Título 1',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '# ',
-            range: range
-          },
-          {
-            label: '## Título 2',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '## ',
-            range: range
-          },
-          {
-            label: '### Título 3',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '### ',
-            range: range
-          },
-          {
-            label: '**negrito**',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '**${1:texto}**',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '*itálico*',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '*${1:texto}*',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '[link](url)',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '[${1:texto}](${2:url})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '![imagem](url)',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '![${1:alt}](${2:url})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '```code```',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '```\n${1:code}\n```',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '> citação',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '> ',
-            range: range
-          },
-          {
-            label: '- lista',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '- ',
-            range: range
-          },
-        ]
-      };
-    }
-  });
-
-  // Adicionar hover para Markdown
-  monaco.languages.registerHoverProvider('markdown', {
-    provideHover: (model, position) => {
-      const word = model.getWordAtPosition(position);
-      if (word) {
-        const markdownTips = {
-          '#': 'Cabeçalho Nível 1',
-          '##': 'Cabeçalho Nível 2',
-          '###': 'Cabeçalho Nível 3',
-          '**': 'Texto em negrito',
-          '*': 'Texto em itálico',
-          '```': 'Bloco de código',
-          '>': 'Citação',
-          '-': 'Item de lista',
-          '[': 'Link',
-          '![': 'Imagem'
-        };
-        
-        const tip = markdownTips[word.word];
-        if (tip) {
-          return {
-            contents: [
-              { value: `**${tip}**` },
-              { value: 'Sintaxe Markdown' }
-            ]
-          };
-        }
-      }
-      return null;
-    }
-  });
-
-  isEditorInitialized.value = true;
-};
 
 // --- FUNÇÕES DE FORMATAÇÃO ---
 const formatText = (type) => {
@@ -835,76 +711,208 @@ const confirmMediaInsertion = () => {
     closeMediaModal();
 };
 
-function randomSuffix() { return Math.floor(Math.random() * 1e6).toString(); }
+//function randomSuffix() { return Math.floor(Math.random() * 1e6).toString(); }
 
-const insertUrlMedia = (url, type) => {
-    let markdownToInsert = '';
-    
-    // Tratamento específico para URLs
-    if (type === 'image') {
-        markdownToInsert = `![Imagem externa](${url})`;
-    } else if (type === 'audio') {
-        markdownToInsert = `\`\`\`audio\n${url}\n\`\`\``;
-    } else if (type === 'video') {
-        markdownToInsert = `\`\`\`video\n${url}\n\`\`\``;
-    } else if (type === 'notebook') {
-        // Lógica de Notebook do GitHub (Raw -> NbViewer/Colab)
-        const nbViewerUrl = `https://nbviewer.org/urls/${url.replace(/^https?:\/\//, '')}`;
-        let colabUrl = '';
-        if (url.includes('github') || url.includes('raw.githubusercontent.com')) {
-             const parts = url.split('/');
-             let userIndex = parts.findIndex(p => p === 'raw.githubusercontent.com' || p === 'github.com');
-             if (userIndex !== -1 && parts.length >= userIndex + 3) {
-                 const user = parts[userIndex + 1];
-                 const repo = parts[userIndex + 2];
-                 let rest = parts.slice(userIndex + 3).join('/');
-                 if (rest.startsWith('refs/heads/')) rest = rest.replace('refs/heads/', '');
-                 if (rest.startsWith('blob/')) rest = rest.replace('blob/', '');
-                 colabUrl = `https://colab.research.google.com/github/${user}/${repo}/blob/${rest}`;
-             }
-        }
+const processCodeContent = async (content, type, containerId) => {
+    const escapeHTML = (str) => str.replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[m]));
 
-        markdownToInsert = `\n[Notebook Python](${url})\n`;
-        if (colabUrl) {
-            markdownToInsert += `[Executar no Colab](${colabUrl})\n`;
-        }
-        markdownToInsert += `[Visualizar no NbViewer](${nbViewerUrl})\n`;
-    } else if (type === 'script') {
-        markdownToInsert = `\n[Script](${url})\n`;
-    } else if (type === 'document') {
-        markdownToInsert = `\n[Documento de Referência](${url})\n`;
-    } else if (type === 'data') {
-        markdownToInsert = `\n[Base de Dados](${url})\n`;
-    } else if (type === 'link') {
-        markdownToInsert = `\n[${url}](${url})\n`;
+    const cellStyle = "margin-bottom: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; background: #fff;";
+    const codeStyle = "background: #1e1e1e; color: #d4d4d4; padding: 12px; font-family: monospace; font-size: 13px; line-height: 1.5; white-space: pre; overflow-x: auto;";
+    const outputStyle = "background: #f8f9fa; color: #333; padding: 12px; font-family: monospace; font-size: 12px; border-top: 1px solid #eee; white-space: pre-wrap;";
+
+    if (type === 'notebook') {
+        try {
+            const data = typeof content === 'string' ? JSON.parse(content) : content;
+            if (!data.cells) throw new Error();
+
+            const cellsHtml = data.cells
+                .filter(cell => cell.cell_type === 'code')
+                .map((cell, index) => {
+                    const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+                    let outputContent = '';
+                    if (cell.outputs) {
+                        outputContent = cell.outputs.map(out => {
+                            if (out.text) return Array.isArray(out.text) ? out.text.join('') : out.text;
+                            if (out.data && out.data['text/plain']) return Array.isArray(out.data['text/plain']) ? out.data['text/plain'].join('') : out.data['text/plain'];
+                            return '';
+                        }).join('\n').trim();
+                    }
+
+                    // Apenas a primeira célula (index 0) é visível por padrão
+                    const display = index === 0 ? 'block' : 'none';
+                    
+                    return `
+<div class="nb-cell-${containerId}" style="${cellStyle} display: ${display};" data-index="${index}">
+    <div style="background:#333; color:#aaa; padding:5px 10px; font-size:10px;">CÉLULA ${index + 1}</div>
+    <div style="${codeStyle}">${escapeHTML(source)}</div>
+    ${outputContent ? `<div style="${outputStyle}"><strong style="font-size:10px; color:#999;">SAÍDA:</strong>\n${escapeHTML(outputContent)}</div>` : ''}
+    <div class="btn-container" style="padding: 10px; text-align: center;"></div>
+</div>`;
+                }).join('');
+
+            // Script para o botão "Mostrar Mais"
+            const showMoreScript = `
+                (function() {
+                    const cells = document.querySelectorAll('.nb-cell-${containerId}');
+                    const btn = document.createElement('button');
+                    btn.innerText = 'MOSTRAR MAIS +';
+                    btn.style = 'padding: 8px 16px; border-radius: 20px; border: 1px solid #0ea5e9; background: white; color: #0ea5e9; font-weight: bold; cursor: pointer; font-size: 11px;';
+                    
+                    let currentIndex = 0;
+                    const moveButton = () => {
+                        if (currentIndex < cells.length - 1) {
+                            currentIndex++;
+                            cells[currentIndex].style.display = 'block';
+                            cells[currentIndex].querySelector('.btn-container').appendChild(btn);
+                            if (currentIndex === cells.length - 1) btn.style.display = 'none';
+                        }
+                    };
+                    btn.onclick = moveButton;
+                    if (cells.length > 1) cells[0].querySelector('.btn-container').appendChild(btn);
+                })()`;
+
+            return `${cellsHtml}<img src="/" onerror="${showMoreScript}" style="display:none;">`;
+        } catch (e) { return '<div style="color:red;">Erro ao processar Notebook.</div>'; }
     }
-
-    insertMediaIntoTextarea(markdownToInsert);
+    return `<div style="${codeStyle}">${escapeHTML(content)}</div>`;
 };
 
-const insertFileMedia = (file, type) => {
-    const placeholderId = `${type}_${Date.now()}_${randomSuffix()}`;
+const insertUrlMedia = async (url, type) => {
+    let htmlToInsert = '';
+    const containerId = `nb_${Date.now()}`;
+    const cardBase = "border:1px solid #e0e0e0; border-radius:12px; padding:16px; background:#fff; margin:15px 0; font-family:sans-serif; box-shadow:0 4px 6px rgba(0,0,0,0.05); text-align: left;";
+    const btnBase = "display:inline-block; margin-right:8px; padding:8px 14px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:bold; color:#fff; text-transform: uppercase; cursor:pointer; border:none;";
+
+    if (type === 'notebook' || type === 'script') {
+        let rawUrl = url;
+        let displayUrl = url;
+        let colabUrl = '';
+        let nbViewerUrl = '';
+
+        if (url.includes('github')) {
+            const path = url.replace(/^https?:\/\//, '');
+            const parts = path.split('/');
+            const user = parts[1];
+            const repo = parts[2];
+
+            if (path.startsWith('raw.githubusercontent.com')) {
+                const branch = parts[3];
+                const filePath = parts.slice(4).join('/');
+                displayUrl = `https://github.com/${user}/${repo}/blob/${branch}/${filePath}`;
+                rawUrl = url;
+            } else {
+                const branch = parts[4];
+                const filePath = parts.slice(5).join('/');
+                rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${filePath}`;
+                displayUrl = url;
+            }
+            const ghSuffix = displayUrl.split('github.com/')[1];
+            colabUrl = `https://colab.research.google.com/github/${ghSuffix.replace('/blob/', '/blob/')}`;
+            nbViewerUrl = `https://nbviewer.org/github/${ghSuffix}`;
+        } else {
+            nbViewerUrl = `https://nbviewer.org/urls/${url.replace(/^https?:\/\//, '')}`;
+        }
+
+        const codeContent = await processCodeContent(await (await fetch(rawUrl)).text(), type, containerId);
+
+        htmlToInsert = `
+<div style="${cardBase}">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+        <div style="display:flex; align-items:center;">
+            <span style="font-size:28px; margin-right:12px;">${type === 'notebook' ? '🐍' : '📜'}</span>
+            <strong>${type === 'notebook' ? 'Notebook Python' : 'Script'}</strong>
+        </div>
+    </div>
+    <div style="margin-bottom:15px;">
+        <a href="${displayUrl}" target="_blank" style="${btnBase} background:#24292e;">📂 GitHub</a>
+        <button onclick="
+            const el = document.getElementById('${containerId}');
+            const isHidden = el.style.display === 'none';
+            el.style.display = isHidden ? 'block' : 'none';
+            this.innerHTML = isHidden ? '收 CODE' : '👁️ CODE';
+            this.style.background = isHidden ? '#ef4444' : '#10b981';
+        " style="${btnBase} background:#10b981;">👁️ CODE</button>
+        ${colabUrl ? `<a href="${colabUrl}" target="_blank" style="${btnBase} background:#f9ab00;">🚀 Colab</a>` : ''}
+        <a href="${nbViewerUrl}" target="_blank" style="${btnBase} background:#3f51b5;">👀 NBViewer</a>
+    </div>
+    <div id="${containerId}" style="display:none; margin-top:10px;">${codeContent}</div>
+</div>`;
+    } else if (type === 'image') {
+        htmlToInsert = `<div style="text-align:center; margin:20px 0;"><img src="${url}" style="max-width:100%; border-radius:8px; border:1px solid #ddd;"><p style="color:#666; font-size:12px; margin-top:8px;">🖼️ Imagem Externa</p></div>`;
+    } else if (type === 'audio') {
+        htmlToInsert = `<div style="${cardBase} background:#f8fafc;"><div style="margin-bottom:8px;">🎵 <strong>Áudio Externo</strong></div><audio controls src="${url}" style="width:100%;"></audio></div>`;
+    } else if (type === 'video') {
+        htmlToInsert = `<div style="margin:20px 0; background:#000; border-radius:12px; overflow:hidden;"><video controls src="${url}" style="width:100%; display:block;"></video><div style="padding:8px; color:#fff; font-size:11px; text-align:center; background:#222;">🎥 VÍDEO EXTERNO</div></div>`;
+    } else {
+        htmlToInsert = `<div style="${cardBase} border-left:4px solid #2196F3;"><span style="margin-right:8px;">🔗</span><a href="${url}" target="_blank" style="color:#2196F3; font-weight:bold; text-decoration:none;">Acessar Link Externo</a></div>`;
+    }
+    insertMediaIntoTextarea(htmlToInsert);
+};
+
+const insertFileMedia = async (file, type) => {
+    const placeholderId = `${type}_${Date.now()}`;
+    const containerId = `file_${Date.now()}`;
     contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) });
     
-    let markdownToInsert = '';
+    const cardBase = "border:1px solid #e2e8f0; border-radius:12px; padding:16px; background:#f8fafc; margin:15px 0; font-family:sans-serif;";
+    const dlBtn = "background:#0ea5e9; color:white; padding:8px 16px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:bold;";
 
-    if (type === 'image') {
-        markdownToInsert = `![${file.name}](${placeholderId})`;
-    } else if (type === 'audio') {
-        markdownToInsert = `\`\`\`audio\n${placeholderId}\n\`\`\``;
+    let htmlToInsert = '';
+
+    if (type === 'notebook' || type === 'script') {
+        const codeContent = await processCodeContent(await file.text(), type, containerId);
+
+        htmlToInsert = `
+<div style="${cardBase}">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+        <div style="display:flex; align-items:center;">
+            <span style="font-size:28px; margin-right:12px;">${type === 'notebook' ? '🐍' : '📜'}</span>
+            <strong>${file.name}</strong>
+        </div>
+        <div>
+            <button onclick="
+                const el = document.getElementById('${containerId}');
+                const isHidden = el.style.display === 'none';
+                el.style.display = isHidden ? 'block' : 'none';
+                this.innerHTML = isHidden ? '收 FECHAR' : '👁️ VER CÓDIGO';
+            " style="background:#6366f1; color:white; border:none; padding:8px 12px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer; margin-right:8px;">👁️ VER CÓDIGO</button>
+            <a href="${placeholderId}" download="${file.name}" style="${dlBtn}">⬇️ BAIXAR</a>
+        </div>
+    </div>
+    <div id="${containerId}" style="display:none;">${codeContent}</div>
+</div>`;
+    } else if (type === 'image') {
+        htmlToInsert = `<div style="text-align:center; margin:20px 0;"><img src="${placeholderId}" style="max-width:100%; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);"><div style="margin-top:8px;"><a href="${placeholderId}" download="${file.name}" style="color:#0ea5e9; font-size:12px; text-decoration:none; font-weight:bold;">💾 Baixar Imagem</a></div></div>`;
     } else if (type === 'video') {
-        markdownToInsert = `\`\`\`video\n${placeholderId}\n\`\`\``;
-    } else if (type === 'notebook') {
-        markdownToInsert = `\n[Notebook: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'script') {
-        markdownToInsert = `\n[Script: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'document') {
-        markdownToInsert = `\n[Documento: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'data') {
-        markdownToInsert = `\n[Dados: ${file.name}](${placeholderId})\n`;
+        htmlToInsert = `
+<div style="margin:20px 0; background:#000; border-radius:12px; overflow:hidden;">
+    <video controls src="${placeholderId}" style="width:100%; display:block;"></video>
+    <div style="padding:10px; background:#1e293b; display:flex; justify-content:space-between; align-items:center;">
+        <span style="color:#fff; font-size:12px;">🎥 ${file.name}</span>
+        <a href="${placeholderId}" download="${file.name}" style="color:#38bdf8; font-size:12px; font-weight:bold; text-decoration:none;">Download</a>
+    </div>
+</div>`;
+    } else if (type === 'audio') {
+        htmlToInsert = `<div style="${cardBase} background:#fff7ed; border-color:#fdba74;"><div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>🎵 <strong>${file.name}</strong></span><a href="${placeholderId}" download="${file.name}" style="color:#ea580c; font-size:11px; font-weight:bold; text-decoration:none;">Download</a></div><audio controls src="${placeholderId}" style="width:100%;"></audio></div>`;
+    } else {
+        // Documentos (PDF, DOCX) ou Dados (CSV, JSON)
+        const isData = type === 'data';
+        const color = isData ? '#8b5cf6' : '#6366f1';
+        htmlToInsert = `
+<div style="${cardBase} border-left:5px solid ${color};">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center;">
+            <span style="font-size:24px; margin-right:12px;">${isData ? '📊' : '📄'}</span>
+            <div><strong style="color:#333; display:block;">${file.name}</strong><span style="font-size:11px; color:#888;">Arquivo de ${type}</span></div>
+        </div>
+        <a href="${placeholderId}" download="${file.name}" style="background:${color}; color:white; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:11px; font-weight:bold;">BAIXAR</a>
+    </div>
+</div>`;
     }
-
-    insertMediaIntoTextarea(markdownToInsert);
+    
+    insertMediaIntoTextarea(htmlToInsert);
 };
 
 const insertMediaIntoTextarea = (markdownToInsert) => {
@@ -958,8 +966,9 @@ const selectAnalysis = async (analysisStub) => {
   isDropdownVisible.value = false;
   searchQuery.value = analysisStub.title;
   isLoading.value = true;
+  //editingAnalysis.value = getInitialAnalysisState();
+
   cleanupBlobUrls();
-  editingAnalysis.value = getInitialAnalysisState();
   filesToDelete.value = [];
   originalServerFiles.value.clear();
   contentImages.value.clear();
@@ -999,19 +1008,10 @@ const selectAnalysis = async (analysisStub) => {
 
     editingAnalysis.value = analysisState;
     
-    // Atualize o editor com o conteúdo carregado
-    if (editor && analysisState.content) {
-      editor.setValue(analysisState.content);
-    } else if (!editor) {
-      // Se o editor não foi inicializado ainda, marque para inicializar depois
-      nextTick(() => {
-        initMonacoEditor();
-        if (editor && analysisState.content) {
-          setTimeout(() => {
-            editor.setValue(analysisState.content);
-          }, 100);
-        }
-      });
+    if (editor) {
+      editor.setValue(analysisState.content || '');
+    } else {
+      nextTick(() => initMonacoEditor());
     }
     
     feedback.value = { message: 'Análise carregada.', type: 'success' };
@@ -1204,10 +1204,29 @@ const renderedContent = computed(() => {
   const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
   processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
 
-  // Converte markdown para HTML
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+  
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
   return marked(processedContent);
 });
 
+watch(isPreviewMode, async (newVal) => {
+  if (!newVal) { // Quando volta para o modo de edição
+    await nextTick();
+    setTimeout(() => {
+      // Verificamos se 'editor' ainda existe antes de pedir o layout
+      if (editor) { 
+        editor.layout();
+        editor.focus();
+      }
+    }, 550);
+  }
+});
 </script>
 
 <style scoped>
