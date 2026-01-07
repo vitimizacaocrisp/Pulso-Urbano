@@ -1,4 +1,5 @@
 <template>
+  <MeuHeader />
   <main class="page-content">
     <div class="content-wrapper">
       <header class="page-header">
@@ -82,11 +83,15 @@
       </section>
     </div>
   </main>
+  <MeuFooter />
 </template>
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import axios from 'axios';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
+
 
 const analyses = ref([]);
 const searchQuery = ref('');

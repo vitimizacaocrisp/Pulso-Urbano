@@ -1,4 +1,5 @@
 <template>
+  <MeuHeader />
   <div class="page-background">
     <!-- Header Simples e Elegante -->
     <header class="contact-header">
@@ -110,10 +111,13 @@
       </div>
     </main>
   </div>
+  <MeuFooter />
 </template>
 
 <script setup>
 import { reactive, ref, onMounted, onUnmounted } from 'vue';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
 
 const form = reactive({
   name: '',

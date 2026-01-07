@@ -1,4 +1,5 @@
 <template>
+  <MeuHeader />
   <div>
     <!-- Substituição da Section de Vídeo por Canvas Interativo -->
     <section class="hero-canvas-container" ref="heroContainer">
@@ -120,12 +121,16 @@
       </aside>
     </div>
   </div>
+  <MeuFooter />
 </template>
 
 <script setup>
 import {reactive, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import axios from 'axios';
 import RecentPosts from '@/components/RecentPosts.vue';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
+
 
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 

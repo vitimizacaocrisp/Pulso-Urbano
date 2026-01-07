@@ -1,4 +1,5 @@
 <template>
+    <MeuHeader />
     <div class="page-background">
         <!-- Hero Section -->
         <header class="about-hero">
@@ -63,10 +64,13 @@
             </div>
         </main>
     </div>
+    <MeuFooter />
 </template>
 
 <script setup>
 import { onMounted } from 'vue';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
 
 // --- Scroll Animation Logic ---
 const setupScrollAnimations = () => {

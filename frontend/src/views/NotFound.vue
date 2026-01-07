@@ -1,15 +1,24 @@
 <template>
+  <MeuHeader />
   <div class="not-found-simple">
     <h1>404</h1>
     <h2>Página Não Encontrada</h2>
     <p>Desculpe, a página que você está procurando não existe.</p>
     <router-link to="/">Voltar para Home</router-link>
   </div>
+  <MeuFooter />
 </template>
 
 <script>
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
+
 export default {
-  name: 'NotFound'
+  name: 'NotFound',
+  components: {
+    MeuHeader,
+    MeuFooter
+  }
 }
 </script>
 

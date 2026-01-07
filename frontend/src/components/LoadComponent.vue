@@ -17,32 +17,7 @@
 </template>
 
 <script setup>
-  import { onMounted, onUnmounted } from 'vue'
-  import { useRouter } from 'vue-router'
-  import axios from 'axios'
 
-  const router = useRouter()
-
-  const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000'
-
-  let interval = null
-
-  const checkServer = async () => {
-    try {
-      await axios.get(API_BASE_URL + '/health', { timeout: 100000 })
-      router.replace({ name: 'AdminLogin' })
-    } catch {
-      // servidor ainda offline → continua tentando
-    }
-  }
-
-  onMounted(() => {
-    interval = setInterval(checkServer, 1500)
-  })
-
-  onUnmounted(() => {
-    if (interval) clearInterval(interval)
-  })
 </script>
 
 

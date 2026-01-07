@@ -27,15 +27,6 @@ const checkAuthStatus = async () => {
   }
 };
 
-const checkBackendOnline = async () => {
-  try {
-    await axios.get(API_BASE_URL + '/health', { timeout: 30000 });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 
 const routes = [
   // --- Rotas Públicas (acessíveis a todos) ---
@@ -44,12 +35,6 @@ const routes = [
     name: "Home",
     component: () => import("../views/HomeView.vue"),
     meta: { requiresAuth: true }
-  },
-  {
-    path: '/loading',
-    name: 'Loading',
-    component: () => import('../views/LoadingView.vue'),
-    meta: { hideLayout: true }
   },
   {
     path: "/contato",
@@ -78,15 +63,14 @@ const routes = [
   {
     path: '/login',
     name: 'AdminLogin',
-    component: () => import("@/views/admin/AdminLogin.vue"),
-    meta: { hideLayout: true }
+    component: () => import("@/views/admin/AdminLogin.vue")
   },
 
   // --- Rotas de Administração (protegidas) ---
   {
     path: '/admin',
     component: () => import('../views/admin/AdminLayout.vue'),
-    meta: { requiresAuth: true, hideLayout: true },
+    meta: { requiresAuth: true},
     children: [
       {
         path: 'dashboard',
@@ -127,24 +111,6 @@ const router = createRouter({
 
 // Guarda de Rota Global: lida com a lógica primária de navegação.
 router.beforeEach(async (to, from, next) => {
-  const backendOnline = await checkBackendOnline();
-
-  /* ─────────────────────────────
-     BACKEND OFFLINE
-  ───────────────────────────── */
-  if (!backendOnline) {
-    if (to.name !== 'Loading') {
-      return next({ name: 'Loading' });
-    }
-    return next();
-  }
-
-  /* ─────────────────────────────
-     BACKEND ONLINE
-  ───────────────────────────── */
-  if (to.name === 'Loading') {
-    return next({ name: 'AdminLogin' });
-  }
 
   /* ─────────────────────────────
      AUTENTICAÇÃO

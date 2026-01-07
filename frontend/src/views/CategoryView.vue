@@ -1,4 +1,5 @@
 <template>
+  <MeuHeader />
   <main class="page-content">
     <div class="category-hero">
         <header class="page-header">
@@ -83,12 +84,15 @@
       </section>
     </div>
   </main>
+  <MeuFooter />
 </template>
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
 
 const route = useRoute();
 const analyses = ref([]);

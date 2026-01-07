@@ -11,7 +11,6 @@
         <div class="modal-body">
           <p class="menu-instruction">Escolha o tipo de recurso que deseja inserir:</p>
           <div class="resource-grid">
-            <!-- Mídia -->
             <button @click="selectResourceType('image')" class="resource-btn">
               <span class="icon">🖼️</span>
               <span class="label">Imagem</span>
@@ -25,7 +24,6 @@
               <span class="label">Vídeo</span>
             </button>
             
-            <!-- Código e Análise -->
             <button @click="selectResourceType('notebook')" class="resource-btn highlight-purple">
               <span class="icon">🐍</span>
               <span class="label">Notebook</span>
@@ -35,17 +33,15 @@
               <span class="label">Script</span>
             </button>
 
-            <!-- Documentos e Dados (Movidos para cá) -->
             <button @click="selectResourceType('document')" class="resource-btn highlight-blue">
               <span class="icon">📄</span>
               <span class="label">Documento</span>
             </button>
             <button @click="selectResourceType('data')" class="resource-btn highlight-green">
               <span class="icon">📊</span>
-<span class="label">Dados (CSV/XLS)</span>
+              <span class="label">Dados (CSV/XLS)</span>
             </button>
             
-            <!-- Extra: Link Genérico -->
             <button @click="selectResourceType('link')" class="resource-btn">
               <span class="icon">🔗</span>
               <span class="label">Link Card</span>
@@ -55,7 +51,7 @@
       </div>
     </div>
 
-    <!-- MODAL 2: INPUT DE URL OU UPLOAD (JÁ EXISTENTE, ADAPTADO) -->
+    <!-- MODAL 2: INPUT DE URL OU UPLOAD -->
     <div v-if="showMediaModal" class="modal-overlay" @click.self="closeMediaModal">
       <div class="modal-content">
         <div class="modal-header">
@@ -70,7 +66,6 @@
             >
               🔗 Via URL
             </button>
-            <!-- Desabilita upload para Link genérico -->
             <button 
               v-if="activeMediaType !== 'link'"
               :class="['tab-btn', { active: mediaInputType === 'file' }]" 
@@ -91,10 +86,11 @@
           </div>
 
           <div v-if="mediaInputType === 'file' && activeMediaType !== 'link'" class="input-section">
-            <label>Selecione o arquivo:</label>
+            <label>Selecione os arquivos:</label>
             <div class="file-upload-box">
               <input 
                 type="file" 
+                multiple
                 ref="mediaFileInputRef" 
                 @change="handleModalFileChange" 
                 :accept="getAcceptAttribute(activeMediaType)"
@@ -102,9 +98,14 @@
                 id="modalFileUpload"
               >
               <label for="modalFileUpload" class="file-upload-label">
-                <span v-if="selectedMediaFile">✅ {{ selectedMediaFile.name }}</span>
-                <span v-else>Escolher Arquivo...</span>
+                <span v-if="selectedMediaFiles.length > 0">
+                  ✅ {{ selectedMediaFiles.length }} arquivo(s) selecionado(s)
+                </span>
+                <span v-else>Escolher Arquivos...</span>
               </label>
+            </div>
+            <div v-if="selectedMediaFiles.length > 0" class="selected-files-list" style="margin-top: 5px; font-size: 0.85em; color: #666;">
+                <div v-for="(f, i) in selectedMediaFiles" :key="i">📄 {{ f.name }}</div>
             </div>
           </div>
         </div>
@@ -127,7 +128,7 @@
       </div>
     </header>
 
-    <section v-if="!isPreviewMode" class="content-section">
+    <section v-show="!isPreviewMode" class="content-section">
       <form @submit.prevent="publishAnalysis" class="form-container">
        <fieldset>
          <legend>Metadados da Análise</legend>
@@ -164,12 +165,15 @@
          <div class="form-group">
            <label for="category">Categoria <span class="required">*</span></label>
            <select id="category" v-model="newAnalysis.category" required>
-             <option value="" disabled>Selecione uma categoria</option>
-             <option>Educação</option>
-             <option>Saúde</option>
-             <option>Política</option>
-             <option>Criminalidade</option>
-             <option>Tecnologia e Inovação</option>
+            <option value="" disabled>Selecione uma categoria</option>
+            <option>Metodologia e Amostra</option>
+            <option>Crimes Contra o Patrimônio</option>
+            <option>Crimes Contra a Pessoa</option>
+            <option>Sensação de Segurança</option>
+            <option>Subnotificação (Cifras Ocultas)</option>
+            <option>Perfil das Vítimas</option>
+            <option>Violência Doméstica e Gênero</option>
+            <option>Outras Categorias</option>
            </select>
          </div>
          <div class="form-group">
@@ -192,28 +196,28 @@
              
              <!-- Botões de formatação -->
              <div class="editor-format-buttons">
-               <button type="button" @click="formatText('bold')" title="Negrito (Ctrl+B)" class="format-btn">
+               <button type="button" @click="applyFormat('bold')" title="Negrito (Ctrl+B)" class="format-btn">
                  <strong>B</strong>
                </button>
-               <button type="button" @click="formatText('italic')" title="Itálico (Ctrl+I)" class="format-btn">
+               <button type="button" @click="applyFormat('italic')" title="Itálico (Ctrl+I)" class="format-btn">
                  <em>I</em>
                </button>
-               <button type="button" @click="formatText('heading')" title="Título" class="format-btn">
+               <button type="button" @click="applyFormat('heading')" title="Título" class="format-btn">
                  H
                </button>
-               <button type="button" @click="formatText('list')" title="Lista" class="format-btn">
+               <button type="button" @click="applyFormat('list')" title="Lista" class="format-btn">
                  ••
                </button>
-               <button type="button" @click="formatText('code')" title="Código" class="format-btn">
+               <button type="button" @click="applyFormat('code')" title="Código" class="format-btn">
                  { }
                </button>
-               <button type="button" @click="formatText('link')" title="Link" class="format-btn">
+               <button type="button" @click="applyFormat('link')" title="Link" class="format-btn">
                  🔗
                </button>
-               <button type="button" @click="formatText('image')" title="Imagem" class="format-btn">
+               <button type="button" @click="applyFormat('image')" title="Imagem" class="format-btn">
                  🖼️
                </button>
-               <button type="button" @click="formatText('quote')" title="Citação" class="format-btn">
+               <button type="button" @click="applyFormat('quote')" title="Citação" class="format-btn">
                  "
                </button>
              </div>
@@ -259,7 +263,7 @@
     </section>
 
     <!-- PRÉ-VISUALIZAÇÃO DA NOTÍCIA -->
-    <section v-else class="news-preview">
+    <section v-show="isPreviewMode" class="news-preview">
       <div class="preview-cover" v-if="imagePreviewUrl">
         <img :src="imagePreviewUrl" alt="Imagem de Capa" class="cover-image" />
       </div>
@@ -297,6 +301,16 @@ import { marked } from 'marked';
 import axios from 'axios';
 import { openDB } from 'idb';
 import * as monaco from 'monaco-editor';
+// Importação do arquivo compartilhado
+import { 
+    mediaTypeLabels, 
+    getAcceptAttribute, 
+    formatText, 
+    generateUrlMediaHtml, 
+    generateFileMediaHtml 
+} from '@/assets/js/analysisUtils.js';
+
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 // --- LÓGICA DO BANCO DE DADOS (INDEXEDDB) ---
 const DB_NAME = 'analysis-draft-db';
@@ -341,11 +355,11 @@ const feedback = ref({ message: '', type: '' });
 const showResourceTypeMenu = ref(false);
 const showMediaModal = ref(false);
 
-const activeMediaType = ref(''); // 'image', 'audio', 'video', 'notebook', 'script', 'document', 'data', 'link'
-const mediaInputType = ref('url'); // 'url' ou 'file'
+const activeMediaType = ref('');
+const mediaInputType = ref('url');
 const mediaUrlInput = ref('');
 const mediaFileInputRef = ref(null);
-const selectedMediaFile = ref(null);
+const selectedMediaFiles = ref([]); // MUDANÇA: Array de arquivos
 
 // Monaco Editor
 const editorContainer = ref(null);
@@ -353,17 +367,6 @@ let editor = null;
 
 const contentImages = ref(new Map());
 const imagePreviewUrl = ref('');
-
-const mediaTypeLabels = {
-    'image': 'Imagem',
-    'audio': 'Áudio',
-    'video': 'Vídeo',
-    'notebook': 'Notebook Python',
-    'script': 'Script',
-    'document': 'Documento (PDF/Word)',
-    'data': 'Base de Dados (CSV/Excel)',
-    'link': 'Link Externo'
-};
 
 const getInitialAnalysisState = () => ({
   title: '',
@@ -382,26 +385,18 @@ const getInitialAnalysisState = () => ({
 
 const newAnalysis = ref(getInitialAnalysisState());
 
-function randomSuffix() {
-  return Math.floor(Math.random() * 1e6).toString();
-}
-
 // --- MONACO EDITOR ---
 const initMonacoEditor = () => {
   if (!editorContainer.value) return;
 
-  // Verifique se Monaco já está carregado
   if (typeof window !== 'undefined' && window.monaco) {
     createEditor();
     return;
   }
-
-  // Tente carregar o Monaco
   try {
     createEditor();
   } catch (error) {
     console.error('Erro ao inicializar Monaco Editor:', error);
-    // Fallback: use o textarea normal
     const textarea = document.createElement('textarea');
     textarea.id = 'content';
     textarea.vModel = 'newAnalysis.content';
@@ -416,7 +411,6 @@ const initMonacoEditor = () => {
 const createEditor = () => {
   if (!editorContainer.value || editor) return;
 
-  // Configure o editor
   editor = monaco.editor.create(editorContainer.value, {
     value: newAnalysis.value.content,
     language: 'markdown',
@@ -450,276 +444,25 @@ const createEditor = () => {
     insertSpaces: true,
   });
 
-  // Sincronize o conteúdo do editor com o v-model
   editor.onDidChangeModelContent(() => {
     newAnalysis.value.content = editor.getValue();
   });
 
-  // Adicionar atalhos de teclado
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
-    formatText('bold');
+    applyFormat('bold');
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    formatText('italic');
+    applyFormat('italic');
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
-    formatText('heading');
-  });
-
-  // Configure sugestões para Markdown
-  monaco.languages.registerCompletionItemProvider('markdown', {
-    provideCompletionItems: (model, position) => {
-      const word = model.getWordUntilPosition(position);
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn
-      };
-
-      return {
-        suggestions: [
-          {
-            label: '# Título 1',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '# ',
-            range: range
-          },
-          {
-            label: '## Título 2',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '## ',
-            range: range
-          },
-          {
-            label: '### Título 3',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: '### ',
-            range: range
-          },
-          {
-            label: '**negrito**',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '**${1:texto}**',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '*itálico*',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '*${1:texto}*',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '[link](url)',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '[${1:texto}](${2:url})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '![imagem](url)',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '![${1:alt}](${2:url})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '```code```',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '```\n${1:code}\n```',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range
-          },
-          {
-            label: '> citação',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '> ',
-            range: range
-          },
-          {
-            label: '- lista',
-            kind: monaco.languages.CompletionItemKind.Value,
-            insertText: '- ',
-            range: range
-          },
-        ]
-      };
-    }
-  });
-
-  // Adicionar hover para Markdown
-  monaco.languages.registerHoverProvider('markdown', {
-    provideHover: (model, position) => {
-      const word = model.getWordAtPosition(position);
-      if (word) {
-        const markdownTips = {
-          '#': 'Cabeçalho Nível 1',
-          '##': 'Cabeçalho Nível 2',
-          '###': 'Cabeçalho Nível 3',
-          '**': 'Texto em negrito',
-          '*': 'Texto em itálico',
-          '```': 'Bloco de código',
-          '>': 'Citação',
-          '-': 'Item de lista',
-          '[': 'Link',
-          '![': 'Imagem'
-        };
-        
-        const tip = markdownTips[word.word];
-        if (tip) {
-          return {
-            contents: [
-              { value: `**${tip}**` },
-              { value: 'Sintaxe Markdown' }
-            ]
-          };
-        }
-      }
-      return null;
-    }
+    applyFormat('heading');
   });
 };
 
-// --- FUNÇÕES DE FORMATAÇÃO ---
-const formatText = (type) => {
-  if (!editor) return;
-
-  const selection = editor.getSelection();
-  const model = editor.getModel();
-  const text = model.getValueInRange(selection);
-  const position = selection.getStartPosition();
-
-  let newText = '';
-  let range = null;
-
-  switch (type) {
-    case 'bold':
-      newText = text ? `**${text}**` : '**texto**';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'italic':
-      newText = text ? `*${text}*` : '*texto*';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'heading':
-      newText = text ? `# ${text}` : '# Título';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'list':
-      newText = text ? `- ${text}` : '- Item da lista';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'code':
-      if (text) {
-        newText = `\`${text}\``;
-        range = new monaco.Range(
-          position.lineNumber,
-          position.column,
-          position.lineNumber,
-          position.column + newText.length
-        );
-      } else {
-        newText = '```\n\n```';
-        range = new monaco.Range(
-          position.lineNumber,
-          position.column,
-          position.lineNumber + 2,
-          3
-        );
-      }
-      break;
-      
-    case 'link':
-      newText = text ? `[${text}](url)` : '[texto](url)';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'image':
-      newText = text ? `![${text}](url)` : '![alt](url)';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-      
-    case 'quote':
-      newText = text ? `> ${text}` : '> Citação';
-      range = new monaco.Range(
-        position.lineNumber,
-        position.column,
-        position.lineNumber,
-        position.column + newText.length
-      );
-      break;
-  }
-
-  if (text) {
-    // Se há texto selecionado, substitua
-    editor.executeEdits('', [
-      {
-        range: selection,
-        text: newText,
-        forceMoveMarkers: true
-      }
-    ]);
-  } else {
-    // Se não há texto selecionado, insira no cursor
-    editor.executeEdits('', [
-      {
-        range: range,
-        text: newText,
-        forceMoveMarkers: true
-      }
-    ]);
-    
-    // Coloque o cursor dentro do texto inserido
-    if (type === 'bold' || type === 'italic' || type === 'code' && !text) {
-      setTimeout(() => {
-        const newPosition = new monaco.Position(
-          position.lineNumber,
-          type === 'bold' || type === 'italic' ? position.column + 2 : 
-          type === 'code' ? position.lineNumber + 1 : position.column + 1
-        );
-        editor.setPosition(newPosition);
-        editor.focus();
-      }, 10);
-    }
-  }
+const applyFormat = (type) => {
+    formatText(editor, type);
 };
 
 // --- CONTROLE DOS MENUS E MODAIS ---
@@ -733,15 +476,14 @@ const closeResourceMenu = () => {
 
 const selectResourceType = (type) => {
     activeMediaType.value = type;
-    showResourceTypeMenu.value = false; // Fecha o menu
+    showResourceTypeMenu.value = false;
     
-    // Reseta estado do modal de input
     mediaInputType.value = 'url'; 
     mediaUrlInput.value = '';
-    selectedMediaFile.value = null;
+    selectedMediaFiles.value = [];
     if (mediaFileInputRef.value) mediaFileInputRef.value.value = '';
     
-    showMediaModal.value = true; // Abre modal de input
+    showMediaModal.value = true;
 };
 
 const returnToMenu = () => {
@@ -753,111 +495,52 @@ const closeMediaModal = () => {
     showMediaModal.value = false;
 };
 
-const getAcceptAttribute = (type) => {
-    switch(type) {
-        case 'image': return 'image/*';
-        case 'audio': return 'audio/*';
-        case 'video': return 'video/*';
-        case 'notebook': return '.ipynb,.html';
-        case 'script': return '.py,.js,.r,.txt,.sh';
-        case 'document': return '.pdf,.doc,.docx,.ppt,.pptx';
-        case 'data': return '.csv,.xls,.xlsx,.json,.xml';
-        default: return '*/*';
-    }
-};
-
 const handleModalFileChange = (event) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-        selectedMediaFile.value = files[0];
+        selectedMediaFiles.value = Array.from(files);
     }
 };
 
-const confirmMediaInsertion = () => {
+const confirmMediaInsertion = async () => {
     if (mediaInputType.value === 'url') {
         if (!mediaUrlInput.value) {
             alert("Por favor, insira uma URL válida.");
             return;
         }
-        insertUrlMedia(mediaUrlInput.value, activeMediaType.value);
+        const html = await generateUrlMediaHtml(mediaUrlInput.value, activeMediaType.value);
+        insertMediaIntoTextarea(html);
     } else {
-        if (!selectedMediaFile.value && activeMediaType.value !== 'link') {
-            alert("Por favor, selecione um arquivo.");
+        if (selectedMediaFiles.value.length === 0 && activeMediaType.value !== 'link') {
+            alert("Por favor, selecione pelo menos um arquivo.");
             return;
         }
-        insertFileMedia(selectedMediaFile.value, activeMediaType.value);
+
+        // --- LÓGICA DE LOTE (Múltiplos Arquivos) ---
+        let batchHtml = '';
+        const loadingBtn = document.querySelector('.btn-confirm');
+        const originalText = loadingBtn ? loadingBtn.innerText : 'Inserir';
+        if(loadingBtn) loadingBtn.innerText = 'Processando...';
+
+        for (const file of selectedMediaFiles.value) {
+            try {
+                // Usa a função compartilhada para gerar o HTML e os metadados
+                const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, activeMediaType.value);
+                
+                // Armazena no mapa local para o upload posterior
+                contentImages.value.set(placeholderId, { file, blobUrl });
+                
+                batchHtml += html + '\n';
+            } catch (error) {
+                console.error(`Erro ao processar arquivo ${file.name}`, error);
+            }
+        }
+
+        insertMediaIntoTextarea(batchHtml);
+        
+        if(loadingBtn) loadingBtn.innerText = originalText;
     }
     closeMediaModal();
-};
-
-const insertUrlMedia = (url, type) => {
-    let htmlToInsert = '';
-    
-    // Tratamento específico para URLs
-    if (type === 'image') {
-        htmlToInsert = `![Imagem externa](${url})`;
-    } else if (type === 'audio') {
-        htmlToInsert = `\`\`\`audio\n${url}\n\`\`\``;
-    } else if (type === 'video') {
-        htmlToInsert = `\`\`\`video\n${url}\n\`\`\``;
-    } else if (type === 'notebook') {
-        // Lógica de Notebook do GitHub (Raw -> NbViewer/Colab)
-        const nbViewerUrl = `https://nbviewer.org/urls/${url.replace(/^https?:\/\//, '')}`;
-        let colabUrl = '';
-        if (url.includes('github') || url.includes('raw.githubusercontent.com')) {
-             const parts = url.split('/');
-             let userIndex = parts.findIndex(p => p === 'raw.githubusercontent.com' || p === 'github.com');
-             if (userIndex !== -1 && parts.length >= userIndex + 3) {
-                 const user = parts[userIndex + 1];
-                 const repo = parts[userIndex + 2];
-                 let rest = parts.slice(userIndex + 3).join('/');
-                 if (rest.startsWith('refs/heads/')) rest = rest.replace('refs/heads/', '');
-                 if (rest.startsWith('blob/')) rest = rest.replace('blob/', '');
-                 colabUrl = `https://colab.research.google.com/github/${user}/${repo}/blob/${rest}`;
-             }
-        }
-
-        htmlToInsert = `\n[Notebook Python](${url})\n`;
-        if (colabUrl) {
-            htmlToInsert += `[Executar no Colab](${colabUrl})\n`;
-        }
-        htmlToInsert += `[Visualizar no NbViewer](${nbViewerUrl})\n`;
-    } else if (type === 'script') {
-        htmlToInsert = `\n[Script](${url})\n`;
-    } else if (type === 'document') {
-        htmlToInsert = `\n[Documento de Referência](${url})\n`;
-    } else if (type === 'data') {
-        htmlToInsert = `\n[Base de Dados](${url})\n`;
-    } else if (type === 'link') {
-        htmlToInsert = `\n[${url}](${url})\n`;
-    }
-
-    insertMediaIntoTextarea(htmlToInsert);
-};
-
-const insertFileMedia = (file, type) => {
-    const placeholderId = `${type}_${Date.now()}_${randomSuffix()}`;
-    contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file) });
-    
-    let markdownToInsert = '';
-
-    if (type === 'image') {
-        markdownToInsert = `![${file.name}](${placeholderId})`;
-    } else if (type === 'audio') {
-        markdownToInsert = `\`\`\`audio\n${placeholderId}\n\`\`\``;
-    } else if (type === 'video') {
-        markdownToInsert = `\`\`\`video\n${placeholderId}\n\`\`\``;
-    } else if (type === 'notebook') {
-        markdownToInsert = `\n[Notebook: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'script') {
-        markdownToInsert = `\n[Script: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'document') {
-        markdownToInsert = `\n[Documento: ${file.name}](${placeholderId})\n`;
-    } else if (type === 'data') {
-        markdownToInsert = `\n[Dados: ${file.name}](${placeholderId})\n`;
-    }
-
-    insertMediaIntoTextarea(markdownToInsert);
 };
 
 const insertMediaIntoTextarea = (markdownToInsert) => {
@@ -882,7 +565,6 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
     }
   ]);
   
-  // Mova o cursor para o final do conteúdo inserido
   const newPosition = new monaco.Position(
     position.lineNumber + 1,
     markdownToInsert.length + 1
@@ -893,26 +575,33 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
 
 // --- LÓGICA DE RENDERIZAÇÃO DE CONTEÚDO ---
 const renderedContent = computed(() => {
-  if (!newAnalysis.value.content) return '<p><em>Comece a escrever para ver a pré-visualização...</em></p>';
+  if (!newAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
   
   let processedContent = newAnalysis.value.content.trim();
 
-  // Processa placeholders de mídia (Imagens, Audio, Video, Files)
   for (const [placeholderId, mediaData] of contentImages.value.entries()) {
     if (mediaData.blobUrl) {
-      // Regex global para substituir todas as ocorrências do ID
       const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
       processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
     }
   }
 
-  // Converte markdown para HTML
+  const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
+  processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
+
+  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
+    return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+  
+  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
+  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
+  
+  if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
   return marked(processedContent);
 });
 
 // ---- SALVAR RASCUNHO ----
 const saveDraft = async () => {
-  console.log("Salvando rascunho...");
   const draftData = JSON.parse(JSON.stringify(newAnalysis.value)); 
 
   const processFile = async (file, fieldPath) => {
@@ -928,7 +617,6 @@ const saveDraft = async () => {
     draftData.coverImage = await processFile(draftData.coverImage, 'coverImage');
   }
 
-  // Documentos e Dados agora são salvos via contentMediaMap
   draftData.contentMediaMap = {};
   const contentMapPromises = [];
   for (const [placeholderId, mediaData] of contentImages.value.entries()) {
@@ -993,7 +681,6 @@ const loadDraft = async () => {
 
   Object.assign(newAnalysis.value, draftData);
   
-  // Atualize o editor com o conteúdo carregado
   if (editor && newAnalysis.value.content) {
     editor.setValue(newAnalysis.value.content);
   }
@@ -1001,7 +688,6 @@ const loadDraft = async () => {
   console.log("Rascunho carregado.");
 };
 
-// ---- WATCH COM DEBOUNCE ----
 let debounceTimer = null;
 watch(newAnalysis, () => {
   clearTimeout(debounceTimer);
@@ -1011,12 +697,10 @@ watch(newAnalysis, () => {
 onMounted(async () => {
   await loadDraft();
   
-  // Inicialize o editor depois que o componente estiver montado
   nextTick(() => {
     initMonacoEditor();
   });
   
-  // Atualize o editor periodicamente se o conteúdo mudar
   watch(() => newAnalysis.value.content, (newContent) => {
     if (editor && editor.getValue() !== newContent) {
       editor.setValue(newContent);
@@ -1051,7 +735,6 @@ onBeforeUnmount(() => {
   }
 });
 
-// ---- VALIDAR FORM ----
 const isFormInvalid = computed(() =>
   !newAnalysis.value.title ||
   !newAnalysis.value.tag ||
@@ -1062,7 +745,6 @@ const isFormInvalid = computed(() =>
   !newAnalysis.value.coverImage
 );
 
-// ---- UPLOAD DE ARQUIVOS (Apenas Capa agora) ----
 const handleFileSelection = (event, fieldName) => {
   const files = event.target.files;
   if (!files || files.length === 0) return;
@@ -1076,7 +758,6 @@ const handleFileSelection = (event, fieldName) => {
   }
 };
 
-// ---- RESETAR FORM ----
 const resetForm = async () => {
   await clearAllDraftFiles();
   localStorage.removeItem(DRAFT_KEY);
@@ -1098,7 +779,6 @@ const confirmAndClearForm = async () => {
   }
 };
 
-// ---- PUBLICAR ----
 const publishAnalysis = async () => {
   if (isFormInvalid.value) {
     feedback.value = { message: 'Por favor, preencha todos os campos obrigatórios.', type: 'error' };
@@ -1109,7 +789,6 @@ const publishAnalysis = async () => {
   const formData = new FormData();
 
   let finalContent = newAnalysis.value.content;
-  // Substitui blobs por placeholders antes do envio
   for (const [placeholder, data] of contentImages.value.entries()) {
     if (data.blobUrl) {
       const regex = new RegExp(data.blobUrl.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
@@ -1126,13 +805,11 @@ const publishAnalysis = async () => {
 
   if (dataToSend.coverImage) formData.append('coverImage', dataToSend.coverImage);
   
-  // Anexa todos os arquivos do mapa de mídia
   contentImages.value.forEach((mediaData, placeholder) => formData.append(placeholder, mediaData.file));
   
   try {
     const token = localStorage.getItem('authToken');
-    const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-    const response = await axios.post(`${apiUrl}/api/admin/analyses`, formData, {
+    const response = await axios.post(`${API_BASE_URL}/api/admin/analyses`, formData, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     feedback.value = { message: response.data.message || 'Análise publicada com sucesso!', type: 'success' };
@@ -1145,301 +822,17 @@ const publishAnalysis = async () => {
     setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
   }
 };
-
+watch(isPreviewMode, async (newVal) => {
+  if (!newVal) {
+    await nextTick();
+    setTimeout(() => {
+      if (editor) { 
+        editor.layout();
+        editor.focus();
+      }
+    }, 550);
+  }
+});
 </script>
 
-<style scoped>
-/* ESTILOS GERAIS */
-.content-manager-wrapper {
-    position: relative;
-}
-
-/* --- ESTILOS DO MODAL DE MENU (GRADE) --- */
-.menu-content {
-    max-width: 650px; /* Mais largo para a grade */
-}
-.menu-instruction {
-    text-align: center;
-    color: #666;
-    margin-bottom: 1.5rem;
-}
-.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; }
-.resource-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem 0.5rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    height: 100%;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-.resource-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    border-color: #007bff;
-}
-.resource-btn .icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-}
-.resource-btn .label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #444;
-    text-align: center;
-}
-/* Destaques opcionais para grupos de ícones */
-.highlight-purple .icon { filter: drop-shadow(0 0 5px rgba(138, 43, 226, 0.2)); }
-.highlight-blue .icon { filter: drop-shadow(0 0 5px rgba(0, 123, 255, 0.2)); }
-.highlight-green .icon { filter: drop-shadow(0 0 5px rgba(40, 167, 69, 0.2)); }
-
-.btn-back {
-    padding: 0.5rem 1rem; border: none; background: transparent; color: #666; cursor: pointer; font-weight: 500;
-}
-.btn-back:hover { color: #333; text-decoration: underline; }
-
-/* --- ESTILOS DO MODAL DE MÍDIA (JÁ EXISTENTES) --- */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex; justify-content: center; align-items: center; z-index: 2000;
-}
-.modal-content { background: white; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden; }
-
-.modal-header {
-    background: #f8f9fa; padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0;
-}
-.modal-header h3 { margin: 0; font-size: 1.1rem; color: #333; }
-.btn-close-modal { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
-.modal-body { padding: 1.5rem; }
-.modal-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; }
-.tab-btn {
-    background: none; border: none; padding: 0.5rem 1rem; cursor: pointer;
-    font-size: 0.95rem; color: #666; border-bottom: 2px solid transparent;
-}
-.tab-btn.active { color: #007bff; border-bottom: 2px solid #007bff; font-weight: 600; }
-.input-section { margin-top: 1rem; }
-.input-section label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-.modal-input { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-.file-upload-box {
-    border: 2px dashed #ccc; padding: 2rem; text-align: center; border-radius: 4px;
-    cursor: pointer; transition: background 0.2s;
-}
-.file-upload-box:hover { background: #f9f9f9; }
-.file-input-hidden { display: none; }
-.file-upload-label { cursor: pointer; display: block; width: 100%; height: 100%; font-weight: 600; color: #007bff; }
-.modal-footer {
-    padding: 1rem; background: #f8f9fa; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 0.5rem;
-}
-.btn-cancel { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; }
-.btn-confirm { padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.btn-confirm:hover { background: #0056b3; }
-
-.fieldset-image {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* TOOLBAR DO EDITOR */
-.single-button-toolbar {
-    background-color: #f8f9fa; 
-    padding: 0.75rem 1rem; 
-    border: 1px solid #ccc; 
-    border-bottom: none; 
-    border-top-left-radius: 4px; 
-    border-top-right-radius: 4px;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-.toolbar-main-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: background 0.2s;
-}
-.toolbar-main-btn:hover { background-color: #0056b3; }
-.plus-icon { font-size: 1.1rem; }
-.toolbar-hint { 
-    color: #666; 
-    font-size: 0.9rem; 
-    font-style: italic;
-    flex: 1;
-    min-width: 200px;
-}
-
-/* Botões de formatação */
-.editor-format-buttons {
-    display: flex;
-    gap: 4px;
-    margin-left: auto;
-    flex-wrap: wrap;
-}
-
-.format-btn {
-    background: #2d2d2d;
-    color: #fff;
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 13px;
-    cursor: pointer;
-    min-width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.format-btn:hover {
-    background: #3d3d3d;
-    border-color: #007bff;
-}
-
-.format-btn strong, .format-btn em {
-    font-size: 13px;
-}
-
-/* Monaco Editor Container */
-.editor-container {
-    height: 600px;
-    border: 1px solid #ccc;
-    border-radius: 0 0 4px 4px;
-    border-top: none;
-    overflow: hidden;
-}
-
-/* Para tema claro do editor */
-:deep(.vs) {
-    --monaco-editor-background: #ffffff;
-}
-
-:deep(.vs-dark) {
-    --monaco-editor-background: #1e1e1e;
-}
-
-/* DEMAIS ESTILOS MANTIDOS */
-.main-header-bar { background-color: #fff; padding: 1.5rem 2rem; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.header-content h1 { margin: 0; }
-.header-content p { margin: 0; color: #6c757d; }
-.btn-toggle-preview { background-color: transparent; border: 1px solid #007bff; color: #007bff; padding: .5rem 1rem; border-radius: 5px; cursor: pointer; font-weight: 500; }
-.btn-toggle-preview:hover { background-color: #007bff; color: #fff; }
-.content-section { padding: 2rem; max-width: 1200px; margin: 0 auto; }
-.form-container { background-color: #fff; padding: 2.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.1); }
-fieldset { border: 1px solid #e0e0e0; border-radius: 8px; padding: 2rem; margin-bottom: 2rem; }
-legend { font-size: 1.2rem; font-weight: 600; padding: 0 .5rem; color: #333; }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 1.5rem; }
-.form-group { margin-bottom: 1.5rem; }
-.form-group label { display: block; margin-bottom: .5rem; font-weight: 500; color: #555; }
-.form-group input, .form-group textarea, .form-group select { width: 100%; padding: .75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; box-sizing: border-box; }
-.required { color: #dc3545; }
-
-.form-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.btn-publish { padding: .8rem 2rem; background-color: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 700; }
-.btn-publish:disabled { background-color: #a5d6a7; cursor: not-allowed; }
-.btn-clear { padding: .8rem 1.5rem; background-color: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 500; }
-.btn-clear:hover { background-color: #5a6268; }
-
-.image-preview { max-width: 200px; margin-top: 1rem; border-radius: 4px; border: 1px solid #ddd; }
-.feedback-message { margin-top: 1.5rem; padding: 1rem; border-radius: 4px; font-weight: 500; }
-.feedback-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-.feedback-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-/* PRÉ-VISUALIZAÇÃO */
-.news-preview { max-width: 1000px; margin: 1rem auto 3rem; background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.07); overflow: hidden; padding-bottom: 2rem; }
-.preview-cover { width: 100%; }
-.cover-image { width: 100%; max-height: 320px; object-fit: cover; display: block; }
-.preview-header { padding: 1.5rem 2rem 0.5rem 2rem; text-align: left; }
-.preview-title { font-size: 2.5rem; color: #222; margin-bottom: 0.25rem; line-height: 1.1; font-weight: 900; letter-spacing: -1px; }
-.preview-subtitle { font-size: 1.25rem; color: #009dc4; font-weight: 500; margin-bottom: 0.25rem; }
-.preview-meta { font-size: 0.92rem; color: #888; margin-bottom: 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
-.preview-category { background: #009dc4; color: #fff; font-weight: 600; padding: 0.1em 0.75em; border-radius: 36px; font-size: 0.9em; }
-.preview-description { overflow-wrap: anywhere; padding: 0 2rem 1rem 2rem; font-size: 1.22rem; color: #333; font-weight: 400; }
-.preview-content { padding: 1rem 2rem 0 2rem; font-size: 1.08rem; color: #212121; word-break: break-word; }
-.preview-section-title { padding: 1.5rem 2rem 0.5rem 2rem; color: #009dc4; font-weight: bold; font-size: 1.1rem; }
-.preview-links { padding: 0 2rem 1rem 2rem; list-style: disc inside; margin-bottom: 1rem; }
-.preview-links a { color: #0079ba; text-decoration: underline; }
-
-/* MÍDIA INCORPORADA */
-:deep(.preview-content figure) { margin: 2rem auto; text-align: center; }
-:deep(.preview-content figcaption) { margin-top: 0.75rem; color: #6c757d; font-size: 0.9rem; font-style: italic; }
-:deep(.preview-content img) { max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-:deep(.preview-content video) { max-width: 800px; width: 80%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background-color: #000; outline: none; }
-:deep(.preview-content audio) { width: 100%; max-width: 600px; margin: 1em auto; display: block; accent-color: #007bff; }
-
-/* RECURSOS (NOTEBOOK/SCRIPT/DOC/DADOS) */
-:deep(.resource-card) {
-  display: flex; align-items: center; background-color: #f8f9fa; border: 1px solid #e9ecef;
-  border-left: 4px solid #007bff; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;
-}
-:deep(.resource-card.notebook) { border-left-color: #ffca28; background-color: #fffbf0; }
-:deep(.resource-card.script) { border-left-color: #594099; background-color: #f6f4fa; }
-:deep(.resource-card.document) { border-left-color: #17a2b8; background-color: #eef9fb; }
-:deep(.resource-card.data) { border-left-color: #28a745; background-color: #f0fff4; }
-:deep(.resource-card.link-card) { border-left-color: #6c757d; background-color: #f8f9fa; }
-
-:deep(.resource-icon) { font-size: 2rem; margin-right: 1rem; }
-:deep(.resource-info) { display: flex; flex-direction: column; width: 100%; }
-:deep(.resource-info strong) { font-size: 1rem; margin-bottom: 0.5rem; }
-
-/* Links de Recursos */
-:deep(.resource-links) { display: flex; gap: 10px; flex-wrap: wrap; }
-:deep(.resource-link) {
-  font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; text-decoration: none !important;
-  font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; cursor: pointer;
-}
-:deep(.resource-link:hover) { opacity: 0.9; transform: translateY(-1px); }
-:deep(.resource-link.raw) { background-color: #f0f0f0; color: #444; border: 1px solid #ccc; }
-:deep(.resource-link.colab) { background-color: #f9ab00; color: #fff; border: 1px solid #e39b00; }
-:deep(.resource-link.nbviewer) { background-color: #e67e22; color: #fff; border: 1px solid #d35400; }
-
-/* RESPONSIVIDADE */
-@media (max-width: 768px) {
-  .main-header-bar { justify-content: center; text-align: center; padding: 0.8rem !important; }
-  .content-section { padding: 0; }
-  .form-container, fieldset { padding: 1.5rem; }
-  .form-grid { grid-template-columns: 1fr; }
-  .form-actions { justify-content: center; }
-  .form-actions button { width: 100%; max-width: 300px; }
-  .single-button-toolbar { flex-direction: column; align-items: flex-start; }
-  .toolbar-hint { margin-top: 10px; }
-  .editor-format-buttons { margin-left: 0; margin-top: 10px; width: 100%; justify-content: flex-start; }
-  .resource-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem; }
-  .resource-btn { padding: 1rem 0.2rem; }
-  .editor-container { height: 400px; }
-}
-
-@media (max-width: 800px) {
-  .news-preview { max-width: 100%; border-radius: 0; }
-  .cover-image { max-height: 200px; }
-  .preview-header, .preview-description, .preview-content, .preview-section-title, .preview-links { padding-left: 1rem; padding-right: 1rem; }
-  .preview-title { font-size: 2rem; }
-}
-
-@media (max-width: 500px) {
-    .form-container, fieldset { padding: 1rem; }
-    .news-preview { box-shadow: none; padding-bottom: 0.7rem; }
-    .preview-title { font-size: 1.35rem; }
-    .cover-image { max-height: 140px; }
-    .preview-header, .preview-description, .preview-content, .preview-section-title, .preview-links { padding-left: 1rem; padding-right: 1rem; }
-    .preview-description { font-size: 1rem; }
-    .preview-content { font-size: 0.95rem; }
-    .editor-container { height: 300px; }
-}
-</style>
+<style src="@/assets/css/admin/addAndEditAnalisys.css"></style>

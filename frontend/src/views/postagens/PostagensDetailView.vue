@@ -1,4 +1,5 @@
 <template>
+<MeuHeader />
   <div class="page-background">
     <div v-if="isLoading" class="loading-state">
       <div class="spinner"></div>
@@ -101,6 +102,7 @@
         </article>
     </div>
   </div>
+  <MeuFooter />
 </template>
 
 <script setup>
@@ -108,6 +110,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { marked } from 'marked';
+import MeuHeader from '@/components/MeuHeader.vue';
+import MeuFooter from '@/components/MeuFooter.vue';
+
 
 const route = useRoute();
 const analysis = ref(null);

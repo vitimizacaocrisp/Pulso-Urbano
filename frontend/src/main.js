@@ -9,3 +9,4 @@ import './assets/js/script.js'
 createApp(App)
   .use(router)
   .mount('#app')
+
