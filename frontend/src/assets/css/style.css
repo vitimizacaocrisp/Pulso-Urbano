@@ -1,3 +1,6 @@
+/* Importa as variáveis globais */
+@import url('variaveis.css');
+
 /* ==========================================================================
    1. Estilos Gerais e Reset
    ========================================================================== */
@@ -11,16 +14,16 @@ body {
     /* Fontes do Google Fonts importadas no HTML */
     font-family: 'Roboto', sans-serif;
     line-height: 1.6;
-    background-color: #f8f9fa;
-    color: #34495e;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
 }
 
 /* ==========================================================================
    2. Cabeçalho e Barra de Navegação
    ========================================================================== */
 .main-header {
-    background-color: #1a242f;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: var(--brand-dark-blue);
+    box-shadow: var(--shadow-xs);
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -30,15 +33,15 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
+    max-width: var(--container-width);
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 var(--spacing-xl);
     height: 80px;
 }
 
 .logo a {
     text-decoration: none;
-    color: #ffffff;
+    color: var(--text-white);
 }
 
 .logo h1 {
@@ -49,21 +52,21 @@ body {
 
 .logo .tagline {
     font-size: 0.8rem;
-    color: #bdc3c7;
+    color: var(--text-lighter);
     margin: 0;
 }
 
 .nav-menu {
     list-style: none;
     display: flex;
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
 }
 
 .nav-menu a {
-    color: #ecf0f1;
+    color: var(--text-light);
     text-decoration: none;
     font-weight: 600;
-    padding: 0.5rem 0;
+    padding: var(--spacing-xs) 0;
     position: relative;
     transition: color 0.3s ease;
 }
@@ -75,13 +78,13 @@ body {
     left: 0;
     width: 0;
     height: 2px;
-    background-color: #ffc107;
+    background-color: var(--brand-yellow);
     transition: width 0.3s ease;
 }
 
 .nav-menu a:hover,
 .nav-menu a.active {
-    color: #ffffff;
+    color: var(--text-white);
 }
 
 .nav-menu a:hover::after,
@@ -102,17 +105,17 @@ body {
     position: absolute;
     top: 100%;
     left: 0;
-    background-color: #2c3e50;
+    background-color: var(--brand-blue-hover);
     list-style: none;
     min-width: 250px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    border-radius: 0 0 8px 8px;
-    padding: 0.5rem 0;
+    box-shadow: var(--shadow-lg);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    padding: var(--spacing-xs) 0;
 }
 
 .dropdown-content a {
-    color: #ecf0f1;
-    padding: 0.8rem 1.5rem;
+    color: var(--text-light);
+    padding: var(--spacing-sm) var(--spacing-lg);
     display: block;
     white-space: nowrap;
 }
@@ -122,7 +125,7 @@ body {
 }
 
 .dropdown-content a:hover {
-    background-color: #34495e;
+    background-color: var(--text-primary);
 }
 
 .dropdown:hover .dropdown-content {
@@ -133,38 +136,38 @@ body {
    4. Conteúdo Principal e Seções
    ========================================================================== */
 main {
-    max-width: 1200px;
+    max-width: var(--container-width);
     margin: 0 auto;
-    padding: 2rem;
+    padding: var(--spacing-xl);
 }
 
 /* Hero Section (Página Inicial) */
 .hero {
-    background-color: #e9ecef;
+    background-color: var(--bg-hero);
     text-align: center;
-    padding: 4rem 2rem;
-    border-radius: 12px;
-    margin-bottom: 2rem;
+    padding: var(--spacing-xxl) var(--spacing-xl);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--spacing-xl);
 }
 
 .hero h2 {
     font-family: 'Titillium Web', sans-serif;
     font-size: 2.5rem;
-    color: #2c3e50;
-    margin-bottom: 1rem;
+    color: var(--brand-blue-hover);
+    margin-bottom: var(--spacing-md);
 }
 
 .hero p {
     font-size: 1.1rem;
     max-width: 700px;
-    margin: 0 auto 2rem auto;
+    margin: 0 auto var(--spacing-xl) auto;
 }
 
 /* Cabeçalho das Páginas Internas */
 .page-header {
-    border-bottom: 2px solid #e0e0e0;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-light);
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
 }
 
 .page-header h2 {
@@ -176,7 +179,7 @@ main {
     font-family: 'Titillium Web', sans-serif;
     text-align: center;
     font-size: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-xl);
 }
 
 /* ==========================================================================
@@ -185,14 +188,14 @@ main {
 .card-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
+    gap: var(--spacing-lg);
 }
 
 .card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    background: var(--bg-surface);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -200,14 +203,14 @@ main {
 
 .card:hover {
     transform: translateY(-8px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-hover);
 }
 
 .card h3 {
     font-family: 'Titillium Web', sans-serif;
     font-size: 1.3rem;
-    color: #1a242f;
-    margin-bottom: 0.5rem;
+    color: var(--brand-dark-blue);
+    margin-bottom: var(--spacing-xs);
 }
 
 .card p {
@@ -217,21 +220,21 @@ main {
 
 .card-link {
     display: inline-block;
-    margin-top: 1rem;
-    color: #2980b9;
+    margin-top: var(--spacing-md);
+    color: var(--brand-link-blue);
     text-decoration: none;
     font-weight: bold;
 }
 
 .card-analysis .analysis-tag {
     display: inline-block;
-    background-color: #ffc107;
-    color: #1a242f;
+    background-color: var(--brand-yellow);
+    color: var(--brand-dark-blue);
     padding: 0.2rem 0.6rem;
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: bold;
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
 }
 
 /* ==========================================================================
@@ -241,88 +244,88 @@ main {
 .kpi-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
 }
 
 .kpi-card {
-    background-color: #fff;
-    padding: 1.5rem;
-    border-radius: 8px;
+    background-color: var(--bg-surface);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
     text-align: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    box-shadow: var(--shadow-md);
 }
 
 .kpi-card h4 {
     font-size: 1rem;
-    color: #7f8c8d;
-    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
 }
 
 .kpi-card p {
     font-family: 'Titillium Web', sans-serif;
     font-size: 2.5rem;
     font-weight: bold;
-    color: #1a242f;
+    color: var(--brand-dark-blue);
 }
 
 /* Filtros */
 .filters {
-    background-color: #fff;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
+    background-color: var(--bg-surface);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xl);
     display: flex;
-    gap: 1rem;
+    gap: var(--spacing-md);
     align-items: center;
     flex-wrap: wrap;
 }
 
 .filters input, .filters select {
-    padding: 0.8rem;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-md);
     font-size: 1rem;
 }
 
 /* Botões */
 .btn-primary {
     display: inline-block;
-    background-color: #ffc107;
-    color: #1a242f;
-    padding: 0.8rem 1.5rem;
-    border-radius: 30px;
+    background-color: var(--brand-yellow);
+    color: var(--brand-dark-blue);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-round);
     text-decoration: none;
     font-weight: bold;
     transition: background-color 0.3s ease;
 }
 
 .btn-primary:hover {
-    background-color: #e0a800;
+    background-color: var(--brand-yellow-hover);
 }
 
 /* ==========================================================================
    7. Rodapé
    ========================================================================== */
 .main-footer {
-    background-color: #1a242f;
-    color: #ecf0f1;
-    padding-top: 2rem;
+    background-color: var(--brand-dark-blue);
+    color: var(--text-light);
+    padding-top: var(--spacing-xl);
 }
 
 .footer-content {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-    max-width: 1200px;
+    gap: var(--spacing-xl);
+    max-width: var(--container-width);
     margin: 0 auto;
-    padding: 0 2rem 2rem 2rem;
+    padding: 0 var(--spacing-xl) var(--spacing-xl) var(--spacing-xl);
 }
 
 .footer-content h4 {
     font-family: 'Titillium Web', sans-serif;
-    margin-bottom: 1rem;
-    color: #ffc107;
+    margin-bottom: var(--spacing-md);
+    color: var(--brand-yellow);
 }
 
 .footer-logo h3 {
@@ -331,11 +334,11 @@ main {
 }
 
 .footer-content a {
-    color: #bdc3c7;
+    color: var(--text-lighter);
     text-decoration: none;
 }
 .footer-content a:hover {
-    color: #fff;
+    color: var(--text-white);
 }
 
 .footer-links ul {
@@ -343,15 +346,15 @@ main {
 }
 
 .footer-links li {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-xs);
 }
 
 .footer-bottom {
-    background-color: #111a22;
+    background-color: var(--brand-dark-grey);
     text-align: center;
-    padding: 1rem;
+    padding: var(--spacing-md);
     font-size: 0.9rem;
-    color: #7f8c8d;
+    color: var(--text-secondary);
 }
 
 /* ==========================================================================
@@ -361,21 +364,21 @@ main {
     .navbar {
         flex-direction: column;
         height: auto;
-        padding: 1rem;
+        padding: var(--spacing-md);
     }
 
     .nav-menu {
-        margin-top: 1rem;
+        margin-top: var(--spacing-md);
         flex-direction: column;
         align-items: center;
-        gap: 0.5rem;
+        gap: var(--spacing-xs);
     }
 
     .dropdown-content {
         position: static;
         background: transparent;
         box-shadow: none;
-        padding-left: 2rem;
+        padding-left: var(--spacing-xl);
         text-align: center;
     }
 
@@ -391,7 +394,7 @@ main {
     }
 
     main {
-        padding: 1rem;
+        padding: var(--spacing-md);
     }
 
     .card-container, .kpi-container {
@@ -414,11 +417,11 @@ main {
     z-index: 99;
     border: none;
     outline: none;
-    background-color: #ffc107;
-    color: #1a242f;
+    background-color: var(--brand-yellow);
+    color: var(--brand-dark-blue);
     cursor: pointer;
     padding: 10px 15px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     font-size: 18px;
     font-weight: bold;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -426,7 +429,7 @@ main {
 }
 
 #backToTopBtn:hover {
-    background-color: #e0a800;
+    background-color: var(--brand-yellow-hover);
 }
 
 
@@ -438,7 +441,7 @@ main {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 0.5rem;
+    padding: var(--spacing-xs);
     z-index: 1100; /* Garante que fique acima de outros elementos */
 }
 
@@ -446,7 +449,7 @@ main {
     display: block;
     width: 25px;
     height: 3px;
-    background-color: #fff;
+    background-color: var(--text-white);
     margin: 5px 0;
     transition: 0.4s;
 }
@@ -460,9 +463,9 @@ main {
         top: 100px; /* Altura do header */
         left: 0;
         width: 100%;
-        background-color: #1a242f;
+        background-color: var(--brand-dark-blue);
         flex-direction: column;
-        padding: 1rem 0;
+        padding: var(--spacing-md) 0;
     }
 
     /* Exibe o ícone do menu mobile */
@@ -482,7 +485,7 @@ main {
 
 /* Estilo para o corpo da página de login, para centralizar o conteúdo */
 .login-page-body {
-    background-color: #e9ecef; /* Um fundo ligeiramente diferente */
+    background-color: var(--bg-hero); /* Um fundo ligeiramente diferente */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -490,52 +493,52 @@ main {
 }
 
 .login-container {
-    background-color: #ffffff;
+    background-color: var(--bg-surface);
     padding: 2.5rem 3rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-modal);
     width: 100%;
     max-width: 450px;
 }
 
 .login-header {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-xl);
 }
 
 .login-header h2 {
     font-family: 'Titillium Web', sans-serif;
     font-size: 1.8rem;
-    color: #1a242f;
+    color: var(--brand-dark-blue);
 }
 
 .login-header p {
-    color: #7f8c8d;
+    color: var(--text-secondary);
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-xs);
     font-weight: bold;
-    color: #34495e;
+    color: var(--text-primary);
 }
 
 .form-group input {
     width: 100%;
-    padding: 0.8rem 1rem;
-    border: 1px solid #bdc3c7;
-    border-radius: 6px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--text-lighter);
+    border-radius: var(--radius-md);
     font-size: 1rem;
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .form-group input:focus {
     outline: none;
-    border-color: #ffc107;
+    border-color: var(--brand-yellow);
     box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
 }
 
@@ -543,9 +546,9 @@ main {
     width: 100%;
     padding: 0.9rem;
     border: none;
-    border-radius: 6px;
-    background-color: #1a242f;
-    color: #ffffff;
+    border-radius: var(--radius-md);
+    background-color: var(--brand-dark-blue);
+    color: var(--text-white);
     font-size: 1.1rem;
     font-weight: bold;
     cursor: pointer;
@@ -553,16 +556,16 @@ main {
 }
 
 .btn-login:hover {
-    background-color: #2c3e50;
+    background-color: var(--brand-blue-hover);
 }
 
 .back-to-site {
     text-align: center;
-    margin-top: 1.5rem;
+    margin-top: var(--spacing-lg);
 }
 
 .back-to-site a {
-    color: #7f8c8d;
+    color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.9rem;
 }
@@ -574,7 +577,7 @@ main {
    12. Estilos do Painel Administrativo
    ========================================================================== */
 .dashboard-body {
-    background-color: #f0f2f5;
+    background-color: var(--bg-dashboard);
     color: #333;
 }
 
@@ -586,17 +589,17 @@ main {
 /* Barra Lateral */
 .dashboard-sidebar {
     width: 260px;
-    background-color: #1a242f;
-    color: #ecf0f1;
+    background-color: var(--brand-dark-blue);
+    color: var(--text-light);
     display: flex;
     flex-direction: column;
-    padding: 1.5rem 1rem;
+    padding: var(--spacing-lg) var(--spacing-md);
 }
 
 .sidebar-header {
-    padding: 0 0.5rem 1.5rem 0.5rem;
-    border-bottom: 1px solid #34495e;
-    margin-bottom: 1.5rem;
+    padding: 0 var(--spacing-xs) var(--spacing-lg) var(--spacing-xs);
+    border-bottom: 1px solid var(--border-dark);
+    margin-bottom: var(--spacing-lg);
 }
 
 .sidebar-header h3 {
@@ -609,18 +612,18 @@ main {
 
 .sidebar-nav li a {
     display: block;
-    color: #bdc3c7;
+    color: var(--text-lighter);
     text-decoration: none;
-    padding: 0.8rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 0.5rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-xs);
     transition: background-color 0.3s, color 0.3s;
 }
 
 .sidebar-nav li a:hover,
 .sidebar-nav li a.active {
-    background-color: #ffc107;
-    color: #1a242f;
+    background-color: var(--brand-yellow);
+    color: var(--brand-dark-blue);
     font-weight: bold;
 }
 
@@ -630,17 +633,17 @@ main {
 
 .btn-logout {
     width: 100%;
-    background: #34495e;
-    color: #fff;
+    background: var(--text-primary);
+    color: var(--text-white);
     border: none;
-    padding: 0.8rem;
-    border-radius: 6px;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: bold;
     text-align: left;
 }
 .btn-logout:hover {
-    background: #c0392b;
+    background: var(--sys-danger-hover);
 }
 
 /* Conteúdo Principal */
@@ -651,9 +654,9 @@ main {
 }
 
 .main-header-bar {
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-header);
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
 }
 
 .main-header-bar h1 {
@@ -662,19 +665,19 @@ main {
 }
 
 .content-section {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    background: var(--bg-surface);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
 }
 
 .content-section h2 {
     font-family: 'Titillium Web', sans-serif;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-lg);
 }
 
 .form-container .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-lg);
 }
 
 .form-container textarea {

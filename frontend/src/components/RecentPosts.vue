@@ -89,17 +89,10 @@ export default {
           headers: { 'Authorization': `Bearer ${token}` },
           timeout: 30000
         });
-        
         const analysesArray = response.data?.data?.analyses;
-
-        if (!Array.isArray(analysesArray)) {
-          throw new Error("Formato de dados inválido.");
-        }
+        if (!Array.isArray(analysesArray)) throw new Error("Formato de dados inválido.");
         
-        const sortedAnalyses = [...analysesArray].sort((a, b) => {
-          return new Date(b.created_at) - new Date(a.created_at);
-        });
-        
+        const sortedAnalyses = [...analysesArray].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         this.posts = sortedAnalyses.slice(0, this.postCount);
 
       } catch (err) {
@@ -107,16 +100,11 @@ export default {
         this.error = 'Não foi possível carregar as publicações recentes.';
       } finally {
         this.isLoading = false;
-        // Garante que o observador verifica os novos elementos (posts) ou o header
-        this.$nextTick(() => {
-          this.observeElements();
-        });
+        this.$nextTick(() => { this.observeElements(); });
       }
     },
     getFullMediaPath(path) {
-      if (!path) {
-        return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
-      }
+      if (!path) return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
       const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
       return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
     },
@@ -126,16 +114,12 @@ export default {
       return text.substring(0, length) + '...';
     },
     initObserver() {
-      // Se já existir, desconecta para evitar duplicidade
       if (this.observer) this.observer.disconnect();
-
-      // Fallback de segurança se o navegador não suportar IntersectionObserver
       if (!('IntersectionObserver' in window)) {
         const elements = this.$refs.postsContainer.querySelectorAll('.scroll-reveal');
         elements.forEach(el => el.classList.add('is-visible'));
         return;
       }
-
       this.observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
@@ -144,19 +128,15 @@ export default {
           }
         });
       }, { threshold: 0.1 });
-      
-      // Observa elementos iniciais (como o header)
       this.observeElements();
     },
     observeElements() {
       if (!this.observer || !this.$refs.postsContainer) return;
-      // Seleciona apenas elementos que ainda não têm a classe is-visible
       const elements = this.$refs.postsContainer.querySelectorAll('.scroll-reveal:not(.is-visible)');
       elements.forEach(el => this.observer.observe(el));
     }
   },
   mounted() {
-    // Inicializa o observador imediatamente para mostrar o cabeçalho estático
     this.initObserver();
     this.fetchRecentPosts();
   },
@@ -170,7 +150,7 @@ export default {
 .recent-posts-container {
   width: 100%;
   padding: 1rem 0;
-  min-height: 200px; /* Evita colapso total se vazio */
+  min-height: 200px;
 }
 
 /* Header da Seção */
@@ -180,13 +160,13 @@ export default {
 .title {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--text-main);
   margin-bottom: 0.5rem;
 }
 .divider {
   width: 50px;
   height: 4px;
-  background: #6366f1;
+  background: var(--brand-primary);
   border-radius: 2px;
 }
 
@@ -199,20 +179,20 @@ export default {
 
 /* Card Design Moderno */
 .post-card {
-  background-color: #fff;
-  border-radius: 16px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-md);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 1px solid rgba(0,0,0,0.02);
+  border: 1px solid var(--border-color);
 }
 
 .post-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-xl);
 }
 
 /* Imagem e Overlay */
@@ -220,7 +200,7 @@ export default {
   position: relative;
   height: 220px;
   overflow: hidden;
-  background-color: #e2e8f0; /* Placeholder cor */
+  background-color: var(--slate-200); /* Placeholder */
 }
 .card-image-wrapper img {
   width: 100%;
@@ -259,7 +239,7 @@ export default {
   top: 1rem;
   left: 1rem;
   background: rgba(255, 255, 255, 0.95);
-  color: #6366f1;
+  color: var(--brand-primary);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.75rem;
@@ -277,11 +257,11 @@ export default {
 }
 .meta-info {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
 .title-link {
-  color: #1e293b;
+  color: var(--text-main);
   text-decoration: none;
   font-size: 1.25rem;
   font-weight: 700;
@@ -291,10 +271,10 @@ export default {
   margin-bottom: 0.75rem;
 }
 .title-link:hover {
-  color: #6366f1;
+  color: var(--brand-primary);
 }
 .description {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.6;
   margin-bottom: 1.5rem;
@@ -304,10 +284,10 @@ export default {
 .card-footer {
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--border-color);
 }
 .btn-link {
-  color: #6366f1;
+  color: var(--brand-primary);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.9rem;
@@ -324,15 +304,15 @@ export default {
 .state-container {
   padding: 3rem;
   text-align: center;
-  background: #f8fafc;
-  border-radius: 12px;
-  color: #64748b;
+  background: var(--bg-hover);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
 }
-.state-container.error { color: #ef4444; }
+.state-container.error { color: var(--sys-danger); }
 .state-container i { font-size: 2rem; margin-bottom: 1rem; display: block; }
 .spinner {
   width: 40px; height: 40px; 
-  border: 3px solid #e2e8f0; border-top-color: #6366f1; 
+  border: 3px solid var(--border-color); border-top-color: var(--brand-primary); 
   border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

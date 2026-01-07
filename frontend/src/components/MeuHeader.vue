@@ -41,7 +41,6 @@
 
         <nav class="desktop-nav">
              <ul>
-                <!-- Item Publicações com Dropdown Hover -->
                 <li class="nav-item has-dropdown" @mouseenter="submenuOpen = true" @mouseleave="submenuOpen = false">
                     <router-link to="/categoria" class="nav-link">
                         Biblioteca <i class="fas fa-chevron-down icon-tiny"></i>
@@ -68,6 +67,11 @@
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li><router-link to="/admin" class="nav-link admin-link"><i class="fas fa-lock"></i></router-link></li>
+                
+                <!-- Botão de Tema (Desktop) -->
+                <li class="nav-item-toggle">
+                  <ThemeToggle />
+                </li>
              </ul>
         </nav>
 
@@ -82,9 +86,13 @@
       <nav v-if="menuOpen" class="drawer">
         <div class="drawer-header">
           <h2>Menu</h2>
-          <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
-              <i class="fas fa-times"></i>
-          </button>
+          <!-- Botão de Tema e Fechar (Mobile) -->
+          <div class="drawer-actions">
+            <ThemeToggle />
+            <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
+                <i class="fas fa-times"></i>
+            </button>
+          </div>
         </div>
 
         <div class="mobile-search">
@@ -122,6 +130,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import ThemeToggle from './ThemeToggle.vue'; // Importando o componente
 
 const menuOpen = ref(false);
 const submenuOpen = ref(false);
@@ -135,7 +144,6 @@ let hasLoadedOnce = false;
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 const router = useRouter();
 
-// 1. Definição das Categorias Estáticas (Nomes e Links)
 const categories = ref([
     { name: 'Metodologia e Amostra', path: '/categoria/metodologia-e-amostra' },
     { name: 'Crimes Contra o Patrimônio', path: '/categoria/crimes-contra-patrimonio' },
@@ -146,135 +154,89 @@ const categories = ref([
     { name: 'Violência Doméstica e Gênero', path: '/categoria/violencia-domestica-genero' },
 ]);
 
-// 2. Computed Property para calcular os contadores reais dinamicamente
 const categoriesWithCounts = computed(() => {
-    // Se ainda não carregou as análises, retorna 0 para todos
-    if (allAnalyses.value.length === 0) {
-        return categories.value.map(cat => ({ ...cat, count: 0 }));
-    }
-
+    if (allAnalyses.value.length === 0) return categories.value.map(cat => ({ ...cat, count: 0 }));
     return categories.value.map(cat => {
-        // Filtra todas as análises para contar quantas pertencem a esta categoria
         const count = allAnalyses.value.filter(analysis => {
-            // Verifica o campo 'category' ou 'tag' vindo da API
-            // Normaliza para minúsculas para evitar erros de digitação (Ex: "Saúde" vs "saúde")
             const apiCategory = (analysis.category || analysis.tag || '').toLowerCase().trim();
             const localCategory = cat.name.toLowerCase().trim();
-            
             return apiCategory === localCategory;
         }).length;
-
-        return {
-            ...cat,
-            count: count
-        };
+        return { ...cat, count: count };
     });
 });
 
-// Scroll Listener para efeito glass
-const handleScroll = () => {
-    isScrolled.value = window.scrollY > 20;
-};
+const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 
 onMounted(() => {
     window.addEventListener('scroll', handleScroll);
-    // Carrega os dados ao montar a página para preencher os contadores
     loadAllAnalyses();
 });
 
-onUnmounted(() => {
-    window.removeEventListener('scroll', handleScroll);
-});
+onUnmounted(() => { window.removeEventListener('scroll', handleScroll); });
 
 const filteredAnalyses = computed(() => {
   if (!searchQuery.value) return [];
   const q = searchQuery.value.toLowerCase();
   return allAnalyses.value.filter(a =>
-    (a.title?.toLowerCase().includes(q)) ||
-    (a.tag?.toLowerCase().includes(q)) ||
-    (a.author?.toLowerCase().includes(q))
-  ).slice(0, 8); // Limita resultados
+    (a.title?.toLowerCase().includes(q)) || (a.tag?.toLowerCase().includes(q)) || (a.author?.toLowerCase().includes(q))
+  ).slice(0, 8);
 });
 
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value;
-  // Não precisa chamar loadAllAnalyses aqui se já chamamos no onMounted, 
-  // mas pode manter para garantir atualização caso tenha falhado
   if(menuOpen.value && !hasLoadedOnce) loadAllAnalyses();
 };
 
 const loadAllAnalyses = async () => {
-  // Apenas seta dropdown visível se for chamado pelo input de busca (verificando o contexto de uso)
-  // Se for chamado no onMounted, não queremos abrir o dropdown automaticamente
   if (searchQuery.value) isDropdownVisible.value = true;
-
   if (hasLoadedOnce) return;
-  
   isLoading.value = true;
   try {
     const token = localStorage.getItem('authToken');
-    // Ajuste: Certifique-se que esta rota retorna TODAS as análises ou paginadas em grande quantidade
     const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
-    // Ajuste de segurança para garantir que é um array
     const data = response.data?.data?.analyses;
     allAnalyses.value = Array.isArray(data) ? data : [];
-    
     hasLoadedOnce = true;
-  } catch (err) {
-    console.error("Erro na busca:", err);
-  } finally {
-    isLoading.value = false;
-  }
+  } catch (err) { console.error("Erro na busca:", err); } finally { isLoading.value = false; }
 };
 
 const hideDropdown = () => setTimeout(() => { isDropdownVisible.value = false; }, 200);
-
 const selectAnalysis = (analysis) => {
   searchQuery.value = '';
   isDropdownVisible.value = false;
   router.push({ name: 'AnalysisDetail', params: { id: analysis.id } });
   if (menuOpen.value) toggleMenu();
 };
-
 const onSearch = () => {
-    // Ao focar ou digitar, garantimos que o dropdown apareça
     isDropdownVisible.value = true;
     if (!hasLoadedOnce) loadAllAnalyses();
-
-    if (searchQuery.value.trim() && filteredAnalyses.value.length > 0) {
-        selectAnalysis(filteredAnalyses.value[0]);
-    }
+    if (searchQuery.value.trim() && filteredAnalyses.value.length > 0) selectAnalysis(filteredAnalyses.value[0]);
 };
 </script>
 
 <style scoped>
-/* Variáveis locais para o header */
 .header {
-    --header-bg: #0f172a;
-    --header-text: #cbd5e1;
-    --accent: #6366f1;
-    --border: rgba(255,255,255,0.1);
-    
     position: sticky;
     top: 0;
     z-index: 1000;
     width: 100%;
     transition: all 0.3s ease;
-    background: var(--header-bg);
-    border-bottom: 1px solid var(--border);
+    
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-header);
 }
 
 .header.scrolled {
-    background: rgba(15, 23, 42, 0.85);
+    background: var(--bg-header-scrolled);
     backdrop-filter: blur(12px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
 }
 
 .header-inner {
-    max-width: 1280px;
+    max-width: var(--container-width);
     margin: 0 auto;
 }
 
@@ -282,7 +244,7 @@ const onSearch = () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 70px;
+    height: var(--header-height);
     padding: 0 1.5rem;
 }
 
@@ -290,11 +252,11 @@ const onSearch = () => {
 .logo a {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #fff;
+    color: var(--text-header-logo);
     text-decoration: none;
     letter-spacing: -0.5px;
 }
-.highlight { color: var(--accent); }
+.highlight { color: var(--brand-primary); }
 
 /* Search Bar (Desktop) */
 .search-wrapper {
@@ -303,37 +265,34 @@ const onSearch = () => {
     width: 100%;
     margin: 0 2rem;
 }
-.search-input-group {
-    position: relative;
-}
 .search-icon {
     position: absolute;
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: #64748b;
+    color: var(--text-muted);
     pointer-events: none;
 }
 .search-input {
     width: 100%;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    border-radius: 99px;
+    background: var(--bg-input-nav);
+    border: 1px solid var(--border-input-nav);
+    border-radius: var(--radius-full);
     padding: 0.6rem 1rem 0.6rem 2.5rem;
-    color: #fff;
+    color: var(--text-main);
     font-size: 0.9rem;
     transition: all 0.2s;
 }
 .search-input:focus {
     outline: none;
     background: rgba(255,255,255,0.1);
-    border-color: var(--accent);
+    border-color: var(--brand-primary);
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 .search-spinner {
     position: absolute; right: 12px; top: 12px;
     width: 14px; height: 14px;
-    border: 2px solid #64748b; border-top-color: var(--accent);
+    border: 2px solid var(--text-muted); border-top-color: var(--brand-primary);
     border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 
@@ -342,25 +301,26 @@ const onSearch = () => {
     position: absolute;
     top: calc(100% + 10px);
     left: 0; right: 0;
-    background: #1e293b;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
     max-height: 350px;
     overflow-y: auto;
     padding: 0.5rem 0;
+    z-index: 1001;
 }
 .search-dropdown ul { list-style: none; padding: 0; margin: 0; }
 .dropdown-item {
     padding: 0.75rem 1rem;
     cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid var(--border-color);
 }
-.dropdown-item:hover { background: var(--accent); }
-.dropdown-item strong { display: block; color: #fff; font-size: 0.95rem; }
-.dropdown-item small { color: #94a3b8; font-size: 0.75rem; }
-.dropdown-item:hover small { color: rgba(255,255,255,0.8); }
-.no-results { padding: 1rem; color: #94a3b8; text-align: center; font-size: 0.9rem; }
+.dropdown-item:hover { background: var(--bg-hover); }
+.dropdown-item strong { display: block; color: var(--text-main); font-size: 0.95rem; }
+.dropdown-item small { color: var(--text-muted); font-size: 0.75rem; }
+
+.no-results { padding: 1rem; color: var(--text-muted); text-align: center; font-size: 0.9rem; }
 
 /* Navegação Desktop */
 .desktop-nav ul {
@@ -371,13 +331,13 @@ const onSearch = () => {
     align-items: center;
 }
 .nav-item {
-    position: relative; /* Necessário para o popover */
-    height: 70px; /* Mesma altura do header */
+    position: relative;
+    height: var(--header-height);
     display: flex;
     align-items: center;
 }
 .nav-link {
-    color: var(--header-text);
+    color: var(--text-header-nav);
     text-decoration: none;
     font-weight: 500;
     font-size: 0.95rem;
@@ -387,26 +347,33 @@ const onSearch = () => {
     gap: 0.3rem;
     cursor: pointer;
 }
-.nav-link:hover, .nav-link.router-link-active { color: #fff; }
+.nav-link:hover, .nav-link.router-link-active { color: var(--text-header-hover); }
 .admin-link { opacity: 0.5; transition: opacity 0.2s; }
 .admin-link:hover { opacity: 1; }
 .icon-tiny { font-size: 0.7rem; margin-top: 2px; }
 
-/* --- POPOVER DE CATEGORIAS (A Janelinha) --- */
+/* Theme Toggle Container */
+.nav-item-toggle {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+
+/* Popover de Categorias */
 .category-popover {
     position: absolute;
-    top: 60px; /* Um pouco abaixo do header */
+    top: 60px;
     left: 50%;
     transform: translateX(-50%);
-    background: #fff;
+    background: var(--bg-surface);
     width: 300px;
-    border-radius: 12px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.1);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
     padding: 1.5rem;
     z-index: 1100;
     cursor: default;
+    border: 1px solid var(--border-color);
 }
-/* Triângulo pontando para cima */
 .category-popover::before {
     content: '';
     position: absolute;
@@ -415,8 +382,9 @@ const onSearch = () => {
     transform: translateX(-50%) rotate(45deg);
     width: 12px;
     height: 12px;
-    background: #fff;
-    box-shadow: -2px -2px 5px rgba(0,0,0,0.03);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
 }
 
 .popover-header {
@@ -425,17 +393,17 @@ const onSearch = () => {
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
 }
 .popover-header h3 {
     font-size: 1rem;
-    color: #0f172a;
+    color: var(--text-main);
     font-weight: 800;
     margin: 0;
 }
 .view-all {
     font-size: 0.75rem;
-    color: var(--accent);
+    color: var(--brand-primary);
     text-decoration: none;
     font-weight: 600;
 }
@@ -455,103 +423,101 @@ const onSearch = () => {
     align-items: center;
     text-decoration: none;
     padding: 0.5rem 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     transition: background 0.2s;
 }
 .cat-link:hover {
-    background-color: #f8fafc;
+    background-color: var(--bg-hover);
 }
 .cat-name {
-    color: #334155;
+    color: var(--text-main);
     font-size: 0.95rem;
     font-weight: 500;
 }
-.cat-link:hover .cat-name { color: var(--accent); }
+.cat-link:hover .cat-name { color: var(--brand-primary); }
 
 .cat-badge {
-    background-color: #f1f5f9;
-    color: #64748b;
+    background-color: var(--bg-body);
+    color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 700;
     padding: 0.15rem 0.6rem;
-    border-radius: 99px;
+    border-radius: var(--radius-full);
     min-width: 28px;
     text-align: center;
 }
 .cat-link:hover .cat-badge {
-    background-color: var(--accent);
+    background-color: var(--brand-primary);
     color: white;
 }
 
-/* Transição Pop-up */
-.pop-up-enter-active, .pop-up-leave-active {
-    transition: opacity 0.2s, transform 0.2s;
-}
-.pop-up-enter-from, .pop-up-leave-to {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-}
+/* Transições Pop-up */
+.pop-up-enter-active, .pop-up-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateX(-50%) translateY(10px); }
 
-/* Mobile */
+/* Mobile Menu */
 .menu-btn {
     background: none; border: none;
-    color: #fff; font-size: 1.5rem;
+    color: var(--text-header-nav); font-size: 1.5rem;
     cursor: pointer; display: none;
 }
 .drawer {
     position: fixed; top: 0; left: 0; bottom: 0;
-    width: 280px; background: #0f172a;
+    width: 280px; 
+    background: var(--bg-surface);
     z-index: 2000; padding: 1.5rem;
     box-shadow: 5px 0 25px rgba(0,0,0,0.5);
     display: flex; flex-direction: column;
 }
 .drawer-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6);
+    background: var(--overlay-color);
     backdrop-filter: blur(2px);
     z-index: 1500;
 }
 .drawer-header {
     display: flex; justify-content: space-between;
     align-items: center; margin-bottom: 2rem;
-    color: #fff; border-bottom: 1px solid var(--border);
+    color: var(--text-main); border-bottom: 1px solid var(--border-color);
     padding-bottom: 1rem;
 }
-.close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
+.drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.close-btn { background: none; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer; }
 
 .mobile-search {
     display: flex; gap: 0.5rem; margin-bottom: 2rem;
 }
 .mobile-search input {
-    flex: 1; background: #1e293b; border: 1px solid var(--border);
-    padding: 0.75rem; border-radius: 6px; color: #fff;
+    flex: 1; background: var(--bg-input-form); border: 1px solid var(--border-color);
+    padding: 0.75rem; border-radius: var(--radius-md); color: var(--text-main);
 }
 .mobile-search button {
-    background: var(--accent); border: none; color: white;
-    width: 44px; border-radius: 6px; cursor: pointer;
+    background: var(--brand-primary); border: none; color: white;
+    width: 44px; border-radius: var(--radius-md); cursor: pointer;
 }
 
 .mobile-menu-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
 .mobile-menu-list li { margin-bottom: 0.5rem; }
 .mobile-menu-list a {
     display: block; padding: 0.75rem;
-    color: #cbd5e1; text-decoration: none;
-    border-radius: 6px; font-weight: 500;
+    color: var(--text-secondary); text-decoration: none;
+    border-radius: var(--radius-md); font-weight: 500;
 }
 .mobile-menu-list a:hover, .mobile-menu-list a.router-link-active {
-    background: #1e293b; color: #fff;
+    background: var(--bg-hover); color: var(--brand-primary);
 }
 .mobile-categories-label {
     margin: 1.5rem 0 0.5rem 0.75rem;
     font-size: 0.75rem; text-transform: uppercase;
-    color: #64748b; font-weight: 700;
+    color: var(--text-muted); font-weight: 700;
 }
-.mobile-sub-item a {
-    padding-left: 1.5rem; font-size: 0.9rem; opacity: 0.8;
-}
-.divider { height: 1px; background: var(--border); margin: 1rem 0; }
+.mobile-sub-item a { padding-left: 1.5rem; font-size: 0.9rem; opacity: 0.9; }
+.divider { height: 1px; background: var(--border-color); margin: 1rem 0; }
 
-/* Transições */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }

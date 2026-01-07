@@ -1,0 +1,189 @@
+/* =========================================
+   ARQUIVO DE VARIÁVEIS GLOBAIS
+   Centraliza todas as cores e tamanhos do site
+   ========================================= */
+
+:root {
+  /* --- PALETA NEUTRA (Slate - Base para estruturação) --- */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* --- PALETA INSTITUCIONAL (Marca Fixa) --- */
+  --brand-dark-blue: #1a242f;    
+  --brand-blue-hover: #2c3e50;   
+  --brand-yellow: #ffc107;       
+  --brand-yellow-hover: #e0a800;
+  --brand-link-blue: #2980b9;
+  --brand-dark-grey: #111a22;    
+
+  /* --- PALETA DE SISTEMA (Feedback) --- */
+  --sys-primary: #007bff;
+  --sys-primary-hover: #0056b3;
+  --sys-success: #28a745;
+  --sys-success-hover: #218838;
+  --sys-danger: #dc3545;
+  --sys-danger-hover: #c82333;
+  --sys-secondary: #6c757d;
+  --sys-secondary-hover: #5a6268;
+  --sys-highlight: #009dc4;
+  --sys-warning: #ffca28;
+  --sys-purple: #594099;
+  --sys-info: #17a2b8;
+
+  /* --- MAPEAMENTO SEMÂNTICO (Vínculos) --- */
+  --brand-primary: var(--sys-primary);
+  --brand-primary-hover: var(--sys-primary-hover);
+  --brand-secondary: var(--brand-yellow);
+
+  /* --- CORES NEUTRAS (Default / Light Mode) --- */
+  --bg-body: var(--slate-50);            
+  --bg-surface: #ffffff;         
+  --bg-hero: #e9ecef;            
+  --bg-dashboard: #f0f2f5;
+  --bg-input: #ffffff;
+  --bg-danger-light: #fff8f8;
+  
+  /* Fundos Específicos */
+  --bg-notebook: #fffbf0;
+  --bg-script: #f6f4fa;
+  --bg-document: #eef9fb;
+  --bg-data: #f0fff4;
+  
+  /* Header/Footer (MENU BRANCO NO TEMA CLARO) */
+  --bg-header: #ffffff; /* Agora branco */
+  --bg-header-scrolled: rgba(255, 255, 255, 0.95); /* Branco translúcido ao rolar */
+  --bg-footer: var(--brand-dark-blue);
+  
+  /* Inputs de Navegação */
+  --bg-input-nav: var(--slate-100); 
+  --border-input-nav: var(--slate-200);
+
+  /* --- Cores de Texto do Header (Contraste para fundo branco) --- */
+  --text-header-logo: var(--brand-dark-blue);
+  --text-header-nav: var(--slate-600);
+  --text-header-hover: var(--brand-primary);
+
+  /* --- TIPOGRAFIA (Light Mode) --- */
+  --text-main: #333333;          
+  --text-primary: #34495e;       
+  --text-secondary: #7f8c8d;
+  --text-muted: #6c757d;
+  --text-light: #ecf0f1;         
+  --text-lighter: #bdc3c7;
+  --text-white: #ffffff;
+  --text-inverse: #ffffff;       /* Texto que vai sobre cores de marca */
+  --text-header: var(--slate-300); /* Mantido para compatibilidade, mas prefira vars específicas acima */
+
+  /* --- BORDAS (Light Mode) --- */
+  --border-color: #dee2e6;
+  --border-input: #ccc;
+  --border-light: #e0e0e0;
+  --border-header: var(--slate-200); /* Borda sutil para o menu branco */
+  --border-dark: #34495e;
+  --border-focus: var(--brand-yellow);
+
+  /* --- DIMENSÕES & SPACING --- */
+  --container-width: 1200px;
+  --header-height: 80px;
+  
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.8rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-xxl: 4rem;
+
+  /* --- RADIUS --- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-round: 30px;
+  --radius-circle: 50%;
+  --radius-full: 9999px;
+
+  /* --- SOMBRAS --- */
+  --shadow-xs: 0 2px 5px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 15px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 16px rgba(0,0,0,0.2);
+  --shadow-hover: 0 8px 25px rgba(0,0,0,0.1);
+  --shadow-modal: 0 10px 30px rgba(0, 0, 0, 0.1);
+  
+  /* Elementos Específicos */
+  --loading-bar-bg: var(--slate-200);
+  --loading-bar-fill: var(--brand-yellow);
+  --overlay-color: rgba(26, 36, 47, 0.8);
+}
+
+/* =========================================
+   MODO ESCURO (DARK MODE)
+   ========================================= */
+[data-theme="dark"] {
+  /* --- Ajuste de Contraste e Cores --- */
+  
+  /* Fundos: Tons de cinza neutro profundo para melhor leitura */
+  --bg-body: #121212;            
+  --bg-surface: #1e1e1e;         
+  --bg-hero: #1e1e1e;
+  --bg-dashboard: #0f0f0f;
+  --bg-input: #2d2d2d;
+  --bg-input-form: #2d2d2d;
+  --bg-card: #1e1e1e;
+  --bg-hover: #2c2c2c;
+  --bg-danger-light: #3e1a1d;
+
+  /* Fundos Específicos (Escurecidos para não ofuscar) */
+  --bg-notebook: #2c2a20;
+  --bg-script: #22202b;
+  --bg-document: #1a2629;
+  --bg-data: #1a291e;
+  
+  /* Header/Footer (Funde com o tema escuro) */
+  --bg-header: #161616;
+  --bg-header-scrolled: rgba(22, 22, 22, 0.95);
+  --bg-footer: #0a0a0a;
+  
+  /* Inputs de Navegação (Dark) */
+  --bg-input-nav: rgba(255, 255, 255, 0.05);
+  --border-input-nav: rgba(255, 255, 255, 0.1);
+
+  /* Cores de Texto do Header (Dark) */
+  --text-header-logo: #ffffff;
+  --text-header-nav: var(--slate-300);
+  --text-header-hover: #ffffff;
+
+  /* Textos: Alto contraste sem ser branco puro (eye strain) */
+  --text-main: #e6e6e6;          
+  --text-primary: #d1d5db;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --text-light: #e6e6e6;
+  --text-lighter: #a3a3a3;
+  --text-inverse: #121212;       
+  --text-header: #a3a3a3;
+
+  /* Bordas: Mais sutis para separar sem cortar a visão */
+  --border-color: #333333;
+  --border-input: #404040;
+  --border-light: #333333;
+  --border-header: #262626;
+  --border-dark: #555555;
+
+  /* Sombras: Mais intensas para dar profundidade no escuro */
+  --shadow-md: 0 4px 15px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.6);
+  --overlay-color: rgba(0, 0, 0, 0.85);
+  
+  /* Ajustes Específicos */
+  --loading-bar-bg: #333333;
+}

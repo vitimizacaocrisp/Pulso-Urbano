@@ -100,16 +100,17 @@ onMounted(() => {
 
 <style scoped>
 .page-background {
-    background-color: #f8fafc;
+    background-color: var(--bg-body);
     min-height: 100vh;
     padding-bottom: 4rem;
 }
 
 /* HERO SECTION */
 .about-hero {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    /* Mantém o gradiente escuro mesmo no tema claro para contraste com texto branco */
+    background: linear-gradient(135deg, var(--slate-900) 0%, var(--slate-800) 100%);
     color: white;
-    padding: 6rem 1.5rem 8rem 1.5rem; /* Padding bottom extra para sobreposição */
+    padding: 6rem 1.5rem 8rem 1.5rem;
     text-align: center;
     clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
     margin-bottom: -4rem;
@@ -122,7 +123,7 @@ onMounted(() => {
     text-transform: uppercase;
     font-size: 0.85rem;
     letter-spacing: 2px;
-    color: #6366f1;
+    color: var(--brand-primary);
     font-weight: 700;
     margin-bottom: 1rem;
     display: block;
@@ -136,7 +137,7 @@ onMounted(() => {
 .hero-divider {
     width: 60px;
     height: 4px;
-    background-color: #6366f1;
+    background-color: var(--brand-primary);
     margin: 0 auto;
     border-radius: 2px;
 }
@@ -156,27 +157,28 @@ onMounted(() => {
 
 /* CARDS */
 .card-modern {
-    background: white;
-    border-radius: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
     padding: 2.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: var(--shadow-md);
     display: flex;
     gap: 2rem;
     align-items: flex-start;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
 }
 .card-modern:hover {
     transform: translateY(-5px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-lg);
 }
 
 .card-icon {
     flex-shrink: 0;
     width: 60px;
     height: 60px;
-    background-color: #e0e7ff;
-    color: #4338ca;
-    border-radius: 12px;
+    background-color: var(--bg-hover);
+    color: var(--brand-primary);
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -185,12 +187,12 @@ onMounted(() => {
 
 .card-content h3 {
     font-size: 1.5rem;
-    color: #1e293b;
+    color: var(--text-main);
     margin: 0 0 1rem 0;
     font-weight: 700;
 }
 .card-content p {
-    color: #475569;
+    color: var(--text-secondary);
     line-height: 1.7;
     margin-bottom: 1rem;
     font-size: 1.05rem;
@@ -201,8 +203,9 @@ onMounted(() => {
 
 /* Card de Destaque (Parceria) */
 .card-modern.highlight {
-    background: linear-gradient(to right, #4338ca, #6366f1);
+    background: linear-gradient(to right, #4338ca, var(--brand-primary));
     color: white;
+    border: none;
 }
 .card-modern.highlight h3 { color: white; }
 .card-modern.highlight p { color: rgba(255,255,255,0.9); }

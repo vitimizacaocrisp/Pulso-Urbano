@@ -133,7 +133,6 @@ let observer = null;
 
 // --- Animation Logic ---
 const setupScrollAnimations = () => {
-    // Desconecta observador anterior se existir
     if (observer) observer.disconnect();
 
     observer = new IntersectionObserver((entries, obs) => {
@@ -145,19 +144,16 @@ const setupScrollAnimations = () => {
         });
     }, { threshold: 0.1 });
 
-    // Seleciona elementos apenas dentro deste componente para evitar erros em outras páginas
     if (mainContainer.value) {
         const elements = mainContainer.value.querySelectorAll('.scroll-reveal');
         elements.forEach(el => observer.observe(el));
     }
     
-    // Anima o header separadamente pois está fora do mainContainer
     const headerContent = document.querySelector('.header-content.scroll-reveal');
     if (headerContent) observer.observe(headerContent);
 };
 
 onMounted(() => {
-    // Pequeno delay para garantir que o DOM foi renderizado
     setTimeout(() => {
         setupScrollAnimations();
     }, 100);
@@ -172,11 +168,8 @@ const handleSubmit = async () => {
   submissionStatus.value = { message: '', type: '' };
 
   try {
-    // Simulação
     await new Promise(resolve => setTimeout(resolve, 1500));
     submissionStatus.value = { message: 'Mensagem enviada com sucesso! Obrigado pelo contato.', type: 'success' };
-    
-    // Limpar form
     form.name = ''; form.email = ''; form.subject = ''; form.message = '';
   } catch (error) {
     submissionStatus.value = { message: 'Erro ao enviar. Tente novamente.', type: 'error' };
@@ -188,13 +181,13 @@ const handleSubmit = async () => {
 
 <style scoped>
 .page-background {
-    background-color: #f8fafc;
+    background-color: var(--bg-body);
     min-height: 100vh;
 }
 
 /* Header Compacto e Moderno */
 .contact-header {
-    background-color: #1e293b;
+    background-color: var(--bg-header); /* Usa a variável escura padrão */
     color: white;
     padding: 4rem 1.5rem 6rem;
     text-align: center;
@@ -207,13 +200,13 @@ const handleSubmit = async () => {
 }
 .header-content p {
     font-size: 1.1rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     max-width: 600px;
     margin: 0 auto;
 }
 
 .page-container {
-    max-width: 1200px;
+    max-width: var(--container-width);
     margin: 0 auto;
     padding: 0 1.5rem 4rem;
 }
@@ -222,38 +215,36 @@ const handleSubmit = async () => {
     display: grid;
     grid-template-columns: 1fr 1.5fr;
     gap: 2rem;
-    align-items: start; /* Impede que colunas estiquem desnecessariamente se não for desejado */
+    align-items: start;
 }
 
-/* Coluna da Esquerda (Flex para organizar Info + Mapa) */
 .info-column {
     display: flex;
     flex-direction: column;
-    gap: 2rem; /* Espaçamento entre o card de info e o mapa */
+    gap: 2rem;
     height: 100%;
 }
 
-/* Coluna da Direita */
 .form-column {
     height: 100%;
 }
 
 /* CARDS */
 .card-modern {
-    background: white;
-    border-radius: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
     padding: 2rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0,0,0,0.02);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
 }
 
 /* Estilos Específicos Info Card */
 .info-card h3 {
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 1.25rem;
     margin-bottom: 1.5rem;
     font-weight: 700;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 2px solid var(--border-color);
     padding-bottom: 0.75rem;
 }
 .contact-list {
@@ -269,9 +260,9 @@ const handleSubmit = async () => {
 }
 .icon-box {
     width: 40px; height: 40px;
-    background-color: #e0e7ff;
-    color: #4338ca;
-    border-radius: 10px;
+    background-color: var(--bg-hover);
+    color: var(--brand-primary);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -281,24 +272,24 @@ const handleSubmit = async () => {
     display: flex;
     flex-direction: column;
 }
-.info-text .label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
-.info-text .value, .info-text .link { color: #1e293b; font-weight: 500; font-size: 1rem; }
+.info-text .label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+.info-text .value, .info-text .link { color: var(--text-main); font-weight: 500; font-size: 1rem; }
 .info-text .link { text-decoration: none; transition: color 0.2s; }
-.info-text .link:hover { color: #6366f1; }
+.info-text .link:hover { color: var(--brand-primary); }
 
-.social-section h4 { font-size: 0.9rem; color: #64748b; text-transform: uppercase; margin-bottom: 1rem; }
+.social-section h4 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 1rem; }
 .social-icons { display: flex; gap: 0.75rem; }
 .social-icons a {
     width: 36px; height: 36px;
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--bg-hover);
+    color: var(--text-secondary);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;
     text-decoration: none;
 }
 .social-icons a:hover {
-    background: #6366f1;
+    background: var(--brand-primary);
     color: white;
     transform: translateY(-2px);
 }
@@ -307,13 +298,13 @@ const handleSubmit = async () => {
 .map-card { 
     padding: 0.5rem; 
     overflow: hidden; 
-    flex-grow: 1; /* Ocupa espaço restante se a coluna do form for maior */
+    flex-grow: 1;
     min-height: 300px;
     display: flex;
     flex-direction: column;
 }
 .map-card iframe { 
-    border-radius: 12px; 
+    border-radius: var(--radius-lg); 
     flex-grow: 1;
     min-height: 300px;
     border: 0;
@@ -321,40 +312,41 @@ const handleSubmit = async () => {
 
 /* Formulário Styles */
 .form-header { margin-bottom: 2rem; }
-.form-header h3 { font-size: 1.5rem; color: #1e293b; margin-bottom: 0.5rem; font-weight: 700; }
-.form-header p { color: #64748b; }
+.form-header h3 { font-size: 1.5rem; color: var(--text-main); margin-bottom: 0.5rem; font-weight: 700; }
+.form-header p { color: var(--text-secondary); }
 
 .form-group { margin-bottom: 1.5rem; }
-.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #334151; font-size: 0.95rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
 .input-wrapper { position: relative; }
 .input-icon {
     position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
-    color: #94a3b8; font-size: 0.9rem;
+    color: var(--text-muted); font-size: 0.9rem;
 }
 .form-group input, .form-group textarea {
     width: 100%;
-    padding: 0.85rem 1rem 0.85rem 2.5rem; /* Padding esquerdo para o ícone */
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    padding: 0.85rem 1rem 0.85rem 2.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
     font-size: 1rem;
     transition: all 0.2s;
-    background-color: #f8fafc;
+    background-color: var(--bg-input-form);
+    color: var(--text-main);
 }
-.form-group textarea { padding-left: 1rem; resize: vertical; background-color: #f8fafc; } /* Textarea sem ícone interno */
+.form-group textarea { padding-left: 1rem; resize: vertical; background-color: var(--bg-input-form); }
 
 .form-group input:focus, .form-group textarea:focus {
     outline: none;
-    border-color: #6366f1;
-    background-color: white;
+    border-color: var(--brand-primary);
+    background-color: var(--bg-card);
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .btn-submit {
     width: 100%;
     padding: 1rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: none;
-    background-color: #6366f1;
+    background-color: var(--brand-primary);
     color: white;
     font-weight: 700;
     font-size: 1rem;
@@ -364,20 +356,20 @@ const handleSubmit = async () => {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+    box-shadow: var(--shadow-md);
 }
 .btn-submit:hover:not(:disabled) {
-    background-color: #4f46e5;
+    background-color: var(--brand-primary-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(99, 102, 241, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .submission-status {
-    padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;
+    padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;
 }
-.submission-status.success { background-color: #ecfdf5; color: #047857; }
-.submission-status.error { background-color: #fef2f2; color: #b91c1c; }
+.submission-status.success { background-color: rgba(16, 185, 129, 0.1); color: var(--sys-success); }
+.submission-status.error { background-color: rgba(239, 68, 68, 0.1); color: var(--sys-danger); }
 
 /* Scroll Animations */
 .scroll-reveal {

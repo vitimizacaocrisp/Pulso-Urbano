@@ -20,8 +20,6 @@
 
 </script>
 
-
-
 <style scoped>
 .loading-container {
   height: 100vh;
@@ -29,6 +27,16 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+}
+
+.loading-container h2 {
+  color: var(--text-main);
+}
+
+.loading-container p {
+  color: var(--text-muted);
 }
 
 /* ===== Spinner ===== */
@@ -52,7 +60,7 @@
   left: 50%;
   width: 10px;
   height: 10px;
-  background-color: #8a8a8a;
+  background-color: var(--text-secondary); /* Usa variável */
   border-radius: 50%;
   transform: translateX(-50%);
   animation: fade 1.2s linear infinite;
@@ -69,7 +77,7 @@
 .dot:nth-child(8) span { animation-delay: 1.05s; }
 
 @keyframes fade {
-  0% { opacity: 1; }
+  0% { opacity: 1; background-color: var(--brand-primary); } /* Pulsa com a cor da marca */
   100% { opacity: 0.2; }
 }
 </style>

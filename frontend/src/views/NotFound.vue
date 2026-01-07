@@ -31,29 +31,29 @@ export default {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #f8f9fa;
+  background: var(--bg-body);
 }
 
 .not-found-simple h1 {
   font-size: 120px;
-  color: #dc3545;
+  color: var(--sys-danger);
   margin: 0;
   font-weight: bold;
 }
 
 .not-found-simple h2 {
   font-size: 24px;
-  color: #495057;
+  color: var(--text-main);
   margin: 10px 0;
 }
 
 .not-found-simple p {
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-bottom: 30px;
 }
 
 .not-found-simple a {
-  color: #007bff;
+  color: var(--brand-primary);
   text-decoration: none;
   font-weight: 500;
 }

@@ -143,8 +143,10 @@ export default {
 <style scoped>
 .login-wrapper {
   min-height: 100vh;
-  background-color: #fff;
+  /* Fundo adapta-se ao tema */
+  background-color: var(--bg-body); 
   font-family: 'Inter', sans-serif;
+  color: var(--text-main);
 }
 
 .login-split {
@@ -152,10 +154,10 @@ export default {
   min-height: 100vh;
 }
 
-/* LADO ESQUERDO (BRANDING) */
+/* LADO ESQUERDO (BRANDING) - Mantém cores fixas pois é identidade */
 .login-brand {
   flex: 1;
-  background: #0f172a;
+  background: #0f172a; /* Slate 900 fixo para branding */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -165,7 +167,6 @@ export default {
   overflow: hidden;
 }
 
-/* Padrão de fundo sutil */
 .login-brand::before {
   content: '';
   position: absolute;
@@ -174,35 +175,11 @@ export default {
   z-index: 0;
 }
 
-.brand-content {
-  position: relative;
-  z-index: 2;
-  margin-top: auto;
-  margin-bottom: auto;
-}
-
-.logo {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  letter-spacing: -1px;
-}
+.brand-content { position: relative; z-index: 2; margin-top: auto; margin-bottom: auto; }
+.logo { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; letter-spacing: -1px; color: #fff; }
 .highlight { color: #6366f1; }
-
-.brand-tagline {
-  font-size: 1.5rem;
-  font-weight: 300;
-  opacity: 0.9;
-  line-height: 1.4;
-  max-width: 500px;
-}
-
-.brand-footer {
-  position: relative;
-  z-index: 2;
-  font-size: 0.85rem;
-  opacity: 0.6;
-}
+.brand-tagline { font-size: 1.5rem; font-weight: 300; opacity: 0.9; line-height: 1.4; max-width: 500px; color: #cbd5e1; }
+.brand-footer { position: relative; z-index: 2; font-size: 0.85rem; opacity: 0.6; color: #cbd5e1; }
 
 /* LADO DIREITO (FORMULÁRIO) */
 .login-form-container {
@@ -211,7 +188,7 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background-color: #ffffff;
+  background-color: var(--bg-surface); /* Adapta ao tema */
 }
 
 .form-box {
@@ -227,12 +204,12 @@ export default {
 .form-header h2 {
   font-size: 2rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin-bottom: 0.5rem;
 }
 
 .form-header p {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 
@@ -246,39 +223,39 @@ export default {
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-main);
 }
 
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-input);
   border-radius: 8px;
-  background-color: #f8fafc;
+  background-color: var(--bg-input-form);
   transition: all 0.2s ease;
 }
 
 .input-wrapper.focused {
-  border-color: #6366f1;
-  background-color: #fff;
+  border-color: var(--brand-primary);
+  background-color: var(--bg-surface);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .input-icon {
   position: absolute;
   left: 1rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 1rem;
 }
 
 .input-wrapper input {
   width: 100%;
-  padding: 0.85rem 1rem 0.85rem 2.8rem; /* Espaço para o ícone */
+  padding: 0.85rem 1rem 0.85rem 2.8rem;
   border: none;
   background: transparent;
   font-size: 1rem;
-  color: #1e293b;
+  color: var(--text-main);
   outline: none;
   border-radius: 8px;
 }
@@ -288,10 +265,10 @@ export default {
   border: none;
   cursor: pointer;
   padding: 0 1rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   transition: color 0.2s;
 }
-.toggle-visibility:hover { color: #475569; }
+.toggle-visibility:hover { color: var(--text-main); }
 
 /* AÇÕES */
 .form-actions {
@@ -306,12 +283,12 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #475569;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .forgot-password {
-  color: #6366f1;
+  color: var(--brand-primary);
   text-decoration: none;
   font-weight: 600;
 }
@@ -321,7 +298,7 @@ export default {
 .btn-submit {
   width: 100%;
   padding: 0.9rem;
-  background-color: #6366f1;
+  background-color: var(--brand-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -336,13 +313,13 @@ export default {
 }
 
 .btn-submit:hover:not(:disabled) {
-  background-color: #4f46e5;
+  background-color: var(--brand-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-submit:disabled {
-  background-color: #a5b4fc;
+  background-color: var(--sys-secondary);
   cursor: not-allowed;
 }
 
@@ -356,9 +333,9 @@ export default {
 
 /* FEEDBACK */
 .alert-error {
-  background-color: #fef2f2;
-  border: 1px solid #fee2e2;
-  color: #b91c1c;
+  background-color: var(--bg-danger-light);
+  border: 1px solid var(--sys-danger);
+  color: var(--sys-danger);
   padding: 0.85rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
@@ -375,12 +352,12 @@ export default {
   text-align: center;
 }
 .back-link a {
-  color: #64748b;
+  color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s;
 }
-.back-link a:hover { color: #1e293b; }
+.back-link a:hover { color: var(--text-main); }
 
 /* RESPONSIVIDADE */
 @media (max-width: 900px) {

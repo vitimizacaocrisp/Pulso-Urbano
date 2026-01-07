@@ -113,8 +113,9 @@ watch(() => props.file, (newFile) => {
 .custom-table-container {
     max-height: 400px;
     overflow: auto;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+    border: 1px solid var(--border-color);
 }
 
 .modern-table {
@@ -122,23 +123,24 @@ watch(() => props.file, (newFile) => {
     border-collapse: collapse;
     font-size: 0.85rem;
     font-family: 'Inter', sans-serif;
+    color: var(--text-main);
 }
 
 .modern-table th {
-    background: #f8fafc;
+    background: var(--bg-hover);
     position: sticky; top: 0; z-index: 10;
-    color: #475569;
+    color: var(--text-secondary);
     font-weight: 700;
     text-transform: uppercase;
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
 }
 
 .modern-table td {
     padding: 0.6rem 1rem;
-    border-bottom: 1px solid #f1f5f9;
-    color: #334155;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
     white-space: nowrap;
     max-width: 200px;
     overflow: hidden;
@@ -146,13 +148,13 @@ watch(() => props.file, (newFile) => {
 }
 
 .modern-table tbody tr:hover {
-    background-color: #f1f5f9;
+    background-color: var(--bg-hover);
 }
 
 /* Loading Bar */
-.loading-bar { width: 100%; height: 4px; background: #e2e8f0; overflow: hidden; border-radius: 2px; }
+.loading-bar { width: 100%; height: 4px; background: var(--loading-bar-bg); overflow: hidden; border-radius: 2px; }
 .loading-bar .bar {
-    width: 50%; height: 100%; background: #6366f1;
+    width: 50%; height: 100%; background: var(--loading-bar-fill);
     animation: loading 1s infinite linear; transform-origin: 0% 50%;
 }
 @keyframes loading {
@@ -162,7 +164,8 @@ watch(() => props.file, (newFile) => {
 }
 
 .error-msg {
-    padding: 1rem; color: #b91c1c; background: #fef2f2;
-    border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem;
+    padding: 1rem; color: var(--sys-danger); background: var(--bg-hover);
+    border: 1px solid var(--sys-danger);
+    border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.9rem;
 }
 </style>

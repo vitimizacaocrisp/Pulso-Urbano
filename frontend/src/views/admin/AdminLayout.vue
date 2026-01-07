@@ -45,6 +45,13 @@
         </nav>
 
         <div class="sidebar-footer">
+          <!-- Botão de Tema Integrado na Sidebar -->
+          <div class="theme-wrapper">
+             <ThemeToggle />
+          </div>
+          
+          <div class="user-divider"></div>
+
           <div class="user-mini-profile">
             <div class="avatar-circle">A</div>
             <div class="user-info">
@@ -60,9 +67,12 @@
 
       <!-- Área Principal -->
       <main class="dashboard-main">
-        <!-- Topbar Mobile/Desktop Opcional para Breadcrumbs ou Título -->
+        <!-- Topbar Mobile -->
         <header class="mobile-header">
            <span class="mobile-logo">Pulso<strong>Admin</strong></span>
+           <div class="mobile-actions">
+             <ThemeToggle />
+           </div>
         </header>
         
         <div class="main-content-scroll">
@@ -109,8 +119,8 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
-// Importando CSS base se necessário, mas focando em scoped styles para garantir o visual
 const router = useRouter()
 
 const logout = () => {
@@ -120,12 +130,14 @@ const logout = () => {
 </script>
 
 <style scoped>
-/* RESET & BASE */
+/* RESET & BASE - Usando Variáveis */
 .dashboard-body {
   display: flex;
   min-height: 100vh;
-  background-color: #f1f5f9; /* Slate-100 */
+  background-color: var(--bg-dashboard); /* Usando variável do tema */
+  color: var(--text-main);
   font-family: 'Inter', sans-serif;
+  transition: background-color 0.3s;
 }
 
 .dashboard-container {
@@ -136,16 +148,16 @@ const logout = () => {
 /* SIDEBAR DESKTOP */
 .dashboard-sidebar {
   width: 260px;
-  background-color: #0f172a; /* Slate-900 */
-  color: #cbd5e1; /* Slate-300 */
+  background-color: var(--bg-header); /* Adapta ao tema (Branco ou Escuro) */
+  color: var(--text-main);
   display: flex;
   flex-direction: column;
   height: 100vh;
   position: sticky;
   top: 0;
-  border-right: 1px solid #1e293b;
+  border-right: 1px solid var(--border-color);
   z-index: 50;
-  transition: width 0.3s;
+  transition: all 0.3s;
 }
 
 .sidebar-header {
@@ -153,17 +165,17 @@ const logout = () => {
   display: flex;
   align-items: center;
   padding: 0 1.5rem;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .admin-logo {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-header-logo); /* Texto adapta ao tema */
   text-decoration: none;
   letter-spacing: -0.5px;
 }
-.highlight { color: #6366f1; }
+.highlight { color: var(--brand-primary); }
 
 .sidebar-nav {
   flex: 1;
@@ -175,7 +187,7 @@ const logout = () => {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 1.5rem 0 0.5rem 0.75rem;
   font-weight: 600;
 }
@@ -188,7 +200,7 @@ const logout = () => {
   align-items: center;
   gap: 12px;
   padding: 0.75rem 1rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   text-decoration: none;
   border-radius: 8px;
   transition: all 0.2s ease;
@@ -197,40 +209,50 @@ const logout = () => {
 }
 
 .sidebar-nav a:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background-color: var(--bg-hover);
+  color: var(--brand-primary);
 }
 
 .sidebar-nav a.router-link-active {
-  background-color: #6366f1;
+  background-color: var(--brand-primary);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .separator {
   height: 1px;
-  background-color: #1e293b;
+  background-color: var(--border-color);
   margin: 1.5rem 0;
 }
 
 .sidebar-footer {
   padding: 1rem;
-  border-top: 1px solid #1e293b;
-  background-color: #0b1120;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-surface); /* Adapta ao tema */
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.theme-wrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.user-divider {
+  width: 100%; height: 1px; background: var(--border-color);
 }
 
 .user-mini-profile {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
 .avatar-circle {
   width: 36px; height: 36px;
-  background-color: #3b82f6;
+  background-color: var(--brand-primary);
   color: white;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -238,14 +260,14 @@ const logout = () => {
 }
 
 .user-info { display: flex; flex-direction: column; }
-.user-name { color: #fff; font-size: 0.9rem; font-weight: 600; }
-.user-role { color: #64748b; font-size: 0.75rem; }
+.user-name { color: var(--text-main); font-size: 0.9rem; font-weight: 600; }
+.user-role { color: var(--text-muted); font-size: 0.75rem; }
 
 .btn-logout-icon {
-  background: none; border: none; color: #94a3b8; cursor: pointer;
-  padding: 0.5rem; transition: color 0.2s;
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  padding: 0.5rem; transition: color 0.2s; margin-left: auto;
 }
-.btn-logout-icon:hover { color: #ef4444; }
+.btn-logout-icon:hover { color: var(--sys-danger); }
 
 /* MAIN AREA */
 .dashboard-main {
@@ -254,7 +276,7 @@ const logout = () => {
   flex-direction: column;
   height: 100vh;
   overflow: hidden; /* Scroll interno */
-  padding: 0%; 
+  padding: 0; 
 }
 
 .mobile-header { display: none; } /* Só aparece no mobile */
@@ -262,7 +284,7 @@ const logout = () => {
 .main-content-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 0; /* Padding gerido pelas views */
+  padding: 0;
 }
 
 /* MOBILE NAVBAR */
@@ -270,8 +292,8 @@ const logout = () => {
   display: none;
   position: fixed;
   bottom: 0; left: 0; width: 100%; height: 65px;
-  background-color: #fff;
-  border-top: 1px solid #e2e8f0;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
   box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
   z-index: 100;
   padding: 0 1rem;
@@ -281,20 +303,20 @@ const logout = () => {
 
 .nav-item {
   display: flex; flex-direction: column; align-items: center;
-  text-decoration: none; color: #94a3b8; font-size: 0.7rem; gap: 4px;
+  text-decoration: none; color: var(--text-muted); font-size: 0.7rem; gap: 4px;
   background: none; border: none; cursor: pointer;
 }
-.nav-item.router-link-active { color: #6366f1; }
+.nav-item.router-link-active { color: var(--brand-primary); }
 .nav-icon { font-size: 1.5rem; }
 
 .center-item { position: relative; top: -20px; }
 .center-icon-bg {
   width: 56px; height: 56px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-hover));
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8px 15px rgba(99, 102, 241, 0.4);
-  border: 4px solid #f1f5f9;
+  box-shadow: var(--shadow-md);
+  border: 4px solid var(--bg-body);
 }
 .white-icon { color: white; font-size: 1.8rem; }
 
@@ -306,12 +328,12 @@ const logout = () => {
 @media (max-width: 768px) {
   .dashboard-sidebar { display: none; }
   .mobile-navbar { display: flex; }
-  .dashboard-main { padding-bottom: 70px; } /* Espaço para a barra mobile */
+  .dashboard-main { padding-bottom: 70px; }
   
   .mobile-header {
-    display: flex; align-items: center; justify-content: center;
-    height: 60px; background: #fff; border-bottom: 1px solid #e2e8f0;
-    font-size: 1.2rem; color: #0f172a;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color);
+    font-size: 1.2rem; color: var(--text-main); padding: 0 1.5rem;
   }
 }
 </style>
