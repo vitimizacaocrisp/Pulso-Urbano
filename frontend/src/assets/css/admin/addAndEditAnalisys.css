@@ -261,12 +261,21 @@ legend { font-weight: 600; padding: 0 0.5rem; color: var(--text-main); font-size
 }
 
 .form-group input, .form-group textarea, .form-group select, .modal-input, .search-input {
+  background-color: var(--bg-body);
+  color: var(--text-header-logo);
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--border-input);
   border-radius: var(--radius-sm);
   font-size: 1rem;
   box-sizing: border-box;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus, .modal-input:focus, .search-input:focus {
+  background-color: var(--bg-body);
+  color: var(--text-header-logo);
+  outline: none;
+  border-color: var(--sys-primary);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
 .required { color: var(--sys-danger); }
@@ -398,6 +407,9 @@ legend { font-weight: 600; padding: 0 0.5rem; color: var(--text-main); font-size
 /* Hacks para Monaco Editor */
 .vs { --monaco-editor-background: #ffffff; }
 .vs-dark { --monaco-editor-background: #1e1e1e; }
+.monaco-editor, .monaco-editor {
+  background-color: var(--monaco-editor-background) !important;
+}
 
 /* =========================================
    PREVIEW (VISUALIZAÇÃO DE NOTÍCIA)

@@ -1,14 +1,71 @@
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5/lib/codemirror.css">
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5/lib/codemirror.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/codemirror@5/mode/javascript/javascript.js"></script>
+<div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 950px; margin: 0 auto; padding: 10px;">
 
-<textarea id="code"></textarea>
+    <section>
+        <p style="margin-bottom: 1em;">
+            Esta análise consolida os dados mais recentes (período 2024-2025) sobre a vitimização no Brasil, com um recorte específico para a violência de gênero. O estudo vai além dos boletins de ocorrência, cruzando dados oficiais com pesquisas de percepção para desenhar o cenário real da insegurança enfrentada pelas mulheres brasileiras.
+        </p>
 
-<script>
-  CodeMirror.fromTextArea(document.getElementById("code"), {
-    lineNumbers: true,
-    mode: "javascript",
-    theme: "default",
-    indentUnit: 2
-  });
-</script>
+        <h2 style="color: #2c3e50; border-bottom: 3px solid #8e44ad; padding-bottom: 15px; margin-top: 40px; font-size: 1.8em;">Metodologia e Abrangência</h2>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; margin-bottom: 40px;">
+            <div style="flex: 2; min-width: 280px;">
+                 <img src="http://googleusercontent.com/image_collection/image_retrieval/12327082560188308141_0" alt="Pesquisa de Campo e Coleta de Dados" style="width: 100%; height: 300px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <small style="display: block; text-align: center; color: #777; margin-top: 5px;">Imagem ilustrativa de metodologia de pesquisa.</small>
+            </div>
+            <div style="flex: 3; min-width: 300px;">
+                <p style="margin-top: 0;">A pesquisa "Visível e Invisível" adota uma abordagem mista. Foram analisados microdados de registros policiais de todos os estados e realizadas <strong>2.500 entrevistas domiciliares</strong> em 130 municípios, garantindo representatividade nacional.</p>
+                <p>O objetivo central é captar não apenas o crime registrado, mas a experiência subjetiva da vítima e os motivos que levam à não denúncia. A margem de erro para os dados amostrais é de 2 pontos percentuais, com nível de confiança de 95%.</p>
+            </div>
+        </div>
+
+        <h2 style="color: #2c3e50; border-bottom: 3px solid #8e44ad; padding-bottom: 15px; margin-top: 40px; font-size: 1.8em;">O Cenário da Violência: Tipologias Mais Recorrentes</h2>
+        <p>Os dados revelam que a violência contra a mulher no Brasil é multifacetada, começando muitas vezes com agressões verbais e escalando para violência física e sexual. O ambiente doméstico continua sendo o principal palco dessas violações.</p>
+
+        <div style="background-color: #f4ecf7; border-left: 6px solid #8e44ad; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+            <span style="font-size: 2em; font-weight: 800; color: #8e44ad; display: block; margin-bottom: 5px;">28,6%</span>
+            Das mulheres brasileiras relataram ter sofrido algum tipo de violência (física, psicológica ou sexual) nos últimos 12 meses. Isso representa cerca de 18 milhões de mulheres.
+        </div>
+
+        <h3 style="color: #4a235a; margin-top: 30px; font-size: 1.4em; display: flex; align-items: center;">Detalhamento das Agressões</h3>
+        <ul style="padding-left: 20px;">
+            <li style="margin-bottom: 10px; position: relative;"><strong>Violência Psicológica e Verbal:</strong> 22,5% relataram insultos, humilhações ou ameaças. Esta é a forma mais comum e, frequentemente, a porta de entrada para outras violências.</li>
+            <li style="margin-bottom: 10px; position: relative;"><strong>Agressão Física:</strong> 11,3% relataram ter sofrido empurrões, chutes ou socos. O principal agressor, em 65% desses casos, é o parceiro ou ex-parceiro íntimo.</li>
+            <li style="margin-bottom: 10px; position: relative;"><strong>Assédio Sexual e Importunação:</strong> Em grandes centros urbanos, 40% das mulheres jovens (16 a 24 anos) relataram abordagens agressivas e não consensuais em transporte público ou ambientes de lazer.</li>
+        </ul>
+
+        <h2 style="color: #2c3e50; border-bottom: 3px solid #8e44ad; padding-bottom: 15px; margin-top: 40px; font-size: 1.8em;">O Abismo da Subnotificação (Cifras Ocultas)</h2>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; margin-bottom: 40px; flex-direction: row-reverse;">
+             <div style="flex: 2; min-width: 280px;">
+                 <img src="http://googleusercontent.com/image_collection/image_retrieval/10942630713923744368_0" alt="Representação simbólica do silêncio da vítima" style="width: 100%; height: 300px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <small style="display: block; text-align: center; color: #777; margin-top: 5px;">A barreira do medo e da descrença impede a denúncia.</small>
+            </div>
+            <div style="flex: 3; min-width: 300px;">
+                <p style="margin-top: 0;">A "Cifra Oculta" — a diferença entre os crimes que ocorrem e os que chegam ao conhecimento da polícia — continua sendo o maior desafio para a formulação de políticas públicas eficazes.</p>
+                
+                <div style="border-left: 6px solid #c0392b; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0; background-color: #f9ebe7;">
+                    <span style="font-size: 2em; font-weight: 800; display: block; margin-bottom: 5px; color: #c0392b;">Apenas 32,8%</span>
+                    Das vítimas de violência procuraram uma delegacia ou órgão oficial para denunciar o ocorrido no último ano.
+                </div>
+
+                <p><strong>Principais barreiras para a denúncia:</strong></p>
+                <ul style="padding-left: 20px;">
+                    <li style="margin-bottom: 10px; position: relative;"><strong>Medo de represálias:</strong> Citado por 45% das vítimas que não denunciaram, especialmente quando o agressor vive na mesma casa.</li>
+                    <li style="margin-bottom: 10px; position: relative;"><strong>Descrença institucional:</strong> 25% acreditam que a polícia "não faria nada" ou que a justiça é lenta e ineficaz.</li>
+                    <li style="margin-bottom: 10px; position: relative;"><strong>Minimização da violência:</strong> 20% acharam que o episódio "não foi grave o suficiente" para envolver a polícia, refletindo a naturalização de certas violências.</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2 style="color: #2c3e50; border-bottom: 3px solid #8e44ad; padding-bottom: 15px; margin-top: 40px; font-size: 1.8em;">Sensação de Segurança e Impacto no Cotidiano</h2>
+        <p>A vitimização real alimenta uma sensação generalizada de insegurança, alterando profundamente a rotina das mulheres e cerceando seu direito à cidade.</p>
+        
+        <p>A pesquisa aponta que <strong>68% das entrevistadas</strong> mudaram hábitos de circulação. Isso inclui evitar sair à noite sozinhas, deixar de frequentar determinados locais ou mudar o trajeto para o trabalho/estudo.</p>
+
+        <blockquote style="font-style: italic; background: #f8f9fa; padding: 25px; border-left: 4px solid #555; margin: 40px 0; font-size: 1.2em; color: #555;">
+            "Os dados de 2024-2025 confirmam que a vitimização feminina não é um evento isolado, mas um ciclo contínuo. A alta taxa de subnotificação é um grito silencioso que denuncia a falha do Estado em prover redes de apoio confiáveis e acessíveis."
+            <br><br>
+            <small>— Análise do Fórum Brasileiro de Segurança Pública</small>
+        </blockquote>
+    </section>
+</div>

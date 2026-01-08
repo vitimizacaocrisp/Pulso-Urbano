@@ -399,6 +399,11 @@ import {
     generateFileMediaHtml 
 } from '@/assets/js/analysisUtils.js';
 
+import { useTheme } from '@/composables/useTheme';
+const { isDark } = useTheme();
+
+const monacoEditorTheme = computed(() => isDark.value ? 'vs-dark' : 'vs-light');
+
 // --- CONFIGURAÇÕES ---
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
@@ -456,7 +461,7 @@ const initMonacoEditor = () => {
     editor = monaco.editor.create(editorContainer.value, {
       value: editingAnalysis.value.content || '',
       language: 'markdown',
-      theme: 'vs-dark',
+      theme: monacoEditorTheme.value,
       fontSize: 14,
       lineNumbers: 'on',
       minimap: { enabled: true },
@@ -867,6 +872,12 @@ watch(isPreviewMode, async (newVal) => {
         editor.focus();
       }
     }, 550);
+  }
+});
+
+watch(isDark, (newValue) => {
+  if (editor) {
+    monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs');
   }
 });
 </script>

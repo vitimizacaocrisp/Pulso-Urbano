@@ -1,13 +1,12 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { ref } from 'vue';
 import axios from 'axios';
 
 //const API_BASE_URL = 'http://localhost:3000';
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-/**
- * Função de segurança que valida o token com o backend.
- * É a fonte de verdade para saber se o usuário está autenticado.
- * @returns {Promise<boolean>} - Retorna true se autenticado, false caso contrário.
- */
+
+export const isRouteLoading = ref(false);
+
 const checkAuthStatus = async () => {
   const token = localStorage.getItem('authToken');
   if (!token) {
@@ -112,6 +111,8 @@ const router = createRouter({
 // Guarda de Rota Global: lida com a lógica primária de navegação.
 router.beforeEach(async (to, from, next) => {
 
+  isRouteLoading.value = true;
+
   /* ─────────────────────────────
      AUTENTICAÇÃO
   ───────────────────────────── */
@@ -138,6 +139,10 @@ router.beforeEach(async (to, from, next) => {
   }
 
   return next();
+});
+
+router.afterEach(() => {
+  isRouteLoading.value = false;
 });
 
 

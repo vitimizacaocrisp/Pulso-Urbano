@@ -1,23 +1,12 @@
-<script>
+<script setup>
 import LoadComponent from '@/components/LoadComponent.vue';
-
-export default {
-  name: 'App',
-  components: {
-    LoadComponent,
-
-  }
-}
+import { isRouteLoading } from '@/router';
 
 </script>
 
 <template>
-  <suspense>
-    <template #default>
-      <router-view />
-    </template>
-    <template #fallback>
-      <LoadComponent />
-    </template>
-  </suspense>
+  <div id="app">
+    <LoadComponent v-show="isRouteLoading" />
+    <router-view v-show="!isRouteLoading" />
+  </div>
 </template>
