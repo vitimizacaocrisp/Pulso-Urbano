@@ -1,6 +1,6 @@
 require('dotenv').config();
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto'); // [MUDANÇA] Usando módulo nativo do Node
 const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 
 // Configuração do cliente S3 para Backblaze B2
@@ -36,7 +36,8 @@ function generateUniqueFilename(originalName) {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
-  return `${sanitizedBaseName}-${uuidv4()}${fileExt}`;
+  // [MUDANÇA] Usa crypto.randomUUID() ao invés de uuidv4()
+  return `${sanitizedBaseName}-${crypto.randomUUID()}${fileExt}`;
 }
 
 // Função para garantir que pasta exista no S3 (objeto vazio com key terminada em '/')
