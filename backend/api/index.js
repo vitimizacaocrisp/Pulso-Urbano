@@ -4,12 +4,12 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { requestHandler } = require('./db/dbConnect');
+const { requestHandler } = require('../src/db/dbConnect');
 
 const PORT = process.env.PORT || 3000;
 
 // Importa o arquivo principal de rotas
-const mainRoutes = require('./routes/routes');
+const mainRoutes = require('../src/routes/routes');
 
 // Cria a aplicação Express
 const app = express();

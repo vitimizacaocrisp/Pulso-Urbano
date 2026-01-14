@@ -2,15 +2,14 @@
   "name": "pulso-urbano",
   "version": "1.0.0",
   "description": "**Pulso Urbano** é uma plataforma digital de dados, análises e previsões desenvolvida em parceria com o [CRISP/UFMG](https://www.crisp.ufmg.br), com o objetivo de tornar acessível o conhecimento produzido em pesquisas acadêmicas e sociais sobre segurança pública, criminalidade, juventude e urbanismo.",
-  "main": "src/server.js",
-  "type": "module",
+  "main": "./api/index.js",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node ./api/index.js",
+    "dev": "nodemon ./api/index.js",
     "build": "echo \"No build step defined\""
   },
   "repository": {
