@@ -162,17 +162,17 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
   }
 
   // Array para rastrear os arquivos que foram enviados com sucesso para o S3
-  // Usaremos isso para fazer o "rollback" (deletar os arquivos) em caso de erro no DB.
   let successfullyUploadedFiles = [];
 
   try {
     // 1. FAZ O UPLOAD DOS ARQUIVOS PARA O S3
     const uploadPromises = req.files.map(async file => {
-      const folder = getFolderForFile(file.fieldname);
+      // [CORREÇÃO] Passa o objeto file inteiro para usar a lógica de mimetype do s3Connection
+      const folder = getFolderForFile(file);
       const uniqueFilename = generateUniqueFilename(file.originalname);
       const keyWithFolder = `${folder}/${uniqueFilename}`;
       const uploadedFile = await uploadFileToS3(file, keyWithFolder);
-      return { ...uploadedFile, fieldname: file.fieldname }; // Adiciona o fieldname para referência
+      return { ...uploadedFile, fieldname: file.fieldname };
     });
     
     successfullyUploadedFiles = await Promise.all(uploadPromises);
@@ -193,10 +193,28 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
         documentFilesData.push(uploaded);
       } else if (fieldname === 'dataFiles') {
         dataFilesData.push(uploaded);
-      } else if (fieldname.startsWith('placeholder_') || fieldname.startsWith('audio_placeholder_') || fieldname.startsWith('video_placeholder_')) {
+      } else if (
+          // [CORREÇÃO] Adicionada verificação para os prefixos gerados pelo novo Frontend
+          fieldname.startsWith('image_') || 
+          fieldname.startsWith('video_') || 
+          fieldname.startsWith('audio_') || 
+          fieldname.startsWith('notebook_') || 
+          fieldname.startsWith('script_') ||
+          fieldname.startsWith('document_') || 
+          fieldname.startsWith('data_') ||
+          // Mantém compatibilidade com legado
+          fieldname.startsWith('placeholder_') || 
+          fieldname.startsWith('audio_placeholder_') || 
+          fieldname.startsWith('video_placeholder_')
+      ) {
         contentMediaMap[fieldname] = path;
-        if (fieldname.startsWith('audio_placeholder_')) audioFilesData.push(uploaded);
-        else if (fieldname.startsWith('video_placeholder_')) videoFilesData.push(uploaded);
+        
+        // Popula arrays auxiliares (opcional, dependendo de como você usa no front)
+        if (fieldname.startsWith('audio_') || fieldname.startsWith('audio_placeholder_')) {
+            audioFilesData.push(uploaded);
+        } else if (fieldname.startsWith('video_') || fieldname.startsWith('video_placeholder_')) {
+            videoFilesData.push(uploaded);
+        }
       }
     });
 
@@ -232,17 +250,17 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
     console.error("Erro ao criar análise. Iniciando rollback de arquivos...", error);
     if (successfullyUploadedFiles.length > 0) {
       console.log(`Deletando ${successfullyUploadedFiles.length} arquivos do S3...`);
-      await Promise.all(successfullyUploadedFiles.map(file => deleteFileFromS3(file.path)));
+      await Promise.all(successfullyUploadedFiles.map(file => deleteFileFromS3(file.path).catch(e => console.error(e))));
     }
-    // Envia uma resposta de erro genérica para o cliente
     res.status(500).json({ success: false, message: 'Ocorreu um erro interno ao salvar a análise. Nenhuma alteração foi feita.' });
   }
 }));
 
 // Rota para ATUALIZAR Análises (COM LÓGICA DE TRANSAÇÃO E SEM RE-UPLOADS)
 router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+  // 1. Verificação de Conexão
   const isConnected = await testConnectionData();
-  if (!isConnected) return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
+  if (!isConnected) return res.status(500).json({ success: false, message: 'Erro de conexão com servidor de arquivos.' });
 
   const { id } = req.params;
   const {
@@ -250,105 +268,148 @@ router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, 
     tag, author, description, content, referenceLinks, filesToDelete
   } = req.body;
 
-  // Arrays para controle da transação
+  // Arrays de controle
   let newlyUploadedFiles = [];
-  let filesToDeleteFromS3 = JSON.parse(filesToDelete || '[]');
+  let filesToDeleteFromS3 = [];
 
   try {
-    // 1. BUSCA O ESTADO ATUAL DA ANÁLISE NO BANCO
-    const oldAnalysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
-    if (oldAnalysisResult.length === 0) {
-      return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+    // Parse seguro do filesToDelete
+    if (filesToDelete) {
+      try {
+        filesToDeleteFromS3 = JSON.parse(filesToDelete);
+      } catch (e) {
+        console.error("Erro ao fazer parse de filesToDelete", e);
+      }
     }
+
+    // 2. BUSCA ESTADO ATUAL
+    const oldAnalysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+    if (oldAnalysisResult.length === 0) return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
     const oldAnalysis = oldAnalysisResult[0];
 
-    // 2. FAZ O UPLOAD APENAS DOS *NOVOS* ARQUIVOS
+    // 3. UPLOAD DE NOVOS ARQUIVOS
     if (req.files && req.files.length > 0) {
       const uploadPromises = req.files.map(async file => {
-        const folder = getFolderForFile(file.fieldname);
+        // Define pasta baseada no tipo ou nome do campo
+        const folder = getFolderForFile(file); 
         const uniqueFilename = generateUniqueFilename(file.originalname);
         const keyWithFolder = `${folder}/${uniqueFilename}`;
+        
         const uploadedFile = await uploadFileToS3(file, keyWithFolder);
         return { ...uploadedFile, fieldname: file.fieldname };
       });
       newlyUploadedFiles = await Promise.all(uploadPromises);
     }
-    
-    // 3. IDENTIFICA ARQUIVOS ANTIGOS QUE FORAM *SUBSTITUÍDOS* E ADICIONA À LISTA DE EXCLUSÃO
+
+    // 4. MARCAR ARQUIVOS SUBSTITUÍDOS PARA DELEÇÃO
+    // Se enviou nova capa, a antiga deve ir para o lixo
     const newCoverImage = newlyUploadedFiles.find(f => f.fieldname === 'coverImage');
     if (newCoverImage && oldAnalysis.cover_image_path) {
-        filesToDeleteFromS3.push(oldAnalysis.cover_image_path);
+        // Só deleta se a antiga não estiver sendo usada em outro lugar (opcional, mas seguro adicionar à lista)
+        if (!filesToDeleteFromS3.includes(oldAnalysis.cover_image_path)) {
+            filesToDeleteFromS3.push(oldAnalysis.cover_image_path);
+        }
     }
-    // (Adicionar lógica similar para outros tipos de arquivo se eles puderem ser substituídos individualmente)
 
-    // 4. DELETA OS ARQUIVOS MARCADOS (tanto os explícitos quanto os substituídos) DO S3
+    // 5. EXECUTAR DELEÇÃO NO S3
     if (filesToDeleteFromS3.length > 0) {
-      console.log(`[S3 DELETE] Deletando ${filesToDeleteFromS3.length} arquivos...`);
-      await Promise.all(filesToDeleteFromS3.map(path => deleteFileFromS3(path)));
+      // Filtra duplicatas e valores nulos/vazios
+      const uniquePathsToDelete = [...new Set(filesToDeleteFromS3)].filter(Boolean);
+      console.log(`[S3 DELETE] Removendo ${uniquePathsToDelete.length} arquivos antigos...`);
+      // Não damos await no delete para não travar a resposta, ou damos await se a consistência for crítica.
+      // Aqui uso await para garantir limpeza.
+      await Promise.all(uniquePathsToDelete.map(path => deleteFileFromS3(path).catch(err => console.error("Erro ao deletar arquivo antigo S3:", err))));
     }
 
-    // 5. MONTA O ESTADO FINAL DOS DADOS PARA O BANCO
+    // 6. MONTAR ESTADO FINAL DOS DADOS
     const contentMediaMap = {};
-    let finalContent = content;
+    let finalContent = content || '';
 
-    // Começa com os arquivos antigos...
+    // Recupera dados antigos ou inicia arrays vazios
     let finalCoverImagePath = oldAnalysis.cover_image_path;
     let finalDocumentFiles = oldAnalysis.document_file_path || [];
     let finalDataFiles = oldAnalysis.data_file_path || [];
 
-    // ...remove os que foram deletados...
+    // Remove arquivos que foram deletados das listas de arrays (documentos/dados)
     finalDocumentFiles = finalDocumentFiles.filter(f => !filesToDeleteFromS3.includes(f.path));
     finalDataFiles = finalDataFiles.filter(f => !filesToDeleteFromS3.includes(f.path));
+
+    // Se a capa antiga foi deletada, reseta a variável
     if (filesToDeleteFromS3.includes(finalCoverImagePath)) {
         finalCoverImagePath = null;
     }
-    
-    // ...e adiciona os novos.
+
+    // Processa os NOVOS arquivos
     newlyUploadedFiles.forEach(uploaded => {
       const { path, fieldname } = uploaded;
+
       if (fieldname === 'coverImage') {
         finalCoverImagePath = path;
-      } else if (fieldname === 'documentFiles') {
+      } 
+      else if (fieldname === 'documentFiles') {
         finalDocumentFiles.push(uploaded);
-      } else if (fieldname === 'dataFiles') {
+      } 
+      else if (fieldname === 'dataFiles') {
         finalDataFiles.push(uploaded);
-      } else if (fieldname.startsWith('placeholder_') || fieldname.startsWith('audio_placeholder_') || fieldname.startsWith('video_placeholder_')) {
+      } 
+      // --- CORREÇÃO AQUI: Detecta as chaves geradas pelo analysisUtils.js ---
+      else if (
+          fieldname.startsWith('image_') || 
+          fieldname.startsWith('video_') || 
+          fieldname.startsWith('audio_') || 
+          fieldname.startsWith('notebook_') || 
+          fieldname.startsWith('script_') ||
+          fieldname.startsWith('document_') || // caso venha do botão de download inline
+          fieldname.startsWith('data_')     // caso venha do botão de download inline
+      ) {
         contentMediaMap[fieldname] = path;
       }
     });
-    
-    // Atualiza os placeholders no conteúdo com os novos arquivos de mídia
+
+    // 7. REPLACE NO CONTEÚDO (Substitui placeholder_123 pela URL do S3)
     for (const placeholder in contentMediaMap) {
+        // Escapa caracteres especiais para o Regex não quebrar
         const escaped = placeholder.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        // Substitui globalmente
         finalContent = finalContent.replace(new RegExp(escaped, 'g'), contentMediaMap[placeholder]);
     }
-    
-    // 6. ATUALIZA O BANCO DE DADOS COM O ESTADO FINAL
+
+    // 8. UPDATE NO BANCO
+    // 8. UPDATE NO BANCO
     await sql`
       UPDATE analyses SET
-        title = ${title}, subtitle = ${subtitle}, last_update = ${lastUpdate}, 
-        study_period = ${studyPeriod}, source = ${source}, category = ${category},
-        tag = ${tag}, author = ${author}, description = ${description}, 
-        content = ${finalContent}, reference_links = ${referenceLinks},
+        title = ${title}, 
+        subtitle = ${subtitle}, 
+        last_update = ${lastUpdate}, 
+        study_period = ${studyPeriod}, 
+        source = ${source}, 
+        category = ${category},
+        tag = ${tag}, 
+        author = ${author}, 
+        description = ${description}, 
+        content = ${finalContent}, 
+        reference_links = ${referenceLinks},
         cover_image_path = ${finalCoverImagePath},
-        document_file_path = ${JSON.stringify(finalDocumentFiles)},
+        document_file_path = ${JSON.stringify(finalDocumentFiles)}, 
         data_file_path = ${JSON.stringify(finalDataFiles)}
       WHERE id = ${id}
     `;
 
-    // 7. SE TUDO DEU CERTO, ENVIA A RESPOSTA DE SUCESSO
     res.json({ success: true, message: 'Análise atualizada com sucesso!' });
 
   } catch (error) {
-    // EM CASO DE ERRO (no S3 ou no DB): Deleta apenas os *novos* arquivos que foram enviados nesta requisição
-    console.error("Erro ao atualizar análise. Iniciando rollback de novos arquivos...", error);
+    console.error("ERRO CRÍTICO NA ATUALIZAÇÃO:", error);
+
+    // ROLLBACK: Deleta os arquivos novos que acabaram de subir, já que o banco falhou
     if (newlyUploadedFiles.length > 0) {
-      console.log(`Deletando ${newlyUploadedFiles.length} novos arquivos do S3...`);
-      await Promise.all(newlyUploadedFiles.map(file => deleteFileFromS3(file.path)));
+      console.log(`[ROLLBACK] Deletando ${newlyUploadedFiles.length} arquivos órfãos do S3...`);
+      await Promise.all(newlyUploadedFiles.map(file => deleteFileFromS3(file.path).catch(e => console.error(e))));
     }
-    res.status(500).json({ success: false, message: 'Ocorreu um erro interno ao salvar a análise. Suas alterações não foram salvas.' });
+
+    res.status(500).json({ success: false, message: 'Erro ao salvar alterações no banco de dados.' });
   }
 }));
+
 
 
 // Rota para DELETAR Análises (sem alterações necessárias)

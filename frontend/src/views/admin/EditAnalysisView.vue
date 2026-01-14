@@ -171,7 +171,7 @@
          </div>
          <div class="form-group">
            <label for="subtitle">Subtítulo</label>
-           <input type="text" id="subtitle" v-model="editingAnalysis.subtitle">
+           <input type="text" id="subtitle" v-model="editingAnalysis.subtitle" required>
          </div>
          <div class="form-grid">
            <div class="form-group">
@@ -188,12 +188,12 @@
            </div>
            <div class="form-group">
              <label for="studyPeriod">Período de Estudo</label>
-             <input type="text" id="studyPeriod" v-model="editingAnalysis.studyPeriod" placeholder="Ex: 2022-2023">
+             <input type="text" id="studyPeriod" v-model="editingAnalysis.studyPeriod" placeholder="Ex: 2022-2023" required>
            </div>
          </div>
          <div class="form-group">
            <label for="source">Fonte</label>
-           <input type="text" id="source" v-model="editingAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc.">
+           <input type="text" id="source" v-model="editingAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc." required>
          </div>
          <div class="form-group">
            <label for="category">Categoria <span class="required">*</span></label>
@@ -273,7 +273,7 @@
                   <span class="file-input-button">Escolher arquivo</span>
                   <span class="file-input-text">{{ coverImageLabel }}</span>
               </label>
-              <input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*" style="display: none;">
+              <input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')"  accept="image/*" style="display: none;">
               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview" />
           </div>
 
@@ -302,7 +302,7 @@
           
           <div class="form-group">
             <label for="referenceLinks">Links de Referência</label>
-            <textarea id="referenceLinks" v-model="editingAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..."></textarea>
+            <textarea id="referenceLinks" v-model="editingAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..." required></textarea>
           </div>
        </fieldset>
 
@@ -605,15 +605,29 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
 // --- LÓGICA DE CARREGAMENTO ---
 const fetchFile = async (url, defaultName) => {
     try {
-        const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+        if (!url) return null;
+        
+        // Garante que a URL está completa (igual ao código antigo)
+        const fullUrl = url.startsWith('http') 
+            ? url 
+            : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+
         const response = await fetch(fullUrl);
-        if (!response.ok) throw new Error(`Status ${response.status}`);
+        
+        if (!response.ok) {
+            console.warn(`Aviso: Arquivo não encontrado ou erro de acesso: ${fullUrl}`);
+            return null; // Retorna null para não quebrar a Promise.all
+        }
+
         const blob = await response.blob();
+        
+        // Recria o objeto File para ser compatível com o FormData
         const file = new File([blob], defaultName, { type: blob.type });
-        file.serverPath = url; 
+        file.serverPath = url; // Mantém a referência original para logica de exclusão
+        
         return file;
     } catch (error) {
-        console.error(`Erro ao carregar ${url}:`, error);
+        console.error(`Erro crítico ao baixar arquivo ${url}:`, error);
         return null;
     }
 };
@@ -728,46 +742,101 @@ onBeforeUnmount(() => {
 
 // --- AÇÕES DO FORMULÁRIO ---
 const updateAnalysis = async () => {
+    // 1. Validação básica
     if (!editingAnalysis.value.id || isFormInvalid.value) {
-      feedback.value = { message: 'Preencha os campos obrigatórios.', type: 'error' };
-      return;
+        feedback.value = { message: 'Preencha os campos obrigatórios.', type: 'error' };
+        return;
     }
+
     isLoading.value = true;
-    feedback.value = { message: 'Salvando...', type: 'info' };
-
-    let finalContent = editingAnalysis.value.content;
-    for (const [placeholder, data] of contentImages.value.entries()) {
-        if (data.blobUrl) {
-            const regex = new RegExp(data.blobUrl.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-            finalContent = finalContent.replace(regex, placeholder);
-        }
-    }
-
-    const formData = new FormData();
-    Object.entries(editingAnalysis.value).forEach(([key, value]) => {
-        if (!['coverImage', 'documentFiles', 'dataFiles', 'id', 'content'].includes(key)) {
-            formData.append(key, value ?? '');
-        }
-    });
-    formData.append('content', finalContent);
-
-    if (editingAnalysis.value.coverImage instanceof File) formData.append('coverImage', editingAnalysis.value.coverImage);
-    editingAnalysis.value.documentFiles.forEach(file => { if(file instanceof File) formData.append('documentFiles', file) });
-    editingAnalysis.value.dataFiles.forEach(file => { if(file instanceof File) formData.append('dataFiles', file) });
-    
-    contentImages.value.forEach((mediaData, placeholder) => { if(mediaData.file instanceof File) formData.append(placeholder, mediaData.file) });
-    
-    formData.append('filesToDelete', JSON.stringify(filesToDelete.value));
+    feedback.value = { message: 'Processando arquivos...', type: 'info' };
 
     try {
+        // 2. Preparação do Conteúdo
+        let finalContent = editingAnalysis.value.content || '';
+        
+        // Substitui os Blob URLs pelos IDs dos placeholders antes de salvar
+        // Isso garante que o backend receba "placeholder_123" e não "blob:http://..."
+        for (const [placeholder, data] of contentImages.value.entries()) {
+            if (data.blobUrl) {
+                // Escapa caracteres especiais para o Regex funcionar
+                const safeUrl = data.blobUrl.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
+                const regex = new RegExp(safeUrl, 'g');
+                finalContent = finalContent.replace(regex, placeholder);
+            }
+        }
+
+        // 3. Montagem do FormData (A parte crítica)
+        const formData = new FormData();
+
+        // Campos de texto simples
+        Object.entries(editingAnalysis.value).forEach(([key, value]) => {
+            if (!['coverImage', 'documentFiles', 'dataFiles', 'id', 'content'].includes(key)) {
+                formData.append(key, value ?? '');
+            }
+        });
+        
+        // Campo content processado
+        formData.append('content', finalContent);
+
+        // --- ARQUIVOS: Lógica restaurada do código antigo ---
+
+        // A. Capa
+        if (editingAnalysis.value.coverImage instanceof File) {
+            formData.append('coverImage', editingAnalysis.value.coverImage);
+        }
+
+        // B. Documentos (Lista)
+        editingAnalysis.value.documentFiles.forEach(file => {
+            if (file instanceof File) formData.append('documentFiles', file);
+        });
+
+        // C. Arquivos de Dados (Lista)
+        editingAnalysis.value.dataFiles.forEach(file => {
+            if (file instanceof File) formData.append('dataFiles', file);
+        });
+
+        // D. Mídia do Conteúdo (O ponto onde costuma falhar)
+        // O Backend espera: req.files['placeholder_123']
+        contentImages.value.forEach((mediaData, placeholder) => {
+            if (mediaData.file instanceof File) {
+                // IMPORTANTE: O placeholder DEVE ser uma string simples (ex: "placeholder_1638291...")
+                // Se vier com caracteres estranhos do analysisUtils, o FormData pode falhar.
+                formData.append(placeholder, mediaData.file);
+            }
+        });
+
+        // E. Arquivos para deletar
+        formData.append('filesToDelete', JSON.stringify(filesToDelete.value));
+
+        // 4. Debug no Console (Para você verificar se está igual ao antigo)
+        console.group("🚀 Enviando Update");
+        for (const pair of formData.entries()) {
+            if (pair[1] instanceof File) {
+                console.log(`📎 Arquivo [${pair[0]}]: ${pair[1].name} (${pair[1].size} bytes)`);
+            } else {
+                console.log(`📝 Campo [${pair[0]}]: ${String(pair[1]).substring(0, 50)}...`);
+            }
+        }
+        console.groupEnd();
+
+        // 5. Envio
         const token = localStorage.getItem('authToken');
         await axios.put(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, formData, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+            headers: { 
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'multipart/form-data' 
+            }
         });
+
         feedback.value = { message: 'Análise atualizada com sucesso!', type: 'success' };
+        
+        // Recarrega para garantir sincronia com o servidor
         await selectAnalysis({ id: editingAnalysis.value.id, title: editingAnalysis.value.title });
+
     } catch (err) {
-        feedback.value = { message: 'Erro ao salvar.', type: 'error' };
+        console.error("Erro no upload:", err);
+        feedback.value = { message: 'Erro ao salvar: ' + (err.response?.data?.message || err.message), type: 'error' };
     } finally {
         isLoading.value = false;
     }

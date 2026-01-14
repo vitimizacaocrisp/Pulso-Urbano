@@ -1,6 +1,6 @@
 require('dotenv').config();
 const path = require('path');
-const crypto = require('crypto'); // [MUDANÇA] Usando módulo nativo do Node
+const crypto = require('crypto');
 const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 
 // Configuração do cliente S3 para Backblaze B2
@@ -36,7 +36,6 @@ function generateUniqueFilename(originalName) {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
-  // [MUDANÇA] Usa crypto.randomUUID() ao invés de uuidv4()
   return `${sanitizedBaseName}-${crypto.randomUUID()}${fileExt}`;
 }
 
@@ -79,7 +78,10 @@ async function uploadFileToS3(file, key) {
   const command = new PutObjectCommand(params);
   await s3Client.send(command);
 
+  // Constrói a URL pública
+  // Nota: Verifique se o bucket é público ou privado. Se privado, precisaria de URL assinada.
   const filePath = `https://${process.env.B2_BUCKET_NAME}.${process.env.B2_ENDPOINT}/${key}`;
+  
   return { path: filePath, originalName: file.originalname };
 }
 
@@ -87,7 +89,12 @@ async function uploadFileToS3(file, key) {
 async function deleteFileFromS3(fileUrl) {
   if (!fileUrl || !fileUrl.startsWith('http')) return;
   try {
-    const key = new URL(fileUrl).pathname.substring(1); // remove a barra inicial
+    // Extrai a Key da URL completa
+    // Ex: https://bucket.s3.us-west.backblazeb2.com/covers/imagem.jpg -> covers/imagem.jpg
+    const urlObj = new URL(fileUrl);
+    // Remove a barra inicial do pathname se existir
+    const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+    
     const params = { Bucket: process.env.B2_BUCKET_NAME, Key: key };
     const command = new DeleteObjectCommand(params);
     await s3Client.send(command);
@@ -97,18 +104,46 @@ async function deleteFileFromS3(fileUrl) {
   }
 }
 
-// Função auxiliar para definir pasta conforme fieldname
-function getFolderForFile(fieldname) {
+/**
+ * Função auxiliar para definir pasta conforme fieldname ou objeto de arquivo
+ * [CORRIGIDO] Agora aceita objeto File ou String fieldname para evitar erros
+ */
+function getFolderForFile(fileOrFieldname) {
+  let fieldname = '';
+  let mimetype = '';
+
+  // Verifica se recebeu o objeto File do multer ou apenas a string fieldname
+  if (fileOrFieldname && typeof fileOrFieldname === 'object' && fileOrFieldname.fieldname) {
+      fieldname = fileOrFieldname.fieldname;
+      mimetype = fileOrFieldname.mimetype || '';
+  } else if (typeof fileOrFieldname === 'string') {
+      fieldname = fileOrFieldname;
+  }
+
+  // 1. Campos Padrão do Formulário
   if (fieldname === 'coverImage' || fieldname === 'newCoverImage') return 'coverImages';
   if (fieldname === 'documentFiles' || fieldname === 'newDocumentFiles') return 'documents';
   if (fieldname === 'dataFiles' || fieldname === 'newDataFiles') return 'dataFiles';
   
-  // Verificações mais específicas primeiro
+  // 2. Campos Dinâmicos (Novos - analysisUtils.js)
+  if (fieldname.startsWith('image_')) return 'contentImages';
+  if (fieldname.startsWith('video_')) return 'contentVideo';
+  if (fieldname.startsWith('audio_')) return 'contentAudio';
+  if (fieldname.startsWith('notebook_')) return 'contentNotebooks';
+  if (fieldname.startsWith('script_')) return 'contentScripts';
+  if (fieldname.startsWith('document_')) return 'documents'; // Downloads inline
+  if (fieldname.startsWith('data_')) return 'dataFiles';     // Downloads inline
+
+  // 3. Campos Dinâmicos (Legado / Fallback)
   if (fieldname.startsWith('audio_placeholder_')) return 'contentAudio';
   if (fieldname.startsWith('video_placeholder_')) return 'contentVideo';
-  
-  // Verificação genérica para imagens por último
   if (fieldname.startsWith('placeholder_')) return 'contentImages'; 
+
+  // 4. Fallback por Mimetype (Se o nome do campo for genérico)
+  if (mimetype.startsWith('image/')) return 'contentImages';
+  if (mimetype.startsWith('video/')) return 'contentVideo';
+  if (mimetype.startsWith('audio/')) return 'contentAudio';
+  if (mimetype.includes('pdf')) return 'documents';
   
   return 'others';
 }
