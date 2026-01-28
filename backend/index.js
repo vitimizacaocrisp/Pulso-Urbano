@@ -12,8 +12,13 @@ const mainRoutes = require('./src/routes/routes');
 const app = express();
 
 app.use(cors({
-    origin: 'https://pulso-urbano.netlify.app'
+  origin: 'https://pulso-urbano.netlify.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
 }));
+
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
