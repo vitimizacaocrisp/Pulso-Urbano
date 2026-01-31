@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken, asyncHandler } = require('../middleware/middlewares');
 const upload = require('../middleware/multerConfig');
 const { sql } = require('../db/dbConnect');
+const cors = require('cors');
 const { 
   generateUniqueFilename, 
   uploadFileToS3, 
@@ -10,6 +11,28 @@ const {
   getFolderForFile, 
   testConnectionData 
 } = require('../middleware/s3Connection');
+
+const ALLOWED_ORIGINS = [
+  'https://pulso-urbano.netlify.app',
+  'http://localhost:8000'
+];
+
+// Configuração dinâmica do CORS
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 1. Permite requisições sem 'origin' (como apps mobile ou Postman)
+    // 2. Verifica se a origem da requisição está no seu Array
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      // Se não estiver na lista, retorna o erro de CORS
+      callback(new Error('Origem não permitida pelo CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // Importante se você usa o verifyToken com cookies ou sessions
+};
 
 router.get('/verify-token', verifyToken, (req, res) => {
   // Se o código chegou até aqui, o middleware 'verifyToken' confirmou
@@ -141,7 +164,7 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
 
 
 // Rota para CRIAR Análises (COM LÓGICA DE TRANSAÇÃO)
-router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+router.post('/analyses', cors(corsOptions), verifyToken, upload.any(), asyncHandler(async (req, res) => {
   const isConnected = await testConnectionData();
   if (!isConnected) {
     return res.status(500).json({ success: false, message: 'Não foi possível conectar ao servidor de arquivos.' });
@@ -257,7 +280,7 @@ router.post('/analyses', verifyToken, upload.any(), asyncHandler(async (req, res
 }));
 
 // Rota para ATUALIZAR Análises (COM LÓGICA DE TRANSAÇÃO E SEM RE-UPLOADS)
-router.put('/analyses/:id', verifyToken, upload.any(), asyncHandler(async (req, res) => {
+router.put('/analyses/:id', cors(corsOptions), verifyToken, upload.any(), asyncHandler(async (req, res) => {
   // 1. Verificação de Conexão
   const isConnected = await testConnectionData();
   if (!isConnected) return res.status(500).json({ success: false, message: 'Erro de conexão com servidor de arquivos.' });
