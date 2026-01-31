@@ -11,7 +11,32 @@ const mainRoutes = require('./src/routes/routes');
 
 const app = express();
 
-app.use(cors());
+// --- 1. CONFIGURAÇÃO DE ORIGENS PERMITIDAS ---
+const ALLOWED_ORIGINS = [
+  'https://pulso-urbano.netlify.app', // Seu frontend em produção
+  'http://localhost:3000',            // Seu frontend local
+  'http://localhost:5173'             // Vite local (se estiver usando)
+];
+
+// --- 2. APLIQUE O CORS GLOBALMENTE (Antes das rotas!) ---
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permite requisições sem origin (como Postman/Mobile) ou se estiver na lista
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origem não permitida pelo CORS'));
+    }
+  },
+  credentials: true, // Importante para cookies/sessões
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Todos os métodos permitidos
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+}));
+
+// --- 3. MANTER O PREFLIGHT (Opcional, mas recomendado para Vercel) ---
+// Força o Express a responder requisições OPTIONS rapidamente
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
