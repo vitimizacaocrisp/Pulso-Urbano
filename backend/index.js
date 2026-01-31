@@ -2,76 +2,50 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-// Importa o requestHandler e também o testConnection para rodar no boot
 const { requestHandler, testConnection } = require('./src/db/dbConnect');
-
-const PORT = process.env.PORT || 3000;
-
 const mainRoutes = require('./src/routes/routes');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // --- 1. CONFIGURAÇÃO DE ORIGENS PERMITIDAS ---
 const ALLOWED_ORIGINS = [
-  'https://pulso-urbano.netlify.app', // Seu frontend em produção
-  'http://localhost:3000',            // Seu frontend local
-  'http://localhost:5173'             // Vite local (se estiver usando)
+  'https://pulso-urbano.netlify.app', // Produção
+  'http://localhost:3000',            // Localhost React
+  'http://localhost:5173'             // Localhost Vite
 ];
 
-// --- 2. APLIQUE O CORS GLOBALMENTE (Antes das rotas!) ---
+// --- 2. CORS GLOBAL (Essencial: Deve vir antes das rotas) ---
 app.use(cors({
   origin: function (origin, callback) {
-    // Permite requisições sem origin (como Postman/Mobile) ou se estiver na lista
+    // Permite requisições sem 'origin' (como Postman/Mobile apps) ou se a origem estiver na lista branca
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Origem não permitida pelo CORS'));
+      callback(new Error('Bloqueado pela política de CORS (Origem não permitida)'));
     }
   },
-  credentials: true, // Importante para cookies/sessões
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Todos os métodos permitidos
+  credentials: true, // Permite cookies e headers de autorização
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Garante que UPDATE e DELETE funcionem
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
-// --- 3. MANTER O PREFLIGHT (Opcional, mas recomendado para Vercel) ---
-// Força o Express a responder requisições OPTIONS rapidamente
-app.options('*', cors());
-
+// --- 4. MIDDLEWARES DE PARSE ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- ROTA DE DEBUG (NOVA) ---
-// Acesse https://seu-site.vercel.app/debug-env para testar
-// app.get('/debug-env', (req, res) => {
-//     const dbUrl = process.env.DATABASE_URL;
-    
-//     if (!dbUrl) {
-//         return res.status(500).json({
-//             status: 'ERRO',
-//             message: 'A variável DATABASE_URL não existe neste ambiente.',
-//             env_keys: Object.keys(process.env) // Mostra quais variáveis existem (para debug)
-//         });
-//     }
-
-//     // Segurança: Mostra apenas o início da URL para confirmar que é a correta, sem mostrar a senha
-//     const hiddenUrl = dbUrl.substring(0, 15) + "..." + dbUrl.substring(dbUrl.length - 5);
-
-//     res.json({
-//         status: 'OK',
-//         message: 'Variável encontrada.',
-//         url_masked: hiddenUrl
-//     });
-// });
-
+// --- 5. ROTAS ---
 app.use('/', mainRoutes);
 
-// Middleware de banco (Cuidado: isso captura qualquer rota não definida acima)
+// Rota de teste simples para banco de dados
 app.use('/db-check', requestHandler); 
 
+// --- 6. INICIALIZAÇÃO DO SERVIDOR ---
+// O 'if' abaixo garante que o listen só rode localmente.
+// Na Vercel, o export do 'app' é quem comanda.
 if (require.main === module) {
     app.listen(PORT, () => {
-        console.log(`Servidor rodando na porta ${PORT}`);
-        // Tenta testar a conexão ao iniciar localmente
+        console.log(`🚀 Servidor rodando na porta ${PORT}`);
         testConnection();
     });
 }
