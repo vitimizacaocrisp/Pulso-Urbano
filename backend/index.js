@@ -11,8 +11,7 @@ const PORT = process.env.PORT || 3000;
 // --- 1. CONFIGURAÇÃO DE ORIGENS PERMITIDAS ---
 const ALLOWED_ORIGINS = [
   'https://pulso-urbano.netlify.app', // Produção
-  'http://localhost:3000',            // Localhost React
-  'http://localhost:5173'             // Localhost Vite
+  'http://localhost:8080',            // Localhost Vue
 ];
 
 // --- 2. CORS GLOBAL (Essencial: Deve vir antes das rotas) ---

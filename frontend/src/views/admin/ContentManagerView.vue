@@ -301,7 +301,6 @@ import { marked } from 'marked';
 import axios from 'axios';
 import { openDB } from 'idb';
 import * as monaco from 'monaco-editor';
-// Importação do arquivo compartilhado
 import { 
     mediaTypeLabels, 
     getAcceptAttribute, 
@@ -364,7 +363,7 @@ const activeMediaType = ref('');
 const mediaInputType = ref('url');
 const mediaUrlInput = ref('');
 const mediaFileInputRef = ref(null);
-const selectedMediaFiles = ref([]); // MUDANÇA: Array de arquivos
+const selectedMediaFiles = ref([]); 
 
 // Monaco Editor
 const editorContainer = ref(null);
@@ -402,6 +401,7 @@ const initMonacoEditor = () => {
     createEditor();
   } catch (error) {
     console.error('Erro ao inicializar Monaco Editor:', error);
+    // Fallback básico
     const textarea = document.createElement('textarea');
     textarea.id = 'content';
     textarea.vModel = 'newAnalysis.content';
@@ -433,11 +433,7 @@ const createEditor = () => {
     quickSuggestions: true,
     folding: true,
     renderLineHighlight: 'all',
-    scrollbar: {
-      vertical: 'visible',
-      horizontal: 'visible',
-      useShadows: false
-    },
+    scrollbar: { vertical: 'visible', horizontal: 'visible', useShadows: false },
     lineDecorationsWidth: 10,
     lineNumbersMinChars: 3,
     overviewRulerLanes: 0,
@@ -453,17 +449,9 @@ const createEditor = () => {
     newAnalysis.value.content = editor.getValue();
   });
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
-    applyFormat('bold');
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    applyFormat('italic');
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
-    applyFormat('heading');
-  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFormat('bold'));
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFormat('italic'));
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => applyFormat('heading'));
 };
 
 const applyFormat = (type) => {
@@ -471,23 +459,16 @@ const applyFormat = (type) => {
 };
 
 // --- CONTROLE DOS MENUS E MODAIS ---
-const openResourceMenu = () => {
-    showResourceTypeMenu.value = true;
-};
-
-const closeResourceMenu = () => {
-    showResourceTypeMenu.value = false;
-};
+const openResourceMenu = () => { showResourceTypeMenu.value = true; };
+const closeResourceMenu = () => { showResourceTypeMenu.value = false; };
 
 const selectResourceType = (type) => {
     activeMediaType.value = type;
     showResourceTypeMenu.value = false;
-    
     mediaInputType.value = 'url'; 
     mediaUrlInput.value = '';
     selectedMediaFiles.value = [];
     if (mediaFileInputRef.value) mediaFileInputRef.value.value = '';
-    
     showMediaModal.value = true;
 };
 
@@ -496,9 +477,7 @@ const returnToMenu = () => {
     showResourceTypeMenu.value = true;
 };
 
-const closeMediaModal = () => {
-    showMediaModal.value = false;
-};
+const closeMediaModal = () => { showMediaModal.value = false; };
 
 const handleModalFileChange = (event) => {
     const files = event.target.files;
@@ -521,7 +500,6 @@ const confirmMediaInsertion = async () => {
             return;
         }
 
-        // --- LÓGICA DE LOTE (Múltiplos Arquivos) ---
         let batchHtml = '';
         const loadingBtn = document.querySelector('.btn-confirm');
         const originalText = loadingBtn ? loadingBtn.innerText : 'Inserir';
@@ -529,11 +507,13 @@ const confirmMediaInsertion = async () => {
 
         for (const file of selectedMediaFiles.value) {
             try {
-                // Usa a função compartilhada para gerar o HTML e os metadados
                 const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, activeMediaType.value);
                 
-                // Armazena no mapa local para o upload posterior
-                contentImages.value.set(placeholderId, { file, blobUrl });
+                contentImages.value.set(placeholderId, { 
+                    file, 
+                    blobUrl, 
+                    type: activeMediaType.value 
+                });
                 
                 batchHtml += html + '\n';
             } catch (error) {
@@ -553,35 +533,17 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
       newAnalysis.value.content += '\n' + markdownToInsert;
       return;
   }
-  
   const position = editor.getPosition();
-  const range = new monaco.Range(
-    position.lineNumber,
-    position.column,
-    position.lineNumber,
-    position.column
-  );
-  
-  editor.executeEdits('', [
-    {
-      range: range,
-      text: '\n' + markdownToInsert + '\n',
-      forceMoveMarkers: true
-    }
-  ]);
-  
-  const newPosition = new monaco.Position(
-    position.lineNumber + 1,
-    markdownToInsert.length + 1
-  );
+  const range = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
+  editor.executeEdits('', [{ range: range, text: '\n' + markdownToInsert + '\n', forceMoveMarkers: true }]);
+  const newPosition = new monaco.Position(position.lineNumber + 1, markdownToInsert.length + 1);
   editor.setPosition(newPosition);
   editor.focus();
 };
 
-// --- LÓGICA DE RENDERIZAÇÃO DE CONTEÚDO ---
+// --- RENDERIZAÇÃO ---
 const renderedContent = computed(() => {
   if (!newAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
-  
   let processedContent = newAnalysis.value.content.trim();
 
   for (const [placeholderId, mediaData] of contentImages.value.entries()) {
@@ -590,25 +552,22 @@ const renderedContent = computed(() => {
       processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
     }
   }
-
+  // Remove links antigos de uploads locais se existirem no texto (compatibilidade)
   const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
   processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
 
   if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
     return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
   }
-  
   const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
   const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
-  
   if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
   return marked(processedContent);
 });
 
-// ---- SALVAR RASCUNHO ----
+// ---- RASCUNHO (DRAFT) ----
 const saveDraft = async () => {
   const draftData = JSON.parse(JSON.stringify(newAnalysis.value)); 
-
   const processFile = async (file, fieldPath) => {
     if (file instanceof File) {
       const key = `draft_${fieldPath}_${Date.now()}`;
@@ -628,23 +587,22 @@ const saveDraft = async () => {
     if (mediaData.file instanceof File) {
       const key = `draft_${placeholderId}`;
       contentMapPromises.push(saveFileToDb(mediaData.file, key).then(() => {
-        draftData.contentMediaMap[placeholderId] = { indexedDbKey: key, name: mediaData.file.name, type: mediaData.file.type };
+        draftData.contentMediaMap[placeholderId] = { 
+            indexedDbKey: key, 
+            name: mediaData.file.name, 
+            type: mediaData.file.type,
+            categoryType: mediaData.type 
+        };
       }));
     } else if (mediaData.indexedDbKey) {
       draftData.contentMediaMap[placeholderId] = mediaData;
     }
   }
   await Promise.all(contentMapPromises);
-
-  const draftToStore = {
-    data: draftData,
-    expires: Date.now() + (60 * 60 * 1000)
-  };
+  const draftToStore = { data: draftData, expires: Date.now() + (60 * 60 * 1000) };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draftToStore));
-  console.log("Rascunho salvo com sucesso.");
 };
 
-// ---- CARREGAR RASCUNHO ----
 const loadDraft = async () => {
   await initDb();
   const savedDraft = localStorage.getItem(DRAFT_KEY);
@@ -652,19 +610,14 @@ const loadDraft = async () => {
 
   const draft = JSON.parse(savedDraft);
   if (draft.expires < Date.now()) {
-    console.log("Rascunho expirado. Removendo...");
     await clearAllDraftFiles();
     localStorage.removeItem(DRAFT_KEY);
     return;
   }
-
-  console.log("Carregando rascunho...");
   const draftData = draft.data;
-
   const reconstructFile = async (stub) => {
     if (stub && stub.indexedDbKey) {
-      const file = await getFileFromDb(stub.indexedDbKey);
-      if(file) return file;
+      return await getFileFromDb(stub.indexedDbKey);
     }
     return null;
   };
@@ -676,21 +629,21 @@ const loadDraft = async () => {
 
   if(draftData.contentMediaMap) {
     for (const placeholderId in draftData.contentMediaMap) {
-      const file = await reconstructFile(draftData.contentMediaMap[placeholderId]);
+      const item = draftData.contentMediaMap[placeholderId];
+      const file = await reconstructFile(item);
       if(file) {
-        contentImages.value.set(placeholderId, { file, blobUrl: URL.createObjectURL(file), indexedDbKey: draftData.contentMediaMap[placeholderId].indexedDbKey });
+        contentImages.value.set(placeholderId, { 
+            file, 
+            blobUrl: URL.createObjectURL(file), 
+            indexedDbKey: item.indexedDbKey,
+            type: item.categoryType 
+        });
       }
     }
     delete draftData.contentMediaMap;
   }
-
   Object.assign(newAnalysis.value, draftData);
-  
-  if (editor && newAnalysis.value.content) {
-    editor.setValue(newAnalysis.value.content);
-  }
-  
-  console.log("Rascunho carregado.");
+  if (editor && newAnalysis.value.content) editor.setValue(newAnalysis.value.content);
 };
 
 let debounceTimer = null;
@@ -701,15 +654,9 @@ watch(newAnalysis, () => {
 
 onMounted(async () => {
   await loadDraft();
-  
-  nextTick(() => {
-    initMonacoEditor();
-  });
-  
+  nextTick(() => initMonacoEditor());
   watch(() => newAnalysis.value.content, (newContent) => {
-    if (editor && editor.getValue() !== newContent) {
-      editor.setValue(newContent);
-    }
+    if (editor && editor.getValue() !== newContent) editor.setValue(newContent);
   }, { immediate: true });
   
   setInterval(async () => {
@@ -717,7 +664,6 @@ onMounted(async () => {
     if (!savedDraft) return;
     const draft = JSON.parse(savedDraft);
     if (draft.expires < Date.now()) {
-      console.log("Rascunho expirado automaticamente. Limpando IndexedDB...");
       await clearAllDraftFiles();
       localStorage.removeItem(DRAFT_KEY);
       resetForm();
@@ -753,11 +699,8 @@ const isFormInvalid = computed(() =>
 const handleFileSelection = (event, fieldName) => {
   const files = event.target.files;
   if (!files || files.length === 0) return;
-
   if (fieldName === 'coverImage') {
-    if (imagePreviewUrl.value) {
-        URL.revokeObjectURL(imagePreviewUrl.value);
-    }
+    if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
     newAnalysis.value.coverImage = files[0];
     imagePreviewUrl.value = URL.createObjectURL(files[0]);
   }
@@ -770,63 +713,135 @@ const resetForm = async () => {
   newAnalysis.value = getInitialAnalysisState();
   imagePreviewUrl.value = '';
   contentImages.value.clear();
-  if (editor) {
-    editor.setValue('');
-  }
+  if (editor) editor.setValue('');
   if(document.getElementById('coverImage')) document.getElementById('coverImage').value = null;
 };
 
 const confirmAndClearForm = async () => {
-  if (window.confirm('Tem certeza que deseja limpar todo o formulário e os dados salvos? Esta ação não pode ser desfeita.')) {
+  if (window.confirm('Tem certeza que deseja limpar todo o formulário?')) {
     await resetForm();
-    feedback.value = { message: 'Formulário e rascunho limpos com sucesso.', type: 'success' };
-    setTimeout(() => { feedback.value = { message: '', type: '' }; }, 5000);
+    feedback.value = { message: 'Formulário limpo.', type: 'success' };
   }
 };
 
+// --- FUNÇÃO DE PUBLICAÇÃO OTIMIZADA PARA R2 (URLS PRÉ-ASSINADAS) ---
 const publishAnalysis = async () => {
   if (isFormInvalid.value) {
     feedback.value = { message: 'Por favor, preencha todos os campos obrigatórios.', type: 'error' };
     return;
   }
+  
   isLoading.value = true;
-  feedback.value = { message: '', type: '' };
-  const formData = new FormData();
+  feedback.value = { message: 'Preparando arquivos...', type: 'info' };
+  const token = localStorage.getItem('authToken');
 
-  let finalContent = newAnalysis.value.content;
-  for (const [placeholder, data] of contentImages.value.entries()) {
-    if (data.blobUrl) {
-      const regex = new RegExp(data.blobUrl.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-      finalContent = finalContent.replace(regex, placeholder);
-    }
-  }
-
-  const dataToSend = { ...newAnalysis.value, content: finalContent };
-  Object.entries(dataToSend).forEach(([key, value]) => {
-    if (key !== 'coverImage') {
-      formData.append(key, value);
-    }
-  });
-
-  if (dataToSend.coverImage) formData.append('coverImage', dataToSend.coverImage);
-  
-  contentImages.value.forEach((mediaData, placeholder) => formData.append(placeholder, mediaData.file));
-  
   try {
-    const token = localStorage.getItem('authToken');
-    const response = await axios.post(`${API_BASE_URL}/api/admin/analyses`, formData, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    // 1. Coleta de Arquivos
+    const filesToUpload = [];
+    
+    // Capa
+    if (newAnalysis.value.coverImage instanceof File) {
+      filesToUpload.push({
+        file: newAnalysis.value.coverImage,
+        category: 'cover',
+        tempId: 'cover'
+      });
+    }
+
+    // Mídia no conteúdo
+    for (const [placeholderId, mediaData] of contentImages.value.entries()) {
+      if (mediaData.file instanceof File) {
+        filesToUpload.push({
+          file: mediaData.file,
+          category: mediaData.type || 'image',
+          tempId: placeholderId
+        });
+      }
+    }
+
+    const uploadedUrls = {}; 
+
+    // 2. Upload para R2 via Signed URL
+    if (filesToUpload.length > 0) {
+      feedback.value = { message: `Enviando ${filesToUpload.length} arquivo(s) para nuvem...`, type: 'info' };
+
+      // A) Solicitar URLs assinadas ao backend
+      const metaData = filesToUpload.map(f => ({
+        fileName: f.file.name,
+        fileType: f.file.type,
+        category: f.category,
+        tempId: f.tempId
+      }));
+
+      const urlRes = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`, 
+        { files: metaData }, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const uploadPlans = urlRes.data.data;
+
+      // B) Fazer o Upload (PUT direto na URL do R2)
+      await Promise.all(uploadPlans.map(async (plan) => {
+        const fileObj = filesToUpload.find(f => f.tempId === plan.tempId);
+        if (!fileObj) return;
+
+        // IMPORTANTE: Enviar o arquivo binário direto, com o Content-Type correto
+        await axios.put(plan.uploadUrl, fileObj.file, {
+          headers: { 
+            'Content-Type': fileObj.file.type 
+          }
+        });
+
+        // O backend agora retorna a 'publicUrl' (ex: [https://pub-xxx.r2.dev/file.jpg](https://pub-xxx.r2.dev/file.jpg))
+        uploadedUrls[plan.tempId] = plan.publicUrl;
+      }));
+    }
+
+    // 3. Montar JSON final para salvar no banco
+    feedback.value = { message: 'Finalizando publicação...', type: 'info' };
+
+    let finalContent = newAnalysis.value.content;
+    
+    // Substituir Placeholders pelas URLs Públicas do R2
+    for (const [placeholderId, publicUrl] of Object.entries(uploadedUrls)) {
+        if (placeholderId !== 'cover') {
+            const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+            finalContent = finalContent.replace(regex, publicUrl);
+        }
+    }
+
+    const finalData = {
+        ...newAnalysis.value,
+        content: finalContent,
+        coverImagePath: uploadedUrls['cover'] || null, 
+        documentFiles: [], 
+        dataFiles: [],
+        audioFiles: [],
+        videoFiles: []
+    };
+
+    delete finalData.coverImage;
+
+    // 4. Salvar Metadados no Backend
+    const response = await axios.post(`${API_BASE_URL}/api/admin/analyses`, finalData, {
+      headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+      }
     });
+
     feedback.value = { message: response.data.message || 'Análise publicada com sucesso!', type: 'success' };
     await resetForm();
     isPreviewMode.value = false;
+
   } catch (err) {
-    feedback.value = { message: err.response?.data?.message || 'Falha ao publicar a análise.', type: 'error' };
+    console.error(err);
+    feedback.value = { message: err.response?.data?.message || err.message || 'Falha ao publicar.', type: 'error' };
   } finally {
     isLoading.value = false;
     setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
   }
 };
+
 watch(isPreviewMode, async (newVal) => {
   if (!newVal) {
     await nextTick();
@@ -840,9 +855,7 @@ watch(isPreviewMode, async (newVal) => {
 });
 
 watch(isDark, (newValue) => {
-  if (editor) {
-    monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs');
-  }
+  if (editor) monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs');
 });
 </script>
 
