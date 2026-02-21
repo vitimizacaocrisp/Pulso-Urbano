@@ -31,26 +31,31 @@
         :style="{ transitionDelay: `${index * 100}ms` }"
       >
         <div class="card-image-wrapper">
-          <img :src="getFullMediaPath(post.cover_image_path)" :alt="post.title" loading="lazy">
-          <div class="card-overlay">
-            <span class="read-more">Ler Análise</span>
-          </div>
-          <span v-if="post.category" class="category-badge">{{ post.category }}</span>
+          <router-link :to="{ name: 'AnalysisDetail', params: { id: post.id } }" class="img-link" v-if="post.cover_image_path">
+            <img :src="getFullMediaPath(post.cover_image_path)" :alt="post.title" loading="lazy">
+            <div class="card-overlay">
+              <span class="read-more">Ler Artigo</span>
+            </div>
+          </router-link>
+          <div v-else class="no-image-placeholder">PU</div>
         </div>
         
         <div class="card-content">
           <div class="meta-info">
              <span class="date">{{ new Date(post.created_at).toLocaleDateString() }}</span>
+             <span class="author">por {{ post.author }}</span>
           </div>
           <h3>
-            <a :href="`/postagem/${post.id}`" class="title-link">{{ post.title }}</a>
+            <router-link :to="{ name: 'AnalysisDetail', params: { id: post.id } }" class="title-link">
+              {{ post.title }}
+            </router-link>
           </h3>
-          <p class="description">{{ truncateText(post.description) }}</p>
+          <p class="description">{{ post.description }}</p>
           
-          <div class="card-footer">
-            <a :href="`/postagem/${post.id}`" class="btn-link">
-              Ler mais <i class="fas fa-arrow-right"></i>
-            </a>
+          <div class="tags-container" v-if="post.tag">
+            <span v-for="(tag, idx) in processTags(post.tag)" :key="idx" class="tag-pill">
+              #{{ tag }}
+            </span>
           </div>
         </div>
       </article>
@@ -68,6 +73,10 @@ export default {
       type: Number,
       required: true,
       default: 6,
+    },
+    category: {
+      type: String,
+      default: null
     }
   },
   data() {
@@ -85,13 +94,25 @@ export default {
       try {
         const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
         const token = localStorage.getItem('authToken');
+        
+        const params = {
+          limit: this.postCount
+        };
+        
+        if (this.category) {
+          params.category = this.category;
+        }
+
         const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
           headers: { 'Authorization': `Bearer ${token}` },
+          params,
           timeout: 30000
         });
+        
         const analysesArray = response.data?.data?.analyses;
         if (!Array.isArray(analysesArray)) throw new Error("Formato de dados inválido.");
         
+        // Ordenar por data mais recente
         const sortedAnalyses = [...analysesArray].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         this.posts = sortedAnalyses.slice(0, this.postCount);
 
@@ -104,14 +125,14 @@ export default {
       }
     },
     getFullMediaPath(path) {
-      if (!path) return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+      if (!path) return '';
       const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
       return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
     },
-    truncateText(text, length = 100) {
-      if (!text) return '';
-      if (text.length <= length) return text;
-      return text.substring(0, length) + '...';
+    processTags(tagString) {
+      if (!tagString) return [];
+      const cleanedString = tagString.replace(/['"-:;()\d]/g, '');
+      return cleanedString.split(' ').filter(tag => tag.trim() !== '').slice(0, 3);
     },
     initObserver() {
       if (this.observer) this.observer.disconnect();
@@ -134,6 +155,11 @@ export default {
       if (!this.observer || !this.$refs.postsContainer) return;
       const elements = this.$refs.postsContainer.querySelectorAll('.scroll-reveal:not(.is-visible)');
       elements.forEach(el => this.observer.observe(el));
+    }
+  },
+  watch: {
+    category() {
+      this.fetchRecentPosts();
     }
   },
   mounted() {
@@ -170,96 +196,113 @@ export default {
   border-radius: 2px;
 }
 
-/* Grid Layout */
+/* Grid Layout - Mesmo da página de categoria */
 .posts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2.5rem;
 }
 
-/* Card Design Moderno */
+/* Card Design - Mesmo estilo da página de categoria */
 .post-card {
   background-color: var(--bg-card);
   border-radius: var(--radius-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   height: 100%;
   border: 1px solid var(--border-color);
 }
 
 .post-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Imagem e Overlay */
 .card-image-wrapper {
-  position: relative;
   height: 220px;
+  width: 100%;
+  position: relative;
+  background-color: var(--slate-200);
   overflow: hidden;
-  background-color: var(--slate-200); /* Placeholder */
 }
-.card-image-wrapper img {
+
+.img-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.img-link img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.5s ease;
 }
-.post-card:hover .card-image-wrapper img {
+
+.post-card:hover .img-link img {
   transform: scale(1.05);
 }
 
 .card-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.3);
-  opacity: 0;
+  background: rgba(15, 23, 42, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: white;
+  font-weight: 600;
+  opacity: 0;
   transition: opacity 0.3s ease;
+  backdrop-filter: blur(2px);
 }
+
 .post-card:hover .card-overlay {
   opacity: 1;
 }
+
 .read-more {
-  color: white;
-  font-weight: 600;
   border: 1px solid white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   backdrop-filter: blur(4px);
 }
 
-.category-badge {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--brand-primary);
-  font-size: 0.75rem;
+.no-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 1.5rem;
 }
 
 /* Conteúdo do Card */
 .card-content {
-  padding: 1.5rem;
+  padding: 1.75rem;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
+
 .meta-info {
-  font-size: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.5px;
 }
+
 .title-link {
   color: var(--text-main);
   text-decoration: none;
@@ -270,34 +313,44 @@ export default {
   display: block;
   margin-bottom: 0.75rem;
 }
+
 .title-link:hover {
   color: var(--brand-primary);
 }
+
 .description {
-  color: var(--text-secondary);
   font-size: 0.95rem;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 1.5rem;
   flex-grow: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.card-footer {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-.btn-link {
-  color: var(--brand-primary);
-  font-weight: 600;
-  text-decoration: none;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
+/* Tags */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  transition: gap 0.2s;
+  margin-top: auto;
 }
-.btn-link:hover {
-  gap: 0.75rem;
+
+.tag-pill {
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.post-card:hover .tag-pill {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: var(--brand-primary);
 }
 
 /* Estados de Loading/Error */
@@ -308,14 +361,31 @@ export default {
   border-radius: var(--radius-lg);
   color: var(--text-secondary);
 }
-.state-container.error { color: var(--sys-danger); }
-.state-container i { font-size: 2rem; margin-bottom: 1rem; display: block; }
-.spinner {
-  width: 40px; height: 40px; 
-  border: 3px solid var(--border-color); border-top-color: var(--brand-primary); 
-  border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;
+
+.state-container.error { 
+  color: var(--sys-danger); 
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+.state-container i { 
+  font-size: 2rem; 
+  margin-bottom: 1rem; 
+  display: block; 
+}
+
+.spinner {
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--brand-primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin { 
+  0% { transform: rotate(0deg); } 
+  100% { transform: rotate(360deg); } 
+}
 
 /* Animação Scroll Reveal */
 .scroll-reveal {
@@ -323,6 +393,7 @@ export default {
   transform: translateY(30px);
   transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .scroll-reveal.is-visible {
   opacity: 1;
   transform: translateY(0);

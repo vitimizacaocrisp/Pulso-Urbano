@@ -302,7 +302,12 @@
         <div class="preview-description">
             {{ editingAnalysis.description || '' }}
         </div>
-        <div class="preview-content" v-html="renderedContent"></div>
+
+        <!-- RENDERIZAÇÃO -->
+        <!-- <div class="preview-content" v-html="renderedContent"></div> -->
+        <IsolatedRenderer :content="renderedContent" />
+
+
         <div v-if="editingAnalysis.referenceLinks">
             <h3 class="preview-section-title">Referências:</h3>
             <ul class="preview-links">
@@ -340,6 +345,7 @@ import {
     generateUrlMediaHtml, 
     generateFileMediaHtml 
 } from '@/assets/js/analysisUtils.js';
+import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
@@ -778,29 +784,39 @@ const coverImageLabel = computed(() => {
 const renderedContent = computed(() => {
   if (!editingAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
   
-  let processedContent = editingAnalysis.value.content.trim();
+  let content = editingAnalysis.value.content.trim();
 
-  // Substitui placeholders por Blob URLs locais (para preview imediato de NOVOS arquivos)
-  for (const [placeholderId, mediaData] of contentImages.value.entries()) {
-    if (mediaData.blobUrl) {
-      const placeholderRegex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-      processedContent = processedContent.replace(placeholderRegex, mediaData.blobUrl);
+  // Decodifica HTML escapado
+  if (content.includes('&lt;') && content.includes('&gt;')) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = content;
+    content = txt.value;
+  }
+
+  // Substitui placeholders
+  for (const [id, data] of contentImages.value.entries()) {
+    if (data.blobUrl) {
+      const regex = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      content = content.replace(regex, data.blobUrl);
     }
   }
 
-  // Compatibilidade com uploads antigos
-  const relativePathRegex = /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g;
-  processedContent = processedContent.replace(relativePathRegex, `$1${API_BASE_URL}$2$3`);
+  // Corrige URLs relativas
+  content = content.replace(
+    /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g, 
+    `$1${API_BASE_URL}$2$3`
+  );
 
-  if (processedContent.startsWith('```html') && processedContent.endsWith('```')) {
-    return processedContent.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
+  // Remove wrapper ```html ... ```
+  if (content.startsWith('```html')) {
+    content = content.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
   }
+
+  // REGRA SIMPLES: Se começa com "<", é HTML → retorna direto
+  // Senão, é Markdown → converte
+  const isHTML = /^</.test(content.trim());
   
-  const hasHTMLTags = /<[a-z][\s\S]*>/i.test(processedContent);
-  const hasMarkdownSyntax = /^# |\*\*.*\*\*|__.*__|\[.*\]\(.*\)|\* .*|```/.test(processedContent);
-  
-  if (hasHTMLTags && !hasMarkdownSyntax) return processedContent;
-  return marked(processedContent);
+  return isHTML ? content : marked.parse(content, { headerIds: false, mangle: false });
 });
 
 watch(isPreviewMode, async (newVal) => {
