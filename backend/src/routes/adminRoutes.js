@@ -129,11 +129,7 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
   const {
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
-    coverImagePath, 
-    documentFiles,
-    dataFiles,
-    audioFiles,
-    videoFiles
+    coverImagePath
   } = req.body;
 
   if (!title || !content || !coverImagePath) {
@@ -146,15 +142,11 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     INSERT INTO analyses
       (title, subtitle, last_update, study_period, source, category,
       tag, author, description, content, reference_links,
-      cover_image_path, document_file_path, data_file_path, audio_file_path, video_file_path)
+      cover_image_path)
     VALUES
       (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category},
       ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
-      ${coverImagePath}, 
-      ${safeJson(documentFiles)}, 
-      ${safeJson(dataFiles)},
-      ${safeJson(audioFiles)}, 
-      ${safeJson(videoFiles)})
+      ${coverImagePath})
     RETURNING id;
   `;
 
@@ -172,8 +164,6 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
     coverImagePath,
-    documentFiles,
-    dataFiles,
     filesToDelete
   } = req.body;
 
@@ -198,9 +188,7 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
       description = ${description}, 
       content = ${content}, 
       reference_links = ${referenceLinks},
-      cover_image_path = ${coverImagePath},
-      document_file_path = ${safeJson(documentFiles)}, 
-      data_file_path = ${safeJson(dataFiles)}
+      cover_image_path = ${coverImagePath}
     WHERE id = ${id}
   `;
 
@@ -228,11 +216,6 @@ router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
       });
   };
   
-  extractPaths(analysis.document_file_path);
-  extractPaths(analysis.data_file_path);
-  extractPaths(analysis.audio_file_path);
-  extractPaths(analysis.video_file_path);
-
   // --- ATUALIZAÇÃO DO REGEX PARA R2 ---
   // Busca por links que contenham o domínio público do R2 ou o padrão .r2.dev
   // Regex procura por strings que começam com http, contêm "r2.dev" (padrão Cloudflare) e terminam antes de espaços/aspas
