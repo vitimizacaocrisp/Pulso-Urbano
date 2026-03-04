@@ -66,7 +66,6 @@ export default {
 }
 html, body {
   height: auto;
-  min-height: 100vh;
   overflow: visible;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.6;
@@ -97,14 +96,14 @@ main, section, article, div {
   let resizeObserver = null;
   
   function getHeight() {
-    const html = document.documentElement;
     const body = document.body;
+    const html = document.documentElement;
+    // Usar apenas scrollHeight e offsetHeight garante que estamos
+    // medindo o conteúdo, e não a janela do iframe em si.
     return Math.max(
       body.scrollHeight,
       body.offsetHeight,
-      html.clientHeight,
-      html.scrollHeight,
-      html.offsetHeight
+      html.scrollHeight
     );
   }
   
@@ -191,13 +190,13 @@ ${content}
   mounted() {
     window.addEventListener('message', this.handleMessage)
     
-    // Fallback de segurança
     this.heightCheckInterval = setInterval(() => {
       const iframe = this.$refs.frame
       if (iframe) {
         const currentHeight = parseInt(iframe.style.height) || 0
-        if (currentHeight > 8000) {
-          iframe.style.height = '8000px'
+        // Limite aumentado para 50000 apenas como margem de extremo erro
+        if (currentHeight > 50000) {
+          iframe.style.height = '50000px'
           clearInterval(this.heightCheckInterval)
         }
       }
@@ -219,12 +218,14 @@ ${content}
       if (!iframe || !event.data.height) return
       
       const newHeight = parseInt(event.data.height)
-      if (newHeight <= 0 || newHeight > 8000) return
+      
+      // Aumente o limite tolerado aqui (ou remova a verificação de limite superior)
+      if (newHeight <= 0 || newHeight > 50000) return 
       
       const currentHeight = parseInt(iframe.style.height) || 0
       
       if (Math.abs(newHeight - currentHeight) > 10) {
-        iframe.style.height = (newHeight + 30) + 'px'
+        iframe.style.height = newHeight + 'px'
       }
     },
     

@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const {asyncHandler} = require('../middleware/middlewares');
-const apiConnect = require('../api/apiConnect');
 const { testConnection } = require('../db/dbConnect');
 const { testConnectionData } = require('../middleware/s3Connection');
 const { sql } = require('../db/dbConnect');
@@ -54,48 +53,6 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
 
 
 // Contextos API
-router.get('/api/contexto/populacao', asyncHandler(async (req, res) => {
-  const dados = await apiConnect.getIBGEPopulationData();
-  res.json({ success: true, data: dados });
-}));
-
-router.get('/api/contexto/vitimizacao', asyncHandler(async (req, res) => {
-  const { uf, crime, ano, municipio, mes } = req.query;
-  const dados = await apiConnect.getVictimizationData({ uf, crime, ano, municipio, mes });
-  res.json({ success: true, data: dados });
-}));
-
-router.get('/api/contexto/gastos-seguranca', asyncHandler(async (req, res) => {
-  const dados = await apiConnect.getPublicSecuritySpending(req.query.ano);
-  res.json({ success: true, data: dados });
-}));
-
-router.get('/api/contexto/legislacao-seguranca', asyncHandler(async (req, res) => {
-  const dados = await apiConnect.getSecurityLegislation(req.query.ano);
-  res.json({ success: true, data: dados });
-}));
-
-// Paineis API
-router.get('/api/paineis/homicidios', async (req, res) => {
-  try {
-    const dadosHomicidios = await apiConnect.getHomicideData();
-    res.json(dadosHomicidios);
-  } catch (error) {
-    console.error("Erro na rota /api/paineis/homicidios:", error);
-    res.status(500).json({ message: 'Erro ao buscar dados de homicídios.' });
-  }
-});
-
-router.get('/api/paineis/vitimizacao', async (req, res) => {
-  try {
-    console.log('Filtros recebidos:', req.query);
-    const dados = await apiConnect.getVictimizationData(req.query);
-    res.status(200).json(dados);
-  } catch (error) {
-    console.error("Erro na rota /api/paineis/vitimizacao:", error);
-    res.status(500).json({ message: 'Erro no servidor ao buscar dados de vitimização.' });
-  }
-});
 
 router.post('/admin-auth', asyncHandler(async (req, res) => {
   const { email, password } = req.body;

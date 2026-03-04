@@ -47,11 +47,6 @@
 
       <article class="article-body-wrapper">
         <div class="content-container">
-          <div class="article-lead" v-if="analysis.description">
-            {{ analysis.description }}
-          </div>
-          
-          <hr class="divider">
 
           <!-- Wrapper div - sem diretivas no IsolatedRenderer -->
           <div class="preview-content-wrapper">
@@ -293,23 +288,6 @@ onMounted(async () => {
   max-width: 900px;
   margin: 0 auto;
   padding: 3rem 1.5rem;
-}
-
-.article-lead {
-  font-size: 1.35rem;
-  line-height: 1.6;
-  color: #334155;
-  font-weight: 500;
-  margin-bottom: 2rem;
-  font-family: Georgia, serif;
-}
-
-.divider {
-  border: 0;
-  height: 1px;
-  background: #e2e8f0;
-  margin: 2rem auto;
-  width: 100px;
 }
 
 .preview-content-wrapper {
