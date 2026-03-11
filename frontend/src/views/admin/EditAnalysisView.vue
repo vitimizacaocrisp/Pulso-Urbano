@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- MODAL 1: MENU DE SELEÇÃO DE TIPO (GRADE DE ÍCONES) -->
     <div v-if="showResourceTypeMenu" class="modal-overlay" @click.self="closeResourceMenu">
       <div class="modal-content menu-content">
         <div class="modal-header">
@@ -50,7 +49,6 @@
       </div>
     </div>
 
-    <!-- MODAL 2: INPUT DE URL OU UPLOAD -->
     <div v-if="showMediaModal" class="modal-overlay" @click.self="closeMediaModal">
       <div class="modal-content">
         <div class="modal-header">
@@ -136,26 +134,36 @@
     <section v-show="!isPreviewMode" class="content-section">
       <fieldset class="search-fieldset">
         <legend>Pesquisar Análise</legend>
-        <div class="search-wrapper">
-          <input type="text"
-                 v-model="searchQuery"
-                 placeholder="Pesquisar por título, tag ou autor..."
-                 @focus="loadAllAnalyses"
-                 @blur="hideDropdown"
-                 class="search-input" />
-          <div v-if="isLoadingSearch" class="search-loader"></div>
+        
+        <BaseSearch 
+          :navigate-to-detail="false" 
+          @select="selectAnalysis" 
+          v-slot="{ query, updateQuery, results, isLoading: isSearchLoading, isOpen, handleFocus, handleEnter, selectItem }"
+        >
+          <div class="search-wrapper">
+            <input type="text"
+                   :value="query"
+                   @input="updateQuery($event.target.value)"
+                   placeholder="Pesquisar por título, tag ou autor..."
+                   @focus="handleFocus"
+                   class="search-input" 
+                   @keyup.enter="handleEnter" />
+            
+            <div v-if="isSearchLoading" class="search-loader"></div>
 
-          <div v-if="isDropdownVisible && filteredAnalyses.length > 0" class="search-dropdown">
-            <ul>
-              <li v-for="analysis in filteredAnalyses" :key="analysis.id" @mousedown.prevent="selectAnalysis(analysis)">
-                <strong>{{ analysis.title }}</strong><br/><small>{{ analysis.author }} - {{ analysis.tag }}</small>
-              </li>
-            </ul>
+            <div v-if="isOpen && results.length > 0" class="search-dropdown">
+              <ul>
+                <li v-for="analysis in results" :key="analysis.id" @mousedown.prevent="selectItem(analysis)">
+                  <strong>{{ analysis.title }}</strong><br/><small>{{ analysis.author }} - {{ analysis.category || analysis.tag }}</small>
+                </li>
+              </ul>
+            </div>
+            
+            <div v-if="isOpen && results.length === 0 && query && !isSearchLoading" class="search-dropdown no-results">
+              Nenhum resultado encontrado.
+            </div>
           </div>
-          <div v-if="isDropdownVisible && filteredAnalyses.length === 0 && searchQuery" class="search-dropdown no-results">
-            Nenhum resultado encontrado.
-          </div>
-        </div>
+        </BaseSearch>
       </fieldset>
 
       <div v-if="feedback.message" :class="['feedback-message', feedback.type]">{{ feedback.message }}</div>
@@ -238,10 +246,8 @@
              </div>
            </div>
 
-           <!-- Monaco Editor Container -->
            <div id="editor-container" ref="editorContainer" class="editor-container"></div>
            
-           <!-- Textarea oculto para compatibilidade -->
            <textarea id="content" v-model="editingAnalysis.content" style="display: none;"></textarea>
          </div>
        </fieldset>
@@ -303,10 +309,7 @@
             {{ editingAnalysis.description || '' }}
         </div>
 
-        <!-- RENDERIZAÇÃO -->
-        <!-- <div class="preview-content" v-html="renderedContent"></div> -->
         <IsolatedRenderer :content="renderedContent" />
-
 
         <div v-if="editingAnalysis.referenceLinks">
             <h3 class="preview-section-title">Referências:</h3>
@@ -346,6 +349,7 @@ import {
     generateFileMediaHtml 
 } from '@/assets/js/analysisUtils.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
+import BaseSearch from '@/components/BaseSearch.vue'; // IMPORTANDO O NOVO COMPONENTE
 
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
@@ -356,15 +360,8 @@ const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 // --- ESTADO DA UI ---
 const isPreviewMode = ref(false);
 const isLoading = ref(false);
-const isLoadingSearch = ref(false);
 const feedback = ref({ message: '', type: '' });
 const isDeleteModalVisible = ref(false);
-
-// --- ESTADO DA PESQUISA ---
-const allAnalyses = ref([]);
-const isDropdownVisible = ref(false);
-const searchQuery = ref('');
-let hasLoadedOnce = false;
 
 // --- MONACO EDITOR ---
 const editorContainer = ref(null);
@@ -512,10 +509,8 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
   editor.focus();
 };
 
-// --- LÓGICA DE CARREGAMENTO (AJUSTADA PARA R2) ---
+// --- LÓGICA DE CARREGAMENTO (AJUSTADA PARA R2 E BASESEARCH) ---
 const selectAnalysis = async (analysisStub) => {
-  isDropdownVisible.value = false;
-  searchQuery.value = analysisStub.title;
   isLoading.value = true;
   
   cleanupBlobUrls();
@@ -547,39 +542,13 @@ const selectAnalysis = async (analysisStub) => {
     
     if (editor) { editor.setValue(analysisState.content || ''); } else { nextTick(() => initMonacoEditor()); }
     
-    feedback.value = { message: 'Análise carregada.', type: 'success' };
+    feedback.value = { message: 'Análise carregada com sucesso.', type: 'success' };
   } catch (err) {
     feedback.value = { message: 'Erro ao carregar análise.', type: 'error' };
   } finally {
     isLoading.value = false;
   }
 };
-
-const filteredAnalyses = computed(() => {
-  if (!searchQuery.value) return allAnalyses.value;
-  const q = searchQuery.value.toLowerCase();
-  return allAnalyses.value.filter(a =>
-    (a.title || '').toLowerCase().includes(q) || (a.tag || '').toLowerCase().includes(q) || (a.author || '').toLowerCase().includes(q)
-  );
-});
-
-const loadAllAnalyses = async () => {
-  if (hasLoadedOnce) { isDropdownVisible.value = true; return; }
-  isLoadingSearch.value = true;
-  try {
-    const token = localStorage.getItem('authToken');
-    const res = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, { headers: { Authorization: `Bearer ${token}` } });
-    allAnalyses.value = res.data.data?.analyses || [];
-    hasLoadedOnce = true;
-    isDropdownVisible.value = true;
-  } catch (err) {
-    feedback.value = { message: 'Falha ao buscar análises.', type: 'error' };
-  } finally {
-    isLoadingSearch.value = false;
-  }
-};
-
-const hideDropdown = () => setTimeout(() => { isDropdownVisible.value = false; }, 200);
 
 // --- LIFECYCLE ---
 const route = useRoute();
@@ -592,7 +561,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => { cleanupBlobUrls(); if (editor) { editor.dispose(); editor = null; } });
 
-// --- UPDATE OTIMIZADO PARA R2 (URLS PRÉ-ASSINADAS) ---
+// --- UPDATE OTIMIZADO PARA R2 COM LIMPEZA INTELIGENTE ---
 const updateAnalysis = async () => {
     if (!editingAnalysis.value.id || isFormInvalid.value) {
         feedback.value = { message: 'Preencha os campos obrigatórios.', type: 'error' };
@@ -604,102 +573,74 @@ const updateAnalysis = async () => {
     const token = localStorage.getItem('authToken');
 
     try {
-        // 1. Identificar NOVOS arquivos para upload
         const filesToUpload = [];
+        const filesMarkedForDeletion = [...filesToDelete.value];
         
-        // Verificar se a capa é um arquivo novo
         if (editingAnalysis.value.coverImage instanceof File) {
-            filesToUpload.push({
-                file: editingAnalysis.value.coverImage,
-                category: 'cover',
-                tempId: 'cover'
-            });
+            filesToUpload.push({ file: editingAnalysis.value.coverImage, category: 'cover', tempId: 'cover' });
         }
 
-        // Verificar novas imagens no conteúdo
+        const currentContentUrls = new Set();
+        const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/g;
+        const contentMatches = editingAnalysis.value.content.match(r2UrlRegex) || [];
+        contentMatches.forEach(url => currentContentUrls.add(url));
+
+        const newPlaceholderIds = new Set();
         for (const [placeholderId, mediaData] of contentImages.value.entries()) {
             if (mediaData.file instanceof File) {
-                filesToUpload.push({
-                    file: mediaData.file,
-                    category: mediaData.type || 'image',
-                    tempId: placeholderId
-                });
+                filesToUpload.push({ file: mediaData.file, category: mediaData.type || 'image', tempId: placeholderId });
+                newPlaceholderIds.add(placeholderId);
             }
         }
 
         const uploadedUrls = {};
 
-        // 2. Upload dos Novos Arquivos (R2 Presigned)
         if (filesToUpload.length > 0) {
-             feedback.value = { message: `Enviando ${filesToUpload.length} novos arquivos...`, type: 'info' };
-             
-             // A) Obter URLs
-             const metaData = filesToUpload.map(f => ({
-                fileName: f.file.name,
-                fileType: f.file.type,
-                category: f.category,
-                tempId: f.tempId
-            }));
+             feedback.value = { message: `Enviando ${filesToUpload.length} novos arquivo(s)...`, type: 'info' };
+             const metaData = filesToUpload.map(f => ({ fileName: f.file.name, fileType: f.file.type, category: f.category, tempId: f.tempId }));
 
             const urlRes = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`, 
-                { files: metaData }, 
-                { headers: { 'Authorization': `Bearer ${token}` } }
+                { files: metaData }, { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const uploadPlans = urlRes.data.data;
 
-            // B) Executar PUT
             await Promise.all(uploadPlans.map(async (plan) => {
                 const fileObj = filesToUpload.find(f => f.tempId === plan.tempId);
                 if (!fileObj) return;
 
-                // Upload binário com Content-Type
-                await axios.put(plan.uploadUrl, fileObj.file, {
-                    headers: { 'Content-Type': fileObj.file.type }
-                });
+                await axios.put(plan.uploadUrl, fileObj.file, { headers: { 'Content-Type': fileObj.file.type } });
                 uploadedUrls[plan.tempId] = plan.publicUrl;
             }));
         }
-
-        // 3. Montar JSON Final
         
         let finalContent = editingAnalysis.value.content || '';
-        
-        // Substituir placeholders novos pelas URLs públicas do R2
         for (const [placeholderId, publicUrl] of Object.entries(uploadedUrls)) {
             if (placeholderId !== 'cover') {
-                const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+                const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g');
                 finalContent = finalContent.replace(regex, publicUrl);
             }
         }
         
-        // Determinar capa final
         let finalCoverPath = editingAnalysis.value.coverImage?.serverPath; 
-        if (uploadedUrls['cover']) {
-            finalCoverPath = uploadedUrls['cover'];
-        }
+        if (uploadedUrls['cover']) finalCoverPath = uploadedUrls['cover'];
 
         const finalData = {
             ...editingAnalysis.value,
             content: finalContent,
             coverImagePath: finalCoverPath,
-            filesToDelete: filesToDelete.value, // Envia URLs antigas para o backend deletar
-            documentFiles: [],
-            dataFiles: []
+            filesToDelete: filesMarkedForDeletion,
+            documentFiles: [], dataFiles: []
         };
         
         delete finalData.coverImage;
 
-        // 4. Salvar
         await axios.put(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, finalData, {
-            headers: { 
-                'Authorization': `Bearer ${token}`, 
-                'Content-Type': 'application/json' 
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
 
         feedback.value = { message: 'Análise atualizada com sucesso!', type: 'success' };
-        
-        // Recarregar para garantir estado limpo
+        filesToDelete.value = [];
+        contentImages.value.clear();
         await selectAnalysis({ id: editingAnalysis.value.id, title: editingAnalysis.value.title });
 
     } catch (err) {
@@ -713,7 +654,7 @@ const updateAnalysis = async () => {
 const confirmAndResetForm = async () => {
   if (window.confirm('Resetar alterações? Dados não salvos serão perdidos.')) {
     if (!editingAnalysis.value.id) return;
-    await selectAnalysis({ id: editingAnalysis.value.id, title: searchQuery.value });
+    await selectAnalysis({ id: editingAnalysis.value.id, title: editingAnalysis.value.title });
   }
 };
 
@@ -728,8 +669,6 @@ const confirmDelete = async () => {
         });
         feedback.value = { message: 'Análise excluída.', type: 'success' };
         editingAnalysis.value = getInitialAnalysisState();
-        searchQuery.value = '';
-        allAnalyses.value = [];
         router.push({ path: '/admin/edit-analysis' });
     } catch (err) {
         feedback.value = { message: 'Erro ao excluir.', type: 'error' };
@@ -741,10 +680,7 @@ const confirmDelete = async () => {
 const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.category);
 
 const cleanupBlobUrls = () => {
-  // Limpa apenas blobs locais
-  if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) {
-      URL.revokeObjectURL(imagePreviewUrl.value);
-  }
+  if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value);
   for (const mediaData of contentImages.value.values()) {
     if (mediaData.blobUrl) URL.revokeObjectURL(mediaData.blobUrl);
   }
@@ -756,14 +692,11 @@ const handleFileSelection = (event, fieldName) => {
 
   if (fieldName === 'coverImage') {
     const oldFile = editingAnalysis.value.coverImage;
-    // Se havia uma imagem antiga salva no servidor, marcar para deletar
     if (oldFile && oldFile.serverPath && originalServerFiles.value.has(oldFile.serverPath)) {
         filesToDelete.value.push(oldFile.serverPath);
     }
     
-    if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) {
-        URL.revokeObjectURL(imagePreviewUrl.value);
-    }
+    if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value);
 
     editingAnalysis.value.coverImage = files[0];
     imagePreviewUrl.value = URL.createObjectURL(files[0]);
@@ -772,28 +705,22 @@ const handleFileSelection = (event, fieldName) => {
 };
 
 const coverImageLabel = computed(() => {
-    if (editingAnalysis.value.coverImage instanceof File) {
-        return `Nova Capa: ${editingAnalysis.value.coverImage.name}`;
-    } else if (editingAnalysis.value.coverImage && editingAnalysis.value.coverImage.serverPath) {
-        return `Capa Atual: (Mantida)`;
-    }
+    if (editingAnalysis.value.coverImage instanceof File) return `Nova Capa: ${editingAnalysis.value.coverImage.name}`;
+    else if (editingAnalysis.value.coverImage && editingAnalysis.value.coverImage.serverPath) return `Capa Atual: (Mantida)`;
     return 'Nenhum arquivo escolhido';
 });
 
 // --- RENDERIZAÇÃO ---
 const renderedContent = computed(() => {
   if (!editingAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
-  
   let content = editingAnalysis.value.content.trim();
 
-  // Decodifica HTML escapado
   if (content.includes('&lt;') && content.includes('&gt;')) {
     const txt = document.createElement('textarea');
     txt.innerHTML = content;
     content = txt.value;
   }
 
-  // Substitui placeholders
   for (const [id, data] of contentImages.value.entries()) {
     if (data.blobUrl) {
       const regex = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
@@ -801,23 +728,27 @@ const renderedContent = computed(() => {
     }
   }
 
-  // Corrige URLs relativas
-  content = content.replace(
-    /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g, 
-    `$1${API_BASE_URL}$2$3`
-  );
+  content = content.replace(/(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g, `$1${API_BASE_URL}$2$3`);
+  if (content.startsWith('```html')) content = content.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
 
-  // Remove wrapper ```html ... ```
-  if (content.startsWith('```html')) {
-    content = content.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
-  }
-
-  // REGRA SIMPLES: Se começa com "<", é HTML → retorna direto
-  // Senão, é Markdown → converte
   const isHTML = /^</.test(content.trim());
-  
   return isHTML ? content : marked.parse(content, { headerIds: false, mangle: false });
 });
+
+watch(() => editingAnalysis.value.content, (newContent, oldContent) => {
+  if (!oldContent || !newContent) return;
+  const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/g;
+  const oldUrls = oldContent.match(r2UrlRegex) || [];
+  const newUrls = newContent.match(r2UrlRegex) || [];
+  
+  const removedUrls = oldUrls.filter(url => !newUrls.includes(url));
+  
+  if (removedUrls.length > 0) {
+    removedUrls.forEach(url => {
+      if (!filesToDelete.value.includes(url)) filesToDelete.value.push(url);
+    });
+  }
+}, { immediate: false });
 
 watch(isPreviewMode, async (newVal) => {
   if (!newVal) {
@@ -825,6 +756,7 @@ watch(isPreviewMode, async (newVal) => {
     setTimeout(() => { if (editor) { editor.layout(); editor.focus(); } }, 550);
   }
 });
+
 watch(isDark, (newValue) => { if (editor) { monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs'); } });
 </script>
 

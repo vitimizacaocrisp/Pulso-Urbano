@@ -70,13 +70,15 @@ function isAllowedFileType(mimeType, fileName) {
 
 function generateUniqueFilename(originalName) {
   const fileExt = path.extname(originalName);
-  const baseName = path.basename(originalName, fileExt);
-  const sanitizedBaseName = baseName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-  return `${sanitizedBaseName}-${crypto.randomUUID()}${fileExt}`;
+  
+  // 1. Juntamos o nome original, a data/hora exata em milissegundos e um UUID
+  const dataToObfuscate = `${originalName}-${Date.now()}-${crypto.randomUUID()}`;
+  
+  // 2. Criamos um Hash (criptografia irreversível) dessa mistura
+  const hashedName = crypto.createHash('sha256').update(dataToObfuscate).digest('hex');
+  
+  // 3. Retornamos os primeiros 32 caracteres do hash (para o nome não ficar gigante) + a extensão
+  return `${hashedName.substring(0, 32)}${fileExt}`;
 }
 
 async function testConnectionData() {
@@ -92,23 +94,40 @@ async function testConnectionData() {
 }
 
 async function deleteFileFromS3(fileUrl) {
-  if (!fileUrl || !fileUrl.startsWith('http')) return;
+  if (!fileUrl || !fileUrl.startsWith('http')) {
+    console.log(`[S3 Delete] Ignorando URL inválida: ${fileUrl}`);
+    return false;
+  }
+  
   try {
     const urlObj = new URL(fileUrl);
     
-    // No R2 Public (r2.dev), a URL é https://pub-xxx.r2.dev/pasta/arquivo.ext
-    // A Key é simplesmente o pathname sem a barra inicial.
+    // Extrair a key da URL pública do R2
+    // Ex: https://pub-xxx.r2.dev/pasta/arquivo.ext -> pasta/arquivo.ext
     let key = urlObj.pathname;
     if (key.startsWith('/')) key = key.substring(1);
     
-    // NOTA: Removemos a lógica antiga que retirava o bucket do path, 
-    // pois a URL pública do R2 aponta direto para a raiz do bucket.
+    // Se a URL contém o bucket no path (formato path-style), remover
+    // Ex: https://<account>.r2.cloudflarestorage.com/bucket-name/pasta/arquivo.ext
+    const bucketName = process.env.STORAGE_BUCKET_NAME;
+    if (key.startsWith(`${bucketName}/`)) {
+      key = key.substring(bucketName.length + 1);
+    }
 
-    const params = { Bucket: process.env.STORAGE_BUCKET_NAME, Key: key };
+    console.log(`[S3 Delete] Deletando: ${key} (do bucket: ${bucketName})`);
+
+    const params = { 
+      Bucket: bucketName, 
+      Key: key 
+    };
+    
     await s3Client.send(new DeleteObjectCommand(params));
-    console.log(`[R2] Arquivo deletado: ${key}`);
+    console.log(`[S3 Delete] Sucesso: ${key}`);
+    return true;
+    
   } catch (error) {
-    console.error(`[R2] Falha ao deletar arquivo ${fileUrl}:`, error);
+    console.error(`[S3 Delete] Falha ao deletar ${fileUrl}:`, error.message);
+    return false;
   }
 }
 

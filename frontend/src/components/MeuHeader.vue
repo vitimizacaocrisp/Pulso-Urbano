@@ -7,36 +7,37 @@
         </h1>
 
         <div class="search-wrapper desktop-only">
-          <div class="search-input-group">
-              <i class="fas fa-search search-icon"></i>
-              <input 
-                type="text" 
-                v-model="searchQuery" 
-                placeholder="Pesquisar análises..."
-                @focus="loadAllAnalyses"
-                @blur="hideDropdown"
-                class="search-input"
-                @keyup.enter="onSearch"
-                @input="isDropdownVisible = true"
-              >
-              <div v-if="isLoading" class="search-spinner"></div>
-          </div>
-          
-          <transition name="fade">
-            <div v-if="isDropdownVisible && (filteredAnalyses.length > 0 || (searchQuery && !isLoading))" class="search-dropdown">
-              <ul v-if="filteredAnalyses.length > 0">
-                <li v-for="analysis in filteredAnalyses" :key="analysis.id" @mousedown.prevent="selectAnalysis(analysis)">
-                  <div class="dropdown-item">
-                      <strong>{{ analysis.title }}</strong>
-                      <small>{{ analysis.author }} • {{ analysis.category || 'Geral' }}</small>
-                  </div>
-                </li>
-              </ul>
-              <div v-else class="no-results">
-                Nenhum resultado encontrado.
-              </div>
+          <BaseSearch @select="menuOpen = false" v-slot="{ query, updateQuery, results, isLoading, isOpen, handleFocus, handleEnter, selectItem }">
+            <div class="search-input-group">
+                <i class="fas fa-search search-icon"></i>
+                <input 
+                  type="text" 
+                  :value="query"
+                  @input="updateQuery($event.target.value)"
+                  placeholder="Pesquisar análises..."
+                  @focus="handleFocus"
+                  class="search-input"
+                  @keyup.enter="handleEnter"
+                >
+                <div v-if="isLoading" class="search-spinner"></div>
             </div>
-          </transition>
+            
+            <transition name="fade">
+              <div v-if="isOpen && (results.length > 0 || (query && !isLoading))" class="search-dropdown">
+                <ul v-if="results.length > 0">
+                  <li v-for="analysis in results" :key="analysis.id" @mousedown.prevent="selectItem(analysis)">
+                    <div class="dropdown-item">
+                        <strong>{{ analysis.title }}</strong>
+                        <small>{{ analysis.author }} • {{ analysis.category || 'Geral' }}</small>
+                    </div>
+                  </li>
+                </ul>
+                <div v-else-if="query && !isLoading" class="no-results">
+                  Nenhum resultado encontrado.
+                </div>
+              </div>
+            </transition>
+          </BaseSearch>
         </div>
 
         <nav class="desktop-nav">
@@ -52,14 +53,17 @@
                                 <h3>Explorar Tópicos</h3>
                                 <router-link to="/categoria" class="view-all">Ver tudo</router-link>
                             </div>
-                            <ul class="category-list-popover">
-                                <li v-for="cat in categoriesWithCounts" :key="cat.path">
-                                    <router-link :to="cat.path" class="cat-link">
+                            <ul v-if="categories.length > 0" class="category-list-popover">
+                                <li v-for="cat in categories" :key="cat.path">
+                                    <router-link :to="cat.path" class="cat-link" @click="submenuOpen = false">
                                         <span class="cat-name">{{ cat.name }}</span>
                                         <span class="cat-badge">{{ cat.count }}</span>
                                     </router-link>
                                 </li>
                             </ul>
+                            <div v-else class="no-results" style="padding: 1rem 0;">
+                                Carregando categorias...
+                            </div>
                         </div>
                     </transition>
                 </li>
@@ -67,11 +71,7 @@
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li><router-link to="/admin" class="nav-link admin-link"><i class="fas fa-lock"></i></router-link></li>
-                
-                <!-- Botão de Tema (Desktop) -->
-                <li class="nav-item-toggle">
-                  <ThemeToggle />
-                </li>
+                <li class="nav-item-toggle"><ThemeToggle /></li>
              </ul>
         </nav>
 
@@ -81,12 +81,10 @@
       </div>
     </div>
 
-    <!-- Mobile Drawer -->
     <transition name="slide">
       <nav v-if="menuOpen" class="drawer">
         <div class="drawer-header">
           <h2>Menu</h2>
-          <!-- Botão de Tema e Fechar (Mobile) -->
           <div class="drawer-actions">
             <ThemeToggle />
             <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
@@ -95,15 +93,18 @@
           </div>
         </div>
 
-        <div class="mobile-search">
-            <input 
-                type="text" 
-                v-model="searchQuery" 
-                placeholder="Pesquisar..."
-                @keyup.enter="onSearch"
-            >
-            <button @click="onSearch"><i class="fas fa-search"></i></button>
-        </div>
+        <BaseSearch @select="toggleMenu" v-slot="{ query, updateQuery, handleEnter }">
+            <div class="mobile-search">
+                <input 
+                    type="text" 
+                    :value="query"
+                    @input="updateQuery($event.target.value)"
+                    placeholder="Pesquisar..."
+                    @keyup.enter="handleEnter"
+                >
+                <button @click="handleEnter"><i class="fas fa-search"></i></button>
+            </div>
+        </BaseSearch>
 
         <ul class="mobile-menu-list">
             <li><router-link to="/" @click="toggleMenu">Início</router-link></li>
@@ -111,7 +112,7 @@
             
             <li class="mobile-categories-label">Categorias</li>
             <li v-for="cat in categories.slice(0, 8)" :key="cat.path" class="mobile-sub-item">
-                <router-link :to="cat.path" @click="toggleMenu">{{ cat.name }}</router-link>
+                <router-link :to="cat.path" @click="toggleMenu">{{ cat.name }} ({{ cat.count }})</router-link>
             </li>
 
             <li class="divider"></li>
@@ -127,94 +128,44 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import ThemeToggle from './ThemeToggle.vue'; // Importando o componente
+import ThemeToggle from './ThemeToggle.vue';
+import BaseSearch from './BaseSearch.vue';
+
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 const menuOpen = ref(false);
 const submenuOpen = ref(false);
 const isScrolled = ref(false);
-const searchQuery = ref('');
-const isDropdownVisible = ref(false);
-const isLoading = ref(false);
-const allAnalyses = ref([]);
-let hasLoadedOnce = false;
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-const router = useRouter();
-
-const categories = ref([
-    { name: 'Metodologia e Amostra', path: '/categoria/metodologia-e-amostra' },
-    { name: 'Crimes Contra o Patrimônio', path: '/categoria/crimes-contra-patrimonio' },
-    { name: 'Crimes Contra a Pessoa', path: '/categoria/crimes-contra-pessoa' },
-    { name: 'Sensação de Segurança', path: '/categoria/sensacao-de-seguranca' },
-    { name: 'Subnotificação (Cifras Ocultas)', path: '/categoria/subnotificacao' },
-    { name: 'Perfil das Vítimas', path: '/categoria/perfil-das-vitimas' },
-    { name: 'Violência Doméstica e Gênero', path: '/categoria/violencia-domestica-genero' },
-]);
-
-const categoriesWithCounts = computed(() => {
-    if (allAnalyses.value.length === 0) return categories.value.map(cat => ({ ...cat, count: 0 }));
-    return categories.value.map(cat => {
-        const count = allAnalyses.value.filter(analysis => {
-            const apiCategory = (analysis.category || analysis.tag || '').toLowerCase().trim();
-            const localCategory = cat.name.toLowerCase().trim();
-            return apiCategory === localCategory;
-        }).length;
-        return { ...cat, count: count };
-    });
-});
+// Variável reativa para guardar as categorias que vêm do banco
+const categories = ref([]);
 
 const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 
+const fetchCategories = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        
+        const response = await axios.get(`${API_BASE_URL}/api/admin/categories-count`, { headers });
+        if (response.data && response.data.success) {
+            categories.value = response.data.data;
+        }
+    } catch (err) {
+        console.error("Erro ao buscar categorias:", err);
+    }
+};
+
 onMounted(() => {
     window.addEventListener('scroll', handleScroll);
-    loadAllAnalyses();
+    fetchCategories(); // Carrega as categorias do banco de dados ao iniciar
 });
 
-onUnmounted(() => { window.removeEventListener('scroll', handleScroll); });
+onUnmounted(() => window.removeEventListener('scroll', handleScroll));
 
-const filteredAnalyses = computed(() => {
-  if (!searchQuery.value) return [];
-  const q = searchQuery.value.toLowerCase();
-  return allAnalyses.value.filter(a =>
-    (a.title?.toLowerCase().includes(q)) || (a.tag?.toLowerCase().includes(q)) || (a.author?.toLowerCase().includes(q))
-  ).slice(0, 8);
-});
-
-const toggleMenu = () => {
-  menuOpen.value = !menuOpen.value;
-  if(menuOpen.value && !hasLoadedOnce) loadAllAnalyses();
-};
-
-const loadAllAnalyses = async () => {
-  if (searchQuery.value) isDropdownVisible.value = true;
-  if (hasLoadedOnce) return;
-  isLoading.value = true;
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = response.data?.data?.analyses;
-    allAnalyses.value = Array.isArray(data) ? data : [];
-    hasLoadedOnce = true;
-  } catch (err) { console.error("Erro na busca:", err); } finally { isLoading.value = false; }
-};
-
-const hideDropdown = () => setTimeout(() => { isDropdownVisible.value = false; }, 200);
-const selectAnalysis = (analysis) => {
-  searchQuery.value = '';
-  isDropdownVisible.value = false;
-  router.push({ name: 'AnalysisDetail', params: { id: analysis.id } });
-  if (menuOpen.value) toggleMenu();
-};
-const onSearch = () => {
-    isDropdownVisible.value = true;
-    if (!hasLoadedOnce) loadAllAnalyses();
-    if (searchQuery.value.trim() && filteredAnalyses.value.length > 0) selectAnalysis(filteredAnalyses.value[0]);
-};
+const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
 </script>
 
 <style scoped>

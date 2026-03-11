@@ -7,7 +7,7 @@ const {
   deleteFileFromS3 
 } = require('../middleware/s3Connection');
 
-// --- Validação de Token (Mantido) ---
+// --- Validação de Token ---
 router.get('/verify-token', verifyToken, (req, res) => {
   res.status(200).json({ 
     success: true, 
@@ -16,7 +16,7 @@ router.get('/verify-token', verifyToken, (req, res) => {
   });
 });
 
-// --- Rota Dashboard (Mantido) ---
+// --- Rota Dashboard ---
 router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
   const [statsResult, recentAnalysesResult, chartDataResult] = await Promise.all([
     sql`
@@ -57,10 +57,9 @@ router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
   res.json({ success: true, data: { stats: statsResult[0], recentAnalyses: recentAnalysesResult, chartData } });
 }));
 
-// --- Listar Análises (Mantido) ---
+// --- Listar Análises ---
 router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   const { search, page = 1, limit = 10, category } = req.query;
-  const offset = (page - 1) * limit;
 
   const whereClauses = [];
   if (search) {
@@ -74,20 +73,33 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     ? sql`WHERE ${whereClauses.reduce((acc, cur) => sql`${acc} AND ${cur}`)}`
     : sql``;
 
-  const analyses = await sql`
-    SELECT id, title, author, tag, description, cover_image_path, created_at 
-    FROM analyses
-    ${whereCondition}
-    ORDER BY created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `;
+  let analyses;
+  
+  // Se limit for 'all', ignora a paginação e traz tudo
+  if (limit === 'all') {
+    analyses = await sql`
+      SELECT id, title, author, tag, category, description, cover_image_path, created_at 
+      FROM analyses
+      ${whereCondition}
+      ORDER BY created_at DESC
+    `;
+  } else {
+    const offset = (page - 1) * limit;
+    analyses = await sql`
+      SELECT id, title, author, tag, category, description, cover_image_path, created_at 
+      FROM analyses
+      ${whereCondition}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+  }
   
   const totalResult = await sql`SELECT COUNT(*) FROM analyses ${whereCondition}`;
 
   res.json({ success: true, data: { analyses, total: parseInt(totalResult[0].count, 10) } });
 }));
 
-// --- Ler Análise Individual (Mantido) ---
+// --- Ler Análise Individual ---
 router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
   const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
@@ -95,12 +107,37 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   res.json({ success: true, data: results[0] });
 }));
 
+// --- Listar Categorias com Contagem ---
+router.get('/categories-count', verifyToken, asyncHandler(async (req, res) => {
+  // Puxa o nome da categoria e conta a quantidade de posts
+  const results = await sql`
+    SELECT category as name, COUNT(id) as count 
+    FROM analyses 
+    WHERE category IS NOT NULL AND category != '' 
+    GROUP BY category 
+    ORDER BY count DESC
+  `;
+  
+  // Função para criar o slug da URL (ex: "Crimes Contra a Pessoa" -> "crimes-contra-pessoa")
+  const slugify = (str) => str.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '');
+
+  const data = results.map(item => ({
+    name: item.name,
+    count: parseInt(item.count, 10),
+    path: `/categoria/${slugify(item.name)}`
+  }));
+
+  res.json({ success: true, data });
+}));
 
 // ==========================================
 // ROTAS DE UPLOAD DIRETO E GESTÃO
 // ==========================================
 
-// 1. Gerar URLs assinadas (Mantido - chama o s3Connection atualizado)
+// 1. Gerar URLs assinadas (chama o s3Connection atualizado)
 router.post('/generate-upload-urls', verifyToken, express.json(), asyncHandler(async (req, res) => {
   const { files } = req.body; 
   
@@ -124,7 +161,7 @@ router.post('/generate-upload-urls', verifyToken, express.json(), asyncHandler(a
   }
 }));
 
-// 2. CRIAR Análise (Mantido)
+// 2. CRIAR Análise
 router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, res) => {
   const {
     title, subtitle, lastUpdate, studyPeriod, source, category,
@@ -157,24 +194,59 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
   });
 }));
 
-// 3. ATUALIZAR Análise (Mantido)
+// --- ATUALIZAR Análise (CORRIGIDO PARA LIMPEZA DE ARQUIVOS) ---
 router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const {
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
-    coverImagePath,
-    filesToDelete
+    coverImagePath, // Esta é a NOVA capa (URL pública do R2)
+    filesToDelete   // Array de URLs para deletar
   } = req.body;
 
-  if (filesToDelete && Array.isArray(filesToDelete) && filesToDelete.length > 0) {
-      console.log(`[CLEANUP] Removendo ${filesToDelete.length} arquivos antigos...`);
-      Promise.all(filesToDelete.map(url => deleteFileFromS3(url)))
-        .catch(e => console.error("Erro na limpeza de arquivos:", e));
+  // 1. Buscar análise atual para comparar o que mudou
+  const currentAnalysis = await sql`SELECT cover_image_path, content FROM analyses WHERE id = ${id}`;
+  if (currentAnalysis.length === 0) {
+    return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
+  }
+  
+  const oldCover = currentAnalysis[0].cover_image_path;
+  const oldContent = currentAnalysis[0].content || '';
+  
+  // 2. Identificar arquivos órfãos no conteúdo (que existiam antes mas sumiram)
+  const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/g;
+  const oldUrls = oldContent.match(r2UrlRegex) || [];
+  const newUrls = (content || '').match(r2UrlRegex) || [];
+  
+  // URLs que existiam no conteúdo antigo mas não existem mais no novo
+  const orphanedContentUrls = oldUrls.filter(url => !newUrls.includes(url));
+  
+  // 3. Se a capa mudou, adicionar a antiga para deleção
+  const filesToDeleteFromServer = [...(filesToDelete || [])];
+  
+  if (oldCover && oldCover !== coverImagePath && oldCover.includes('r2.dev')) {
+    filesToDeleteFromServer.push(oldCover);
+  }
+  
+  // 4. Adicionar URLs órfãs do conteúdo
+  orphanedContentUrls.forEach(url => {
+    if (!filesToDeleteFromServer.includes(url)) {
+      filesToDeleteFromServer.push(url);
+    }
+  });
+
+  // 5. Executar deleções em background (não bloqueia a resposta)
+  if (filesToDeleteFromServer.length > 0) {
+    console.log(`[CLEANUP] Removendo ${filesToDeleteFromServer.length} arquivo(s) órfão(s)...`);
+    Promise.all(filesToDeleteFromServer.map(url => deleteFileFromS3(url)))
+      .then(results => {
+        const deleted = results.filter(r => r).length;
+        console.log(`[CLEANUP] ${deleted}/${filesToDeleteFromServer.length} arquivos removidos com sucesso.`);
+      })
+      .catch(e => console.error("[CLEANUP] Erro na limpeza de arquivos:", e));
   }
 
-  const safeJson = (val) => JSON.stringify(val || []);
-
+  // 6. Atualizar banco de dados
   await sql`
     UPDATE analyses SET
       title = ${title}, 
@@ -195,7 +267,7 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
   res.json({ success: true, message: 'Análise atualizada com sucesso!' });
 }));
 
-// --- Deletar Análise (ATUALIZADO REGEX) ---
+// --- Deletar Análise (CORRIGIDO PARA LIMPEZA COMPLETA) ---
 router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -207,28 +279,35 @@ router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
 
   const filesToDelete = [];
   
-  if (analysis.cover_image_path) filesToDelete.push(analysis.cover_image_path);
+  // 1. Adicionar imagem de capa
+  if (analysis.cover_image_path && analysis.cover_image_path.includes('r2.dev')) {
+    filesToDelete.push(analysis.cover_image_path);
+  }
   
-  const extractPaths = (jsonArr) => {
-      if (!jsonArr || !Array.isArray(jsonArr)) return;
-      jsonArr.forEach(item => { 
-        if(item.path) filesToDelete.push(item.path); 
-      });
-  };
+  // 2. Extrair TODAS as URLs do conteúdo (imagens, vídeos, documentos, etc.)
+  // Regex melhorado para pegar todas as URLs do domínio r2.dev
+  const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/gi;
+  const contentUrls = analysis.content.match(r2UrlRegex) || [];
   
-  // --- ATUALIZAÇÃO DO REGEX PARA R2 ---
-  // Busca por links que contenham o domínio público do R2 ou o padrão .r2.dev
-  // Regex procura por strings que começam com http, contêm "r2.dev" (padrão Cloudflare) e terminam antes de espaços/aspas
-  const regex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/g;
-  
-  const contentMediaUrls = analysis.content.match(regex) || [];
-  filesToDelete.push(...contentMediaUrls);
+  contentUrls.forEach(url => {
+    if (!filesToDelete.includes(url)) {
+      filesToDelete.push(url);
+    }
+  });
 
-  if (filesToDelete.length) {
-    Promise.all(filesToDelete.map(deleteFileFromS3))
-      .catch(err => console.error("Erro ao limpar S3 na exclusão:", err));
+  // 3. Deletar arquivos do S3/R2 antes de remover do banco
+  if (filesToDelete.length > 0) {
+    console.log(`[DELETE] Removendo ${filesToDelete.length} arquivo(s) do R2...`);
+    try {
+      await Promise.all(filesToDelete.map(deleteFileFromS3));
+      console.log(`[DELETE] Arquivos removidos com sucesso.`);
+    } catch (err) {
+      console.error("[DELETE] Erro ao remover arquivos do R2:", err);
+      // Continua mesmo se falhar a deleção dos arquivos (evita orphan records)
+    }
   }
 
+  // 4. Deletar do banco
   await sql`DELETE FROM analyses WHERE id = ${id}`;
 
   res.json({ success: true, message: 'Análise deletada com sucesso.' });

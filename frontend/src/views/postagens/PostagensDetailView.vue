@@ -14,7 +14,6 @@
       </div>
     </div>
 
-    <!-- IMPORTANTE: v-else-if na div, não no componente IsolatedRenderer -->
     <div v-else-if="analysis" class="content-animate">
       <header class="article-hero">
         <div class="hero-bg" :style="analysis.cover_image_path ? `background-image: url(${getFullMediaPath(analysis.cover_image_path)})` : ''"></div>
@@ -47,8 +46,6 @@
 
       <article class="article-body-wrapper">
         <div class="content-container">
-
-          <!-- Wrapper div - sem diretivas no IsolatedRenderer -->
           <div class="preview-content-wrapper">
             <IsolatedRenderer :content="renderedContent" />
           </div>
@@ -77,7 +74,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+// IMPORTANDO O WATCH
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import MeuHeader from '@/components/MeuHeader.vue';
@@ -122,25 +120,54 @@ const renderedContent = computed(() => {
   return isHTML ? content : `<p>${content}</p>`;
 });
 
-onMounted(async () => {
-  const analysisId = route.params.id;
-  if (!analysisId) {
+// Adicionando a computed property hasAttachments que estava faltando no seu script
+const hasAttachments = computed(() => {
+  return analysis.value && analysis.value.reference_links && analysis.value.reference_links.trim() !== '';
+});
+
+// ISOLANDO A LÓGICA DE BUSCA EM UMA FUNÇÃO
+const fetchAnalysis = async (id) => {
+  if (!id) {
     error.value = "ID da análise não fornecido.";
     isLoading.value = false;
     return;
   }
   
+  isLoading.value = true;
+  error.value = null; // Limpa erros anteriores
+  
   try {
     const token = localStorage.getItem('authToken');
-    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses/${analysisId}`, { headers: { Authorization: `Bearer ${token}` }});
+    const response = await axios.get(`${API_BASE_URL}/api/admin/analyses/${id}`, { 
+      headers: { Authorization: `Bearer ${token}` }
+    });
     analysis.value = response.data.data;
   } catch (err) {
     console.error("Falha ao buscar análise:", err);
     error.value = err.response?.data?.message || 'Não foi possível carregar a análise.';
+    analysis.value = null; // Limpa os dados antigos em caso de erro
   } finally {
     isLoading.value = false;
   }
+};
+
+// 1. CHAMA A FUNÇÃO QUANDO O COMPONENTE É MONTADO PELA PRIMEIRA VEZ
+onMounted(() => {
+  fetchAnalysis(route.params.id);
 });
+
+// 2. OBSERVA A ROTA. SE O ID MUDAR, BUSCA A NOVA ANÁLISE
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    // Só faz a busca se o ID realmente mudou
+    if (newId && newId !== oldId) {
+      fetchAnalysis(newId);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola a página para o topo suavemente
+    }
+  }
+);
+
 </script>
 
 <style scoped>

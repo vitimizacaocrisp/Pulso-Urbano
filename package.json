@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "server": "npm run dev --prefix backend",
+    "client": "npm run serve --prefix frontend",
+    "dev": "start cmd /k \"npm run client\" & npm run server"
+  }
+}

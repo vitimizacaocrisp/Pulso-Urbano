@@ -23,7 +23,7 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
   const results = await sql`
     SELECT id, title, subtitle, last_update, study_period, source, category,
            tag, author, description, content, reference_links,
-           cover_image_path, document_file_path, data_file_path
+           cover_image_path
     FROM analyses 
     WHERE id = ${id}
   `;
