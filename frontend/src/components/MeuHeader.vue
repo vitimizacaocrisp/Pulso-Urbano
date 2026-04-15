@@ -68,6 +68,7 @@
                     </transition>
                 </li>
 
+                <li><router-link to="/catalogo" class="nav-link">Catálogo</router-link></li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li><router-link to="/admin" class="nav-link admin-link"><i class="fas fa-lock"></i></router-link></li>
@@ -116,6 +117,7 @@
             </li>
 
             <li class="divider"></li>
+            <li><router-link to="/catalogo" @click="toggleMenu">Catálogo</router-link></li>
             <li><router-link to="/sobre" @click="toggleMenu">Sobre</router-link></li>
             <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
             <li><router-link to="/admin" @click="toggleMenu">Administração</router-link></li>

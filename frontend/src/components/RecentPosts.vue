@@ -66,6 +66,8 @@
 <script>
 import axios from 'axios';
 
+const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+
 export default {
   name: 'RecentPosts',
   props: {
@@ -92,7 +94,7 @@ export default {
       this.isLoading = true;
       this.error = null;
       try {
-        const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+        
         const token = localStorage.getItem('authToken');
         
         const params = {
@@ -126,7 +128,7 @@ export default {
     },
     getFullMediaPath(path) {
       if (!path) return '';
-      const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+      
       return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
     },
     processTags(tagString) {
