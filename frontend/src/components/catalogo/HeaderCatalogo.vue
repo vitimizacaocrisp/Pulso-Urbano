@@ -28,6 +28,14 @@
           <span class="lbl">Anos cobertos</span>
         </div>
         <div class="stat-item">
+          <span class="num">{{ stats.totalCountries || 0 }}</span>
+          <span class="lbl">Países</span>
+        </div>
+        <div class="stat-item">
+          <span class="num">{{ stats.totalStates || 0 }}</span>
+          <span class="lbl">Estados</span>
+        </div>
+        <div class="stat-item">
           <span class="num">{{ stats.totalCities || 0 }}</span>
           <span class="lbl">Cidades</span>
         </div>
@@ -49,6 +57,8 @@ export default {
         totalResearch: 0,
         totalSources: 0,
         yearsCovered: 0,
+        totalCountries: 0,
+        totalStates: 0,
         totalCities: 0
       },
       isLoading: true
@@ -59,34 +69,66 @@ export default {
       this.isLoading = true;
       try {
         const token = localStorage.getItem('authToken');
-        
-        // Chamada para buscar os dados (ajuste o endpoint conforme sua API)
+
         const response = await axios.get(`${API_BASE_URL}/api/admin/analyses-list`, {
           headers: { 'Authorization': `Bearer ${token}` },
-          params: { limit: 10000000000 },
+          params: { limit: 'all' },
           timeout: 10000
         });
 
         const data = response.data?.data?.analyses || [];
 
-        console.log("Dados recebidos para stats do header:", data);
+        if (data.length === 0) return;
 
-        // Lógica para extrair os números dos dados da API
-        if (data.length > 0) {
-          this.stats.totalResearch = data.length;
-          
-          // Exemplo de como calcular as fontes e cidades únicas
-          const sources = new Set(data.map(item => item.source).filter(Boolean));
-          this.stats.totalSources = sources.size > 0 ? sources.size : 8; // Fallback para 8 se vazio
+        // 1. Total de pesquisas
+        this.stats.totalResearch = data.length;
 
-          const cities = new Set(data.flatMap(item => item.cities || [])); 
-          this.stats.totalCities = cities.size > 0 ? cities.size : 6;
+        // 2. Total de Fontes ÚNICAS (Ignora repetidos e vazios)
+        const uniqueSources = new Set(
+          data
+            .filter(item => item.source && String(item.source).trim() !== '')
+            .map(item => String(item.source).trim().toLowerCase()) // toLowerCase evita "Crisp" vs "crisp"
+        );
+        this.stats.totalSources = uniqueSources.size;
 
-          // Cálculo simples de anos cobertos (se houver campo de data)
-          this.stats.yearsCovered = 20; // Geralmente fixo ou calculado pelo range de datas
-        }
+        // 3. Países únicos (coluna nationality)
+        const countries = new Set(data.map(item => item.nationality).filter(Boolean));
+        this.stats.totalCountries = countries.size;
+
+        // 4. Estados únicos (Apenas se nacionalidade for brasileira ou brazilian)
+        const states = new Set(
+          data
+            .filter(item => {
+              const n = item.nationality?.toLowerCase() || '';
+              return n === 'brasileira' || n === 'brazilian';
+            })
+            .flatMap(item => Array.isArray(item.states) ? item.states : [])
+        );
+        this.stats.totalStates = states.size;
+
+        // 5. Cidades únicas
+        const cities = new Set(
+          data.flatMap(item => Array.isArray(item.cities) ? item.cities : [])
+        );
+        this.stats.totalCities = cities.size;
+
+        // 6. Anos cobertos (Extrai do formato "AAAA-AAAA")
+        const allYears = new Set();
+        data.forEach(item => {
+          if (!item.study_period) return;
+          const match = item.study_period.match(/(\d{4})-(\d{4})/);
+          if (match) {
+            const start = parseInt(match[1]);
+            const end   = parseInt(match[2]);
+            for (let y = start; y <= end; y++) {
+              allYears.add(y);
+            }
+          }
+        });
+        this.stats.yearsCovered = allYears.size;
+
       } catch (err) {
-        console.error("Erro ao carregar stats do header:", err);
+        console.error('Erro ao carregar stats do header:', err);
       } finally {
         this.isLoading = false;
       }
@@ -101,23 +143,22 @@ export default {
 <style scoped>
 .catalog-header {
   position: relative;
-  background-color: #0b1a35; /* Azul marinho escuro */
+  background-color: #0b1a35;
   padding: 80px 20px;
   color: white;
   text-align: left;
-  overflow: hidden; /* Garante que os círculos não vazem */
+  overflow: hidden;
   display: flex;
   justify-content: center;
 }
 
 .header-inner {
   position: relative;
-  z-index: 2; /* Fica acima dos círculos */
+  z-index: 2;
   max-width: 1200px;
   width: 100%;
 }
 
-/* Badge Superior */
 .header-badge {
   display: inline-flex;
   align-items: center;
@@ -136,7 +177,6 @@ export default {
   margin-right: 8px;
 }
 
-/* Tipografia */
 h1 {
   font-size: 3rem;
   font-weight: 800;
@@ -152,7 +192,6 @@ h1 {
   line-height: 1.5;
 }
 
-/* Barra de Estatísticas */
 .stats-bar {
   display: flex;
   gap: 40px;
@@ -167,7 +206,7 @@ h1 {
 .num {
   font-size: 2.2rem;
   font-weight: 800;
-  color: #ff4d4d; /* Vermelho coral da imagem */
+  color: #ff4d4d;
   line-height: 1;
 }
 
@@ -180,7 +219,6 @@ h1 {
   letter-spacing: 1px;
 }
 
-/* Elementos Decorativos de Fundo */
 .bg-circle {
   position: absolute;
   border-radius: 50%;
@@ -202,7 +240,6 @@ h1 {
   left: 15%;
 }
 
-/* Responsividade */
 @media (max-width: 768px) {
   h1 { font-size: 2rem; }
   .stats-bar { gap: 20px; }

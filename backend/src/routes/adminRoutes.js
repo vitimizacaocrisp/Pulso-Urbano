@@ -76,9 +76,10 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   let analyses;
   
   // Se limit for 'all', ignora a paginação e traz tudo
-  if (limit === 'all') {
+   if (limit === 'all') {
     analyses = await sql`
-      SELECT id, title, author, tag, category, description, cover_image_path, created_at 
+      SELECT id, title, source, tag, category, study_period, description, cover_image_path,
+             nationality, states, cities, created_at
       FROM analyses
       ${whereCondition}
       ORDER BY created_at DESC
@@ -86,7 +87,8 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   } else {
     const offset = (page - 1) * limit;
     analyses = await sql`
-      SELECT id, title, author, tag, category, description, cover_image_path, created_at 
+      SELECT id, title, source, tag, category, study_period, description, cover_image_path,
+             nationality, states, cities, created_at
       FROM analyses
       ${whereCondition}
       ORDER BY created_at DESC
