@@ -24,7 +24,7 @@
           <span class="lbl">Fontes</span>
         </div>
         <div class="stat-item">
-          <span class="num">{{ stats.yearsCovered || '0' }}+</span>
+          <span class="num">25+</span>
           <span class="lbl">Anos cobertos</span>
         </div>
         <div class="stat-item">
@@ -32,7 +32,7 @@
           <span class="lbl">Países</span>
         </div>
         <div class="stat-item">
-          <span class="num">{{ stats.totalStates || 0 }}</span>
+          <span class="num">26+DF</span>
           <span class="lbl">Estados</span>
         </div>
         <div class="stat-item">
@@ -56,9 +56,7 @@ export default {
       stats: {
         totalResearch: 0,
         totalSources: 0,
-        yearsCovered: 0,
         totalCountries: 0,
-        totalStates: 0,
         totalCities: 0
       },
       isLoading: true
@@ -95,37 +93,11 @@ export default {
         const countries = new Set(data.map(item => item.nationality).filter(Boolean));
         this.stats.totalCountries = countries.size;
 
-        // 4. Estados únicos (Apenas se nacionalidade for brasileira ou brazilian)
-        const states = new Set(
-          data
-            .filter(item => {
-              const n = item.nationality?.toLowerCase() || '';
-              return n === 'brasileira' || n === 'brazilian';
-            })
-            .flatMap(item => Array.isArray(item.states) ? item.states : [])
-        );
-        this.stats.totalStates = states.size;
-
         // 5. Cidades únicas
         const cities = new Set(
           data.flatMap(item => Array.isArray(item.cities) ? item.cities : [])
         );
         this.stats.totalCities = cities.size;
-
-        // 6. Anos cobertos (Extrai do formato "AAAA-AAAA")
-        const allYears = new Set();
-        data.forEach(item => {
-          if (!item.study_period) return;
-          const match = item.study_period.match(/(\d{4})-(\d{4})/);
-          if (match) {
-            const start = parseInt(match[1]);
-            const end   = parseInt(match[2]);
-            for (let y = start; y <= end; y++) {
-              allYears.add(y);
-            }
-          }
-        });
-        this.stats.yearsCovered = allYears.size;
 
       } catch (err) {
         console.error('Erro ao carregar stats do header:', err);
