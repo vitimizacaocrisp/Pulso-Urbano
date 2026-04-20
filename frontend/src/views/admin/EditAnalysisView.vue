@@ -21,7 +21,7 @@
               <span class="icon">🎥</span>
               <span class="label">Vídeo</span>
             </button>
-            
+
             <button @click="selectResourceType('notebook')" class="resource-btn highlight-purple">
               <span class="icon">🐍</span>
               <span class="label">Notebook</span>
@@ -39,7 +39,7 @@
               <span class="icon">📊</span>
               <span class="label">Dados (CSV/XLS)</span>
             </button>
-            
+
             <button @click="selectResourceType('link')" class="resource-btn">
               <span class="icon">🔗</span>
               <span class="label">Link Card</span>
@@ -134,7 +134,7 @@
     <section v-show="!isPreviewMode" class="content-section">
       <fieldset class="search-fieldset">
         <legend>Pesquisar Análise</legend>
-        
+
         <BaseSearch 
           :navigate-to-detail="false" 
           @select="selectAnalysis" 
@@ -148,7 +148,7 @@
                    @focus="handleFocus"
                    class="search-input" 
                    @keyup.enter="handleEnter" />
-            
+
             <div v-if="isSearchLoading" class="search-loader"></div>
 
             <div v-if="isOpen && results.length > 0" class="search-dropdown">
@@ -158,7 +158,7 @@
                 </li>
               </ul>
             </div>
-            
+
             <div v-if="isOpen && results.length === 0 && query && !isSearchLoading" class="search-dropdown no-results">
               Nenhum resultado encontrado.
             </div>
@@ -167,10 +167,10 @@
       </fieldset>
 
       <div v-if="feedback.message" :class="['feedback-message', feedback.type]">{{ feedback.message }}</div>
-      
+
       <form v-show="editingAnalysis.id" @submit.prevent="updateAnalysis" class="form-container">
         <h3 class="editing-title">Editando: {{ editingAnalysis.title }}</h3>
-        
+
         <fieldset>
          <legend>Metadados da Análise</legend>
           <div class="form-group">
@@ -179,7 +179,7 @@
          </div>
          <div class="form-group">
            <label for="subtitle">Subtítulo</label>
-           <input type="text" id="subtitle" v-model="editingAnalysis.subtitle" required>
+           <input type="text" id="subtitle" v-model="editingAnalysis.subtitle">
          </div>
          <div class="form-grid">
            <div class="form-group">
@@ -191,17 +191,69 @@
              <input type="text" id="author" v-model="editingAnalysis.author" required>
            </div>
            <div class="form-group">
-             <label for="lastUpdate">Data da Última Atualização</label>
-             <input type="date" id="lastUpdate" required v-model="editingAnalysis.lastUpdate">
+             <label for="nationality">Nacionalidade <span class="required">*</span></label>
+             <input 
+               type="text" 
+               id="nationality" 
+               v-model="editingAnalysis.nationality" 
+               maxlength="100"
+               placeholder="Ex: Brasileira"
+               required
+             >
+             <small class="char-count">{{ editingAnalysis.nationality?.length || 0 }}/100</small>
            </div>
            <div class="form-group">
              <label for="studyPeriod">Período de Estudo</label>
-             <input type="text" id="studyPeriod" v-model="editingAnalysis.studyPeriod" placeholder="Ex: 2022-2023" required>
+             <input type="text" id="studyPeriod" v-model="editingAnalysis.studyPeriod" placeholder="Ex: 2022-2023">
            </div>
          </div>
+
+         <!-- Campos JSONB: Estados e Cidades -->
+         <div class="form-grid jsonb-fields">
+           <div class="form-group">
+             <label>Estados (JSONB)</label>
+             <div class="tag-input-container">
+               <div class="tags-list">
+                 <span v-for="(state, index) in statesList" :key="index" class="tag-chip">
+                   {{ state }}
+                   <button type="button" @click="removeState(index)" class="tag-remove">×</button>
+                 </span>
+               </div>
+               <input 
+                 type="text" 
+                 v-model="stateInput" 
+                 @keydown.enter.prevent="addState"
+                 placeholder="Digite e pressione Enter"
+                 class="tag-input"
+               >
+             </div>
+             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
+           </div>
+
+           <div class="form-group">
+             <label>Cidades (JSONB)</label>
+             <div class="tag-input-container">
+               <div class="tags-list">
+                 <span v-for="(city, index) in citiesList" :key="index" class="tag-chip city-chip">
+                   {{ city }}
+                   <button type="button" @click="removeCity(index)" class="tag-remove">×</button>
+                 </span>
+               </div>
+               <input 
+                 type="text" 
+                 v-model="cityInput" 
+                 @keydown.enter.prevent="addCity"
+                 placeholder="Digite e pressione Enter"
+                 class="tag-input"
+               >
+             </div>
+             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
+           </div>
+         </div>
+
          <div class="form-group">
            <label for="source">Fonte</label>
-           <input type="text" id="source" v-model="editingAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc." required>
+           <input type="text" id="source" v-model="editingAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc.">
          </div>
          <div class="form-group">
            <label for="category">Categoria <span class="required">*</span></label>
@@ -221,19 +273,33 @@
            <label for="description">Descrição Curta (para o card) <span class="required">*</span></label>
            <textarea id="description" v-model="editingAnalysis.description" rows="3" required></textarea>
          </div>
+
+         <!-- Checkboxes para with_header e with_footer -->
+         <div class="form-group checkbox-group">
+           <label class="checkbox-label">
+             <input type="checkbox" v-model="editingAnalysis.with_header">
+             <span class="checkmark"></span>
+             <span class="label-text">Com Cabeçalho (with_header)</span>
+           </label>
+           <label class="checkbox-label">
+             <input type="checkbox" v-model="editingAnalysis.with_footer">
+             <span class="checkmark"></span>
+             <span class="label-text">Com Rodapé (with_footer)</span>
+           </label>
+         </div>
        </fieldset>
 
        <fieldset class="main-content">
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
            <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>
-           
+
            <div class="content-toolbar single-button-toolbar">
              <button type="button" @click="openResourceMenu" class="toolbar-main-btn">
                <span class="plus-icon">➕</span> Adicionar Recurso
              </button>
              <span class="toolbar-hint">Clique para adicionar imagens, vídeos, notebooks, documentos, etc.</span>
-             
+
              <div class="editor-format-buttons">
                <button type="button" @click="applyFormat('bold')" title="Negrito (Ctrl+B)" class="format-btn"><strong>B</strong></button>
                <button type="button" @click="applyFormat('italic')" title="Itálico (Ctrl+I)" class="format-btn"><em>I</em></button>
@@ -247,14 +313,14 @@
            </div>
 
            <div id="editor-container" ref="editorContainer" class="editor-container"></div>
-           
+
            <textarea id="content" v-model="editingAnalysis.content" style="display: none;"></textarea>
          </div>
        </fieldset>
 
        <fieldset class="fieldset-image">
           <legend>Anexos</legend>
-          
+
           <div class="form-group">
               <label>Imagem de Capa <span class="required">*</span></label>
               <label for="coverImage" class="file-input-label">
@@ -264,10 +330,10 @@
               <input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')"  accept="image/*" style="display: none;">
               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview" />
           </div>
-          
+
           <div class="form-group">
             <label for="referenceLinks">Links de Referência</label>
-            <textarea id="referenceLinks" v-model="editingAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..." required></textarea>
+            <textarea id="referenceLinks" v-model="editingAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..."></textarea>
           </div>
        </fieldset>
 
@@ -301,8 +367,9 @@
             <h2 v-if="editingAnalysis.subtitle" class="preview-subtitle">{{ editingAnalysis.subtitle }}</h2>
             <div class="preview-meta">
             <span class="preview-category" v-if="editingAnalysis.category">{{ editingAnalysis.category }}</span>
-            <span class="preview-date" v-if="editingAnalysis.lastUpdate">Atualizado em: {{ editingAnalysis.lastUpdate }}</span>
+            <span class="preview-date" v-if="editingAnalysis.lastUpdate">Atualizado em: {{ formatDate(editingAnalysis.lastUpdate) }}</span>
             <span class="preview-author" v-if="editingAnalysis.author">Por {{ editingAnalysis.author }}</span>
+            <span class="preview-nationality" v-if="editingAnalysis.nationality">{{ editingAnalysis.nationality }}</span>
             </div>
         </div>
         <div class="preview-description">
@@ -349,7 +416,7 @@ import {
     generateFileMediaHtml 
 } from '@/assets/js/analysisUtils.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
-import BaseSearch from '@/components/BaseSearch.vue'; // IMPORTANDO O NOVO COMPONENTE
+import BaseSearch from '@/components/BaseSearch.vue';
 
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
@@ -370,6 +437,7 @@ let editor = null;
 // --- ESTADO DO FORMULÁRIO DE EDIÇÃO ---
 const getInitialAnalysisState = () => ({
   id: null, title: '', subtitle: '', tag: '', author: '', lastUpdate: '',
+  nationality: '', states: [], cities: [], with_header: false, with_footer: false,
   studyPeriod: '', source: '', category: '', description: '', content: '', 
   referenceLinks: '', coverImage: null, documentFiles: [], dataFiles: []
 });
@@ -386,9 +454,44 @@ const mediaUrlInput = ref('');
 const mediaFileInputRef = ref(null);
 const selectedMediaFiles = ref([]);
 
+// --- Campos JSONB ---
+const statesList = ref([]);
+const citiesList = ref([]);
+const stateInput = ref('');
+const cityInput = ref('');
+
 // --- RASTREAMENTO DE ARQUIVOS ---
 const originalServerFiles = ref(new Set());
 const filesToDelete = ref([]);
+
+// --- CONTROLE DE TAGS (JSONB) ---
+const addState = () => {
+  const value = stateInput.value.trim();
+  if (value && !statesList.value.includes(value)) {
+    statesList.value.push(value);
+    editingAnalysis.value.states = [...statesList.value];
+    stateInput.value = '';
+  }
+};
+
+const removeState = (index) => {
+  statesList.value.splice(index, 1);
+  editingAnalysis.value.states = [...statesList.value];
+};
+
+const addCity = () => {
+  const value = cityInput.value.trim();
+  if (value && !citiesList.value.includes(value)) {
+    citiesList.value.push(value);
+    editingAnalysis.value.cities = [...citiesList.value];
+    cityInput.value = '';
+  }
+};
+
+const removeCity = (index) => {
+  citiesList.value.splice(index, 1);
+  editingAnalysis.value.cities = [...citiesList.value];
+};
 
 // --- MONACO EDITOR ---
 const initMonacoEditor = () => {
@@ -421,7 +524,7 @@ const initMonacoEditor = () => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFormat('bold'));
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFormat('italic'));
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => applyFormat('heading'));
-    
+
     setTimeout(() => { editor.layout(); }, 500);
   } catch (error) {
     console.error('Erro crítico ao inicializar Monaco Editor:', error);
@@ -479,13 +582,13 @@ const confirmMediaInsertion = async () => {
         for (const file of selectedMediaFiles.value) {
             try {
                 const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, activeMediaType.value);
-                
+
                 contentImages.value.set(placeholderId, { 
                     file, 
                     blobUrl,
                     type: activeMediaType.value 
                 });
-                
+
                 batchHtml += html + '\n';
             } catch (error) {
                 console.error(`Erro ao processar arquivo ${file.name}`, error);
@@ -512,36 +615,47 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
 // --- LÓGICA DE CARREGAMENTO (AJUSTADA PARA R2 E BASESEARCH) ---
 const selectAnalysis = async (analysisStub) => {
   isLoading.value = true;
-  
+
   cleanupBlobUrls();
   filesToDelete.value = [];
   originalServerFiles.value.clear();
   contentImages.value.clear();
+  statesList.value = [];
+  citiesList.value = [];
 
   try {
     const token = localStorage.getItem('authToken');
     const res = await axios.get(`${API_BASE_URL}/api/admin/analyses/${analysisStub.id}`, { headers: { Authorization: `Bearer ${token}` }});
     const serverData = res.data.data || {};
-    
+
     const analysisState = {
         id: serverData.id, title: serverData.title || '', subtitle: serverData.subtitle || '', tag: serverData.tag || '',
         author: serverData.author || '', lastUpdate: serverData.last_update?.split('T')[0] || '', studyPeriod: serverData.study_period || '',
         source: serverData.source || '', category: serverData.category || '', description: serverData.description || '',
         content: serverData.content || '', referenceLinks: serverData.reference_links || '',
+        nationality: serverData.nationality || '',
+        states: serverData.states || [],
+        cities: serverData.cities || [],
+        with_header: serverData.with_header || false,
+        with_footer: serverData.with_footer || false,
         coverImage: null, documentFiles: [], dataFiles: []
     };
-    
+
     // Tratamento de imagem de capa: Agora é uma URL completa
     if (serverData.cover_image_path) {
         analysisState.coverImage = { name: 'Imagem Atual', serverPath: serverData.cover_image_path, isRemote: true };
         imagePreviewUrl.value = serverData.cover_image_path; 
         originalServerFiles.value.add(serverData.cover_image_path);
     }
-    
+
+    // Carregar arrays JSONB
+    if (serverData.states) statesList.value = [...serverData.states];
+    if (serverData.cities) citiesList.value = [...serverData.cities];
+
     editingAnalysis.value = analysisState;
-    
+
     if (editor) { editor.setValue(analysisState.content || ''); } else { nextTick(() => initMonacoEditor()); }
-    
+
     feedback.value = { message: 'Análise carregada com sucesso.', type: 'success' };
   } catch (err) {
     feedback.value = { message: 'Erro ao carregar análise.', type: 'error' };
@@ -575,7 +689,7 @@ const updateAnalysis = async () => {
     try {
         const filesToUpload = [];
         const filesMarkedForDeletion = [...filesToDelete.value];
-        
+
         if (editingAnalysis.value.coverImage instanceof File) {
             filesToUpload.push({ file: editingAnalysis.value.coverImage, category: 'cover', tempId: 'cover' });
         }
@@ -612,26 +726,30 @@ const updateAnalysis = async () => {
                 uploadedUrls[plan.tempId] = plan.publicUrl;
             }));
         }
-        
+
         let finalContent = editingAnalysis.value.content || '';
         for (const [placeholderId, publicUrl] of Object.entries(uploadedUrls)) {
             if (placeholderId !== 'cover') {
-                const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g');
+                 const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g');
                 finalContent = finalContent.replace(regex, publicUrl);
             }
         }
-        
+
         let finalCoverPath = editingAnalysis.value.coverImage?.serverPath; 
         if (uploadedUrls['cover']) finalCoverPath = uploadedUrls['cover'];
 
+        // Data automática da última atualização
+        const currentDate = new Date().toISOString();
+
         const finalData = {
             ...editingAnalysis.value,
+            lastUpdate: currentDate,
             content: finalContent,
             coverImagePath: finalCoverPath,
             filesToDelete: filesMarkedForDeletion,
             documentFiles: [], dataFiles: []
         };
-        
+
         delete finalData.coverImage;
 
         await axios.put(`${API_BASE_URL}/api/admin/analyses/${editingAnalysis.value.id}`, finalData, {
@@ -669,6 +787,8 @@ const confirmDelete = async () => {
         });
         feedback.value = { message: 'Análise excluída.', type: 'success' };
         editingAnalysis.value = getInitialAnalysisState();
+        statesList.value = [];
+        citiesList.value = [];
         router.push({ path: '/admin/edit-analysis' });
     } catch (err) {
         feedback.value = { message: 'Erro ao excluir.', type: 'error' };
@@ -677,7 +797,7 @@ const confirmDelete = async () => {
     }
 };
 
-const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.category);
+const isFormInvalid = computed(() => !editingAnalysis.value.title || !editingAnalysis.value.tag || !editingAnalysis.value.description || !editingAnalysis.value.content || !editingAnalysis.value.category || !editingAnalysis.value.nationality);
 
 const cleanupBlobUrls = () => {
   if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value);
@@ -695,7 +815,7 @@ const handleFileSelection = (event, fieldName) => {
     if (oldFile && oldFile.serverPath && originalServerFiles.value.has(oldFile.serverPath)) {
         filesToDelete.value.push(oldFile.serverPath);
     }
-    
+
     if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value);
 
     editingAnalysis.value.coverImage = files[0];
@@ -740,9 +860,9 @@ watch(() => editingAnalysis.value.content, (newContent, oldContent) => {
   const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/g;
   const oldUrls = oldContent.match(r2UrlRegex) || [];
   const newUrls = newContent.match(r2UrlRegex) || [];
-  
+
   const removedUrls = oldUrls.filter(url => !newUrls.includes(url));
-  
+
   if (removedUrls.length > 0) {
     removedUrls.forEach(url => {
       if (!filesToDelete.value.includes(url)) filesToDelete.value.push(url);
@@ -758,6 +878,135 @@ watch(isPreviewMode, async (newVal) => {
 });
 
 watch(isDark, (newValue) => { if (editor) { monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs'); } });
+
+// Helper para formatar data
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
 </script>
+
+<style scoped>
+/* Estilos para os novos campos */
+.char-count {
+  display: block;
+  text-align: right;
+  color: #666;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+
+.jsonb-fields {
+  margin-top: 15px;
+}
+
+.tag-input-container {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 42px;
+  background: white;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.9em;
+  border: 1px solid #bbdefb;
+}
+
+.city-chip {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border-color: #e1bee7;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.tag-remove:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+  padding: 4px;
+  font-size: 0.95em;
+}
+
+.field-hint {
+  color: #888;
+  font-size: 0.8em;
+  margin-top: 4px;
+  display: block;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 8px;
+  font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.label-text {
+  user-select: none;
+}
+
+.preview-nationality {
+  display: inline-block;
+  background: #fff3e0;
+  color: #e65100;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  margin-left: 8px;
+}
+</style>
 
 <style src="@/assets/css/admin/addAndEditAnalisys.css"></style>

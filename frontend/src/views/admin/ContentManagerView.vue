@@ -1,7 +1,6 @@
 <template>
-  
   <div class="content-manager-wrapper">
-    
+
     <!-- MODAL 1: MENU DE SELEÇÃO DE TIPO (GRADE DE ÍCONES) -->
     <div v-if="showResourceTypeMenu" class="modal-overlay" @click.self="closeResourceMenu">
       <div class="modal-content menu-content">
@@ -24,7 +23,7 @@
               <span class="icon">🎥</span>
               <span class="label">Vídeo</span>
             </button>
-            
+
             <button @click="selectResourceType('notebook')" class="resource-btn highlight-purple">
               <span class="icon">🐍</span>
               <span class="label">Notebook</span>
@@ -42,7 +41,7 @@
               <span class="icon">📊</span>
               <span class="label">Dados (CSV/XLS)</span>
             </button>
-            
+
             <button @click="selectResourceType('link')" class="resource-btn">
               <span class="icon">🔗</span>
               <span class="label">Link Card</span>
@@ -151,14 +150,66 @@
              <input type="text" id="author" v-model="newAnalysis.author" required>
            </div>
            <div class="form-group">
-             <label for="lastUpdate">Data da Última Atualização</label>
-             <input type="date" id="lastUpdate" required v-model="newAnalysis.lastUpdate">
+             <label for="nationality">Nacionalidade <span class="required">*</span></label>
+             <input 
+               type="text" 
+               id="nationality" 
+               v-model="newAnalysis.nationality" 
+               maxlength="100"
+               placeholder="Ex: Brasileira"
+               required
+             >
+             <small class="char-count">{{ newAnalysis.nationality?.length || 0 }}/100</small>
            </div>
            <div class="form-group">
              <label for="studyPeriod">Período de Estudo</label>
              <input type="text" id="studyPeriod" v-model="newAnalysis.studyPeriod" placeholder="Ex: 2022-2023">
            </div>
          </div>
+
+         <!-- Campos JSONB: Estados e Cidades -->
+         <div class="form-grid jsonb-fields">
+           <div class="form-group">
+             <label>Estados (JSONB)</label>
+             <div class="tag-input-container">
+               <div class="tags-list">
+                 <span v-for="(state, index) in statesList" :key="index" class="tag-chip">
+                   {{ state }}
+                   <button type="button" @click="removeState(index)" class="tag-remove">×</button>
+                 </span>
+               </div>
+               <input 
+                 type="text" 
+                 v-model="stateInput" 
+                 @keydown.enter.prevent="addState"
+                 placeholder="Digite e pressione Enter"
+                 class="tag-input"
+               >
+             </div>
+             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
+           </div>
+
+           <div class="form-group">
+             <label>Cidades (JSONB)</label>
+             <div class="tag-input-container">
+               <div class="tags-list">
+                 <span v-for="(city, index) in citiesList" :key="index" class="tag-chip city-chip">
+                   {{ city }}
+                   <button type="button" @click="removeCity(index)" class="tag-remove">×</button>
+                 </span>
+               </div>
+               <input 
+                 type="text" 
+                 v-model="cityInput" 
+                 @keydown.enter.prevent="addCity"
+                 placeholder="Digite e pressione Enter"
+                 class="tag-input"
+               >
+             </div>
+             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
+           </div>
+         </div>
+
          <div class="form-group">
            <label for="source">Fonte</label>
            <input type="text" id="source" v-model="newAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc.">
@@ -181,20 +232,34 @@
            <label for="description">Descrição Curta (para o card) <span class="required">*</span></label>
            <textarea id="description" v-model="newAnalysis.description" rows="3" required></textarea>
          </div>
+
+         <!-- Checkboxes para with_header e with_footer -->
+         <div class="form-group checkbox-group">
+           <label class="checkbox-label">
+             <input type="checkbox" v-model="newAnalysis.with_header">
+             <span class="checkmark"></span>
+             <span class="label-text">Com Cabeçalho (with_header)</span>
+           </label>
+           <label class="checkbox-label">
+             <input type="checkbox" v-model="newAnalysis.with_footer">
+             <span class="checkmark"></span>
+             <span class="label-text">Com Rodapé (with_footer)</span>
+           </label>
+         </div>
        </fieldset>
 
        <fieldset class="main-content">
          <legend>Conteúdo Principal</legend>
          <div class="form-group">
            <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>
-           
+
            <!-- TOOLBAR DO EDITOR -->
            <div class="content-toolbar single-button-toolbar">
              <button type="button" @click="openResourceMenu" class="toolbar-main-btn">
                <span class="plus-icon">➕</span> Adicionar Recurso
              </button>
              <span class="toolbar-hint">Clique para adicionar imagens, vídeos, notebooks, documentos, etc.</span>
-             
+
              <!-- Botões de formatação -->
              <div class="editor-format-buttons">
                <button type="button" @click="applyFormat('bold')" title="Negrito (Ctrl+B)" class="format-btn">
@@ -226,7 +291,7 @@
 
            <!-- Monaco Editor Container -->
            <div id="editor-container" ref="editorContainer" class="editor-container"></div>
-           
+
            <!-- Textarea oculto para compatibilidade -->
            <textarea id="content" v-model="newAnalysis.content" style="display: none;"></textarea>
          </div>
@@ -242,7 +307,7 @@
            </div>
            <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview" />
          </div>
-         
+
          <div class="form-group">
            <label for="referenceLinks">Links de Referência (Rodapé)</label>
            <textarea id="referenceLinks" v-model="newAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..."></textarea>
@@ -273,16 +338,15 @@
         <h2 v-if="newAnalysis.subtitle" class="preview-subtitle">{{ newAnalysis.subtitle }}</h2>
         <div class="preview-meta">
           <span class="preview-category" v-if="newAnalysis.category">{{ newAnalysis.category }}</span>
-          <span class="preview-date" v-if="newAnalysis.lastUpdate">Atualizado em: {{ newAnalysis.lastUpdate }}</span>
+          <span class="preview-date" v-if="newAnalysis.lastUpdate">Atualizado em: {{ formatDate(newAnalysis.lastUpdate) }}</span>
           <span class="preview-author" v-if="newAnalysis.author">Por {{ newAnalysis.author }}</span>
+          <span class="preview-nationality" v-if="newAnalysis.nationality">{{ newAnalysis.nationality }}</span>
         </div>
       </div>
       <div class="preview-description">
         {{ newAnalysis.description || '' }}
       </div>
-      
-      <!-- Conteúdo Renderizado -->
-      <!-- <div class="preview-content" v-html="renderedContent"></div> -->
+
       <IsolatedRenderer :content="renderedContent" />
 
       <div v-if="newAnalysis.referenceLinks">
@@ -375,12 +439,23 @@ let editor = null;
 const contentImages = ref(new Map());
 const imagePreviewUrl = ref('');
 
+// Campos JSONB
+const statesList = ref([]);
+const citiesList = ref([]);
+const stateInput = ref('');
+const cityInput = ref('');
+
 const getInitialAnalysisState = () => ({
   title: '',
   subtitle: '',
   tag: '',
   author: '',
   lastUpdate: '',
+  nationality: '',
+  states: [],
+  cities: [],
+  with_header: false,
+  with_footer: false,
   studyPeriod: '',
   source: '',
   category: '',
@@ -391,6 +466,35 @@ const getInitialAnalysisState = () => ({
 });
 
 const newAnalysis = ref(getInitialAnalysisState());
+
+// --- CONTROLE DE TAGS (JSONB) ---
+const addState = () => {
+  const value = stateInput.value.trim();
+  if (value && !statesList.value.includes(value)) {
+    statesList.value.push(value);
+    newAnalysis.value.states = [...statesList.value];
+    stateInput.value = '';
+  }
+};
+
+const removeState = (index) => {
+  statesList.value.splice(index, 1);
+  newAnalysis.value.states = [...statesList.value];
+};
+
+const addCity = () => {
+  const value = cityInput.value.trim();
+  if (value && !citiesList.value.includes(value)) {
+    citiesList.value.push(value);
+    newAnalysis.value.cities = [...citiesList.value];
+    cityInput.value = '';
+  }
+};
+
+const removeCity = (index) => {
+  citiesList.value.splice(index, 1);
+  newAnalysis.value.cities = [...citiesList.value];
+};
 
 // --- MONACO EDITOR ---
 const initMonacoEditor = () => {
@@ -404,7 +508,6 @@ const initMonacoEditor = () => {
     createEditor();
   } catch (error) {
     console.error('Erro ao inicializar Monaco Editor:', error);
-    // Fallback básico
     const textarea = document.createElement('textarea');
     textarea.id = 'content';
     textarea.vModel = 'newAnalysis.content';
@@ -511,13 +614,13 @@ const confirmMediaInsertion = async () => {
         for (const file of selectedMediaFiles.value) {
             try {
                 const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, activeMediaType.value);
-                
+
                 contentImages.value.set(placeholderId, { 
                     file, 
                     blobUrl, 
                     type: activeMediaType.value 
                 });
-                
+
                 batchHtml += html + '\n';
             } catch (error) {
                 console.error(`Erro ao processar arquivo ${file.name}`, error);
@@ -525,7 +628,7 @@ const confirmMediaInsertion = async () => {
         }
 
         insertMediaIntoTextarea(batchHtml);
-        
+
         if(loadingBtn) loadingBtn.innerText = originalText;
     }
     closeMediaModal();
@@ -547,7 +650,7 @@ const insertMediaIntoTextarea = (markdownToInsert) => {
 // --- RENDERIZAÇÃO ---
 const renderedContent = computed(() => {
   if (!newAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
-  
+
   let content = newAnalysis.value.content.trim();
 
   // Decodifica HTML escapado
@@ -579,7 +682,7 @@ const renderedContent = computed(() => {
   // REGRA SIMPLES: Se começa com "<", é HTML → retorna direto
   // Senão, é Markdown → converte
   const isHTML = /^</.test(content.trim());
-  
+
   return isHTML ? content : marked.parse(content, { headerIds: false, mangle: false });
 });
 
@@ -660,6 +763,11 @@ const loadDraft = async () => {
     }
     delete draftData.contentMediaMap;
   }
+
+  // Restaurar arrays de estados e cidades
+  if (draftData.states) statesList.value = [...draftData.states];
+  if (draftData.cities) citiesList.value = [...draftData.cities];
+
   Object.assign(newAnalysis.value, draftData);
   if (editor && newAnalysis.value.content) editor.setValue(newAnalysis.value.content);
 };
@@ -676,7 +784,7 @@ onMounted(async () => {
   watch(() => newAnalysis.value.content, (newContent) => {
     if (editor && editor.getValue() !== newContent) editor.setValue(newContent);
   }, { immediate: true });
-  
+
   setInterval(async () => {
     const savedDraft = localStorage.getItem(DRAFT_KEY);
     if (!savedDraft) return;
@@ -711,7 +819,8 @@ const isFormInvalid = computed(() =>
   !newAnalysis.value.content ||
   !newAnalysis.value.author ||
   !newAnalysis.value.category ||
-  !newAnalysis.value.coverImage
+  !newAnalysis.value.coverImage ||
+  !newAnalysis.value.nationality
 );
 
 const handleFileSelection = (event, fieldName) => {
@@ -729,6 +838,10 @@ const resetForm = async () => {
   localStorage.removeItem(DRAFT_KEY);
   cleanupBlobUrls();
   newAnalysis.value = getInitialAnalysisState();
+  statesList.value = [];
+  citiesList.value = [];
+  stateInput.value = '';
+  cityInput.value = '';
   imagePreviewUrl.value = '';
   contentImages.value.clear();
   if (editor) editor.setValue('');
@@ -748,7 +861,7 @@ const publishAnalysis = async () => {
     feedback.value = { message: 'Por favor, preencha todos os campos obrigatórios.', type: 'error' };
     return;
   }
-  
+
   isLoading.value = true;
   feedback.value = { message: 'Preparando arquivos...', type: 'info' };
   const token = localStorage.getItem('authToken');
@@ -756,7 +869,7 @@ const publishAnalysis = async () => {
   try {
     // 1. Coleta de Arquivos
     const filesToUpload = [];
-    
+
     // Capa
     if (newAnalysis.value.coverImage instanceof File) {
       filesToUpload.push({
@@ -818,17 +931,21 @@ const publishAnalysis = async () => {
     feedback.value = { message: 'Finalizando publicação...', type: 'info' };
 
     let finalContent = newAnalysis.value.content;
-    
+
     // Substituir Placeholders pelas URLs Públicas do R2
     for (const [placeholderId, publicUrl] of Object.entries(uploadedUrls)) {
         if (placeholderId !== 'cover') {
-            const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+             const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g');
             finalContent = finalContent.replace(regex, publicUrl);
         }
     }
 
+    // Data automática da última atualização
+    const currentDate = new Date().toISOString();
+
     const finalData = {
         ...newAnalysis.value,
+        lastUpdate: currentDate,
         content: finalContent,
         coverImagePath: uploadedUrls['cover'] || null, 
         documentFiles: [], 
@@ -838,6 +955,8 @@ const publishAnalysis = async () => {
     };
 
     delete finalData.coverImage;
+
+    //console.log("Dados finais a serem enviados para o backend:", finalData);
 
     // 4. Salvar Metadados no Backend
     const response = await axios.post(`${API_BASE_URL}/api/admin/analyses`, finalData, {
@@ -860,6 +979,13 @@ const publishAnalysis = async () => {
   }
 };
 
+// Helper para formatar data
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
+
 watch(isPreviewMode, async (newVal) => {
   if (!newVal) {
     await nextTick();
@@ -876,5 +1002,127 @@ watch(isDark, (newValue) => {
   if (editor) monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs');
 });
 </script>
+
+<style scoped>
+/* Estilos para os novos campos */
+.char-count {
+  display: block;
+  text-align: right;
+  color: #666;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+
+.jsonb-fields {
+  margin-top: 15px;
+}
+
+.tag-input-container {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 42px;
+  background: white;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.9em;
+  border: 1px solid #bbdefb;
+}
+
+.city-chip {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border-color: #e1bee7;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.tag-remove:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+  padding: 4px;
+  font-size: 0.95em;
+}
+
+.field-hint {
+  color: #888;
+  font-size: 0.8em;
+  margin-top: 4px;
+  display: block;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 8px;
+  font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.label-text {
+  user-select: none;
+}
+
+.preview-nationality {
+  display: inline-block;
+  background: #fff3e0;
+  color: #e65100;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  margin-left: 8px;
+}
+</style>
 
 <style src="@/assets/css/admin/addAndEditAnalisys.css"></style>

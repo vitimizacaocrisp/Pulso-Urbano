@@ -168,7 +168,9 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
   const {
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
-    coverImagePath
+    coverImagePath,
+    // Novos campos
+    nationality, states, cities, with_header, with_footer,
   } = req.body;
 
   if (!title || !content || !coverImagePath) {
@@ -185,7 +187,7 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     VALUES
       (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category},
       ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
-      ${coverImagePath})
+      ${coverImagePath}, ${nationality}, ${safeJson(states)}, ${safeJson(cities)}, ${with_header}, ${with_footer})
     RETURNING id;
   `;
 
@@ -203,7 +205,10 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
     coverImagePath, // Esta é a NOVA capa (URL pública do R2)
-    filesToDelete   // Array de URLs para deletar
+    filesToDelete,   // Array de URLs para deletar
+    // Novos campos
+    nationality, states, cities, with_header, with_footer
+
   } = req.body;
 
   // 1. Buscar análise atual para comparar o que mudou
@@ -248,6 +253,8 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
       .catch(e => console.error("[CLEANUP] Erro na limpeza de arquivos:", e));
   }
 
+  const safeJson = (val) => JSON.stringify(val || []);
+  
   // 6. Atualizar banco de dados
   await sql`
     UPDATE analyses SET
@@ -262,7 +269,12 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
       description = ${description}, 
       content = ${content}, 
       reference_links = ${referenceLinks},
-      cover_image_path = ${coverImagePath}
+      cover_image_path = ${coverImagePath},
+      nationality = ${nationality},
+      states = ${safeJson(states)},
+      cities = ${safeJson(cities)},
+      with_header = ${with_header},
+      with_footer = ${with_footer}
     WHERE id = ${id}
   `;
 
