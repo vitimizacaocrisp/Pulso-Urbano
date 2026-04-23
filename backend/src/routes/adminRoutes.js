@@ -183,7 +183,7 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     INSERT INTO analyses
       (title, subtitle, last_update, study_period, source, category,
       tag, author, description, content, reference_links,
-      cover_image_path)
+      cover_image_path, nationality, states, cities, with_header, with_footer)
     VALUES
       (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category},
       ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},

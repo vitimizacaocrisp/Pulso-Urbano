@@ -22,10 +22,6 @@ const props = defineProps({
   apiBaseUrl: {
     type: String,
     default: () => process.env.VUE_APP_API_URL || 'http://localhost:3000'
-  },
-  navigateToDetail: {
-    type: Boolean,
-    default: true
   }
 });
 
@@ -97,16 +93,23 @@ const selectItem = (item) => {
   query.value = '';
   isOpen.value = false;
   emit('select', item);
-  
-  if (item && item.id && props.navigateToDetail) {
-    router.push({ name: 'AnalysisDetail', params: { id: item.id } });
+
+  if (item && item.id) {
+    // Clicou num resultado: vai direto para a análise via parâmetro id
+    router.push({ name: 'Pesquisa', query: { id: item.id } });
   }
 };
 
 const handleEnter = () => {
-  if (filteredResults.value.length > 0) {
-    selectItem(filteredResults.value[0]);
-  }
+  const q = query.value.trim();
+  if (!q) return;
+
+  isOpen.value = false;
+  emit('select', null);
+
+  // Enter livre: vai para a página de pesquisa com o termo digitado
+  router.push({ name: 'Pesquisa', query: { q } });
+  query.value = '';
 };
 </script>
 

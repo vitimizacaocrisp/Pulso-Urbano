@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import { ref } from 'vue';
 import axios from 'axios';
 
-//const API_BASE_URL = 'http://localhost:3000';
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 export const isRouteLoading = ref(false);
@@ -35,6 +34,11 @@ const routes = [
     component: () => import("../views/HomeView.vue"),
     meta: { requiresAuth: true }
   },
+  { path: '/pesquisa',
+    name: 'Pesquisa',
+    component: () => import('@/views/PesquisaView.vue'),
+    meta: { requiresAuth: true }
+  },
   {
     path: "/contato",
     name: "Contato",
@@ -51,12 +55,6 @@ const routes = [
     path: "/sobre",
     name: "Sobre",
     component: () => import("../views/SobreView.vue"),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/categoria/:categoryName?',
-    name: 'CategoryView',
-    component: () => import('../views/CategoryView.vue'),
     meta: { requiresAuth: true }
   },
   {

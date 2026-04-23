@@ -42,32 +42,6 @@
 
         <nav class="desktop-nav">
              <ul>
-                <li class="nav-item has-dropdown" @mouseenter="submenuOpen = true" @mouseleave="submenuOpen = false">
-                    <router-link to="/categoria" class="nav-link">
-                        Biblioteca <i class="fas fa-chevron-down icon-tiny"></i>
-                    </router-link>
-                    
-                    <transition name="pop-up">
-                        <div v-if="submenuOpen" class="category-popover">
-                            <div class="popover-header">
-                                <h3>Explorar Tópicos</h3>
-                                <router-link to="/categoria" class="view-all">Ver tudo</router-link>
-                            </div>
-                            <ul v-if="categories.length > 0" class="category-list-popover">
-                                <li v-for="cat in categories" :key="cat.path">
-                                    <router-link :to="cat.path" class="cat-link" @click="submenuOpen = false">
-                                        <span class="cat-name">{{ cat.name }}</span>
-                                        <span class="cat-badge">{{ cat.count }}</span>
-                                    </router-link>
-                                </li>
-                            </ul>
-                            <div v-else class="no-results" style="padding: 1rem 0;">
-                                Carregando categorias...
-                            </div>
-                        </div>
-                    </transition>
-                </li>
-
                 <li><router-link to="/catalogo" class="nav-link">Catálogo</router-link></li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
@@ -109,12 +83,6 @@
 
         <ul class="mobile-menu-list">
             <li><router-link to="/" @click="toggleMenu">Início</router-link></li>
-            <li><router-link to="/categoria" @click="toggleMenu">Biblioteca</router-link></li>
-            
-            <li class="mobile-categories-label">Categorias</li>
-            <li v-for="cat in categories.slice(0, 8)" :key="cat.path" class="mobile-sub-item">
-                <router-link :to="cat.path" @click="toggleMenu">{{ cat.name }} ({{ cat.count }})</router-link>
-            </li>
 
             <li class="divider"></li>
             <li><router-link to="/catalogo" @click="toggleMenu">Catálogo</router-link></li>
@@ -131,38 +99,16 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
 import ThemeToggle from './ThemeToggle.vue';
 import BaseSearch from './BaseSearch.vue';
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-
 const menuOpen = ref(false);
-const submenuOpen = ref(false);
 const isScrolled = ref(false);
-
-// Variável reativa para guardar as categorias que vêm do banco
-const categories = ref([]);
 
 const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 
-const fetchCategories = async () => {
-    try {
-        const token = localStorage.getItem('authToken');
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        
-        const response = await axios.get(`${API_BASE_URL}/api/admin/categories-count`, { headers });
-        if (response.data && response.data.success) {
-            categories.value = response.data.data;
-        }
-    } catch (err) {
-        console.error("Erro ao buscar categorias:", err);
-    }
-};
-
 onMounted(() => {
     window.addEventListener('scroll', handleScroll);
-    fetchCategories(); // Carrega as categorias do banco de dados ao iniciar
 });
 
 onUnmounted(() => window.removeEventListener('scroll', handleScroll));
