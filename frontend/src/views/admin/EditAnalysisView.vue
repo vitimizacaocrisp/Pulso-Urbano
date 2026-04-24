@@ -710,11 +710,29 @@ const updateAnalysis = async () => {
         const uploadedUrls = {};
 
         if (filesToUpload.length > 0) {
-             feedback.value = { message: `Enviando ${filesToUpload.length} novos arquivo(s)...`, type: 'info' };
-             const metaData = filesToUpload.map(f => ({ fileName: f.file.name, fileType: f.file.type, category: f.category, tempId: f.tempId }));
+            feedback.value = { message: `Enviando ${filesToUpload.length} novos arquivo(s)...`, type: 'info' };
+
+            const metaData = filesToUpload.map(f => {
+                // Fallback para fileType: se o navegador não identificar, usa binário genérico
+                const safeFileType = f.file.type || 'application/octet-stream';
+                
+                // Fallback para category: garante que sempre haja uma string
+                const safeCategory = f.category || 'image';
+
+                return { 
+                    fileName: f.file.name, 
+                    fileType: safeFileType, 
+                    category: safeCategory, 
+                    tempId: f.tempId 
+                };
+            });
+
+            // DEBUG: Adicione este log para ver exatamente o que está sendo enviado e identificar o campo vazio
+            console.log('Payload de metadados:', metaData);
 
             const urlRes = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`, 
-                { files: metaData }, { headers: { 'Authorization': `Bearer ${token}` } }
+                { files: metaData }, 
+                { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const uploadPlans = urlRes.data.data;
 
