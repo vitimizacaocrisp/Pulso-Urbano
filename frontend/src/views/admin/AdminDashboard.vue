@@ -1,169 +1,172 @@
 <template>
-  <div class="dashboard-view">
-    <header class="view-header">
-      <div class="header-titles">
-        <h1 class="welcome-text">Olá, Administrador 👋</h1>
-        <p class="subtitle">Aqui está o que está acontecendo no seu observatório hoje.</p>
+  <div class="dashboard-page">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Visão Geral <span class="wave">👋</span></h1>
+        <p class="page-subtitle">Bem-vindo de volta. Aqui está o resumo do observatório.</p>
       </div>
-      <!-- Botão CTA Desktop -->
-      <router-link :to="{ name: 'ContentManager' }" class="btn-create desktop-only">
-        <span class="icon-plus">+</span> Nova Análise
+      <router-link :to="{ name: 'ContentManager' }" class="btn-primary">
+        <Icon icon="mdi:plus" width="18" /> Nova Análise
       </router-link>
-    </header>
+    </div>
 
-    <main class="view-content">
-      <div v-if="isLoading" class="loading-container">
-        <div class="spinner"></div>
-        <p>Sincronizando dados...</p>
-      </div>
+    <!-- Loading -->
+    <div v-if="isLoading" class="loading-screen">
+      <div class="spinner"></div>
+      <p>Sincronizando dados...</p>
+    </div>
 
-      <div v-else class="content-wrapper">
-        <!-- Cards de Estatísticas (KPIs) -->
-        <div class="kpi-grid">
-          <div class="kpi-card blue">
-            <div class="kpi-content">
-              <span class="kpi-label">Total Publicado</span>
-              <h3 class="kpi-value">{{ stats.totalAnalyses }}</h3>
-            </div>
-            <div class="kpi-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            </div>
+    <template v-else>
+
+      <!-- KPI Cards -->
+      <div class="kpi-row">
+        <div class="kpi-card" v-for="kpi in kpiCards" :key="kpi.label">
+          <div class="kpi-left">
+            <span class="kpi-label">{{ kpi.label }}</span>
+            <div class="kpi-value">{{ kpi.value }}</div>
+            <span class="kpi-sub" :class="kpi.trendClass">
+              <Icon :icon="kpi.trendIcon" width="13" /> {{ kpi.sub }}
+            </span>
           </div>
-
-          <div class="kpi-card green">
-            <div class="kpi-content">
-              <span class="kpi-label">Novas (Mês)</span>
-              <h3 class="kpi-value">{{ stats.newThisMonth }}</h3>
-            </div>
-            <div class="kpi-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            </div>
-          </div>
-
-          <div class="kpi-card purple">
-            <div class="kpi-content">
-              <span class="kpi-label">Tags Ativas</span>
-              <h3 class="kpi-value">{{ stats.uniqueTags }}</h3>
-            </div>
-            <div class="kpi-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-            </div>
-          </div>
-        </div>
-
-        <!-- Seção Principal: Gráfico e Lista -->
-        <div class="dashboard-grid">
-          
-          <!-- Gráfico -->
-          <div class="panel-card chart-panel">
-            <div class="panel-header">
-              <h2>Tendência de Publicações</h2>
-              <span class="badge">Últimos 6 meses</span>
-            </div>
-            <div class="chart-container">
-              <canvas id="monthlyPublicationsChart"></canvas>
-            </div>
-          </div>
-
-          <!-- Tabela Recentes -->
-          <div class="panel-card list-panel">
-            <div class="panel-header">
-              <h2>Adicionados Recentemente</h2>
-              <router-link :to="{ name: 'EditAnalysis' }" class="link-action">Gerenciar tudo</router-link>
-            </div>
-            
-            <div v-if="error" class="alert error">{{ error }}</div>
-            
-            <div v-if="!error && recentAnalyses.length > 0" class="table-responsive">
-              <table class="modern-table">
-                <thead>
-                  <tr>
-                    <th>Análise</th>
-                    <th>Data</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in recentAnalyses" :key="item.id">
-                    <td>
-                      <div class="item-info">
-                        <span class="item-title" :title="item.title">{{ item.title }}</span>
-                        <div class="item-tags">
-                            <span class="mini-tag">{{ item.category }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="item-date">{{item.created_date}}</td>
-                    <td class="item-action">
-                      <router-link :to="{ name: 'EditAnalysis', query: { id: item.id } }" class="action-btn" title="Editar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                      </router-link>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div v-if="!error && recentAnalyses.length === 0" class="empty-state">
-              <p>Nenhuma análise encontrada.</p>
-            </div>
+          <div class="kpi-icon-wrap" :style="{ background: kpi.iconBg }">
+            <Icon :icon="kpi.icon" width="22" :style="{ color: kpi.iconColor }" />
           </div>
         </div>
       </div>
-    </main>
+
+      <!-- Main grid -->
+      <div class="dash-grid">
+
+        <!-- Chart -->
+        <div class="panel chart-panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Publicações</h2>
+              <p class="panel-sub">Últimos 6 meses</p>
+            </div>
+            <span class="badge-pill">{{ totalPublications }} total</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas ref="chartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Recent + Actions -->
+        <div class="side-stack">
+
+          <!-- Quick actions -->
+          <div class="panel actions-panel">
+            <h2 class="panel-title">Ações Rápidas</h2>
+            <div class="quick-actions">
+              <router-link :to="{ name: 'ContentManager' }" class="qa-btn primary">
+                <Icon icon="mdi:plus-circle-outline" width="20" />
+                Nova Análise
+              </router-link>
+              <router-link :to="{ name: 'EditAnalysis' }" class="qa-btn secondary">
+                <Icon icon="mdi:file-document-edit-outline" width="20" />
+                Editar Existente
+              </router-link>
+              <a href="/" target="_blank" class="qa-btn ghost">
+                <Icon icon="mdi:eye-outline" width="20" />
+                Ver Site Público
+              </a>
+            </div>
+          </div>
+
+          <!-- Recent list -->
+          <div class="panel recent-panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Adicionados Recentemente</h2>
+              <router-link :to="{ name: 'EditAnalysis' }" class="link-sm">Ver tudo</router-link>
+            </div>
+
+            <div v-if="error" class="alert-error">{{ error }}</div>
+
+            <ul v-else class="recent-list">
+              <li v-for="item in recentAnalyses" :key="item.id" class="recent-item">
+                <div class="item-dot"></div>
+                <div class="item-body">
+                  <span class="item-title">{{ item.title }}</span>
+                  <div class="item-meta">
+                    <span class="item-cat">{{ item.category || '—' }}</span>
+                    <span class="item-date">{{ item.created_date }}</span>
+                  </div>
+                </div>
+                <router-link :to="{ name: 'EditAnalysis', query: { id: item.id } }" class="item-edit" title="Editar">
+                  <Icon icon="mdi:pencil-outline" width="16" />
+                </router-link>
+              </li>
+              <li v-if="recentAnalyses.length === 0" class="empty-list">
+                Nenhuma análise publicada ainda.
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
+import { Icon } from '@iconify/vue';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 
 const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const router  = useRouter();
 
-const router = useRouter();
+const isLoading      = ref(true);
+const error          = ref(null);
 const recentAnalyses = ref([]);
-const isLoading = ref(true);
-const error = ref(null);
-let chartInstance = null;
+const stats          = ref({ totalAnalyses: 0, newThisMonth: 0, uniqueTags: 0 });
+const chartCanvas    = ref(null);
+let chartInstance    = null;
 
-const stats = ref({
-  totalAnalyses: 0,
-  newThisMonth: 0,
-  uniqueTags: 0
-});
+const totalPublications = computed(() => stats.value.totalAnalyses || 0);
 
-const fetchDashboardData = async () => {
+const kpiCards = computed(() => [
+  {
+    label: 'Total Publicado', value: stats.value.totalAnalyses ?? '—',
+    sub: 'análises no acervo', trendClass: 'trend-blue', trendIcon: 'mdi:archive-outline',
+    icon: 'mdi:file-document-multiple-outline', iconBg: 'rgba(59,130,246,0.1)', iconColor: '#3b82f6'
+  },
+  {
+    label: 'Novas este Mês', value: stats.value.newThisMonth ?? '—',
+    sub: 'publicadas no mês', trendClass: 'trend-green', trendIcon: 'mdi:trending-up',
+    icon: 'mdi:calendar-plus-outline', iconBg: 'rgba(16,185,129,0.1)', iconColor: '#10b981'
+  },
+  {
+    label: 'Tags Ativas', value: stats.value.uniqueTags ?? '—',
+    sub: 'categorias distintas', trendClass: 'trend-purple', trendIcon: 'mdi:tag-multiple-outline',
+    icon: 'mdi:tag-multiple-outline', iconBg: 'rgba(139,92,246,0.1)', iconColor: '#8b5cf6'
+  }
+]);
+
+const fetchData = async () => {
   isLoading.value = true;
   error.value = null;
   const token = localStorage.getItem('authToken');
-  
-  if (!token) {
-    router.push({ name: 'AdminLogin' });
-    return;
-  }
-  
+  if (!token) { router.push({ name: 'AdminLogin' }); return; }
+
   try {
-    const response = await axios.get(API_URL + '/api/admin/dashboard-data', {
-      headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 15000
+    const { data } = await axios.get(`${API_URL}/api/admin/dashboard-data`, {
+      headers: { Authorization: `Bearer ${token}` }, timeout: 15000
     });
-
-    const data = response.data.data;
-    recentAnalyses.value = data.recentAnalyses;
-    stats.value = data.stats;
-    
-    // Pequeno delay para garantir que o DOM do canvas existe
-    setTimeout(() => createChart(data.chartData), 100);
-
+    const d = data.data;
+    stats.value          = d.stats;
+    recentAnalyses.value = d.recentAnalyses;
+    setTimeout(() => buildChart(d.chartData), 80);
   } catch (err) {
-    if (err.response?.data?.message?.includes('Token')) {
-      error.value = 'Sessão expirada. Faça login novamente.';
-      setTimeout(() => router.push({ name: 'AdminLogin' }), 2000);
+    if (err.response?.status === 401) {
+      router.push({ name: 'AdminLogin' });
     } else {
-      console.error(err);
-      // Mock para UI não quebrar
+      error.value = 'Não foi possível carregar os dados.';
       stats.value = { totalAnalyses: '--', newThisMonth: '--', uniqueTags: '--' };
     }
   } finally {
@@ -171,216 +174,175 @@ const fetchDashboardData = async () => {
   }
 };
 
-const createChart = (chartData) => {
-    const ctx = document.getElementById('monthlyPublicationsChart');
-    if (!ctx) return;
-    
-    if (chartInstance) chartInstance.destroy();
-    
-    // Configuração visual do gráfico
-    chartInstance = new Chart(ctx, {
-        type: 'line', // Mudança para linha para mostrar tendência melhor
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: 'Publicações',
-                data: chartData.data,
-                backgroundColor: 'rgba(99, 102, 241, 0.1)', // Indigo com transparência
-                borderColor: '#6366f1',
-                borderWidth: 2,
-                tension: 0.4, // Curva suave
-                fill: true,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#6366f1',
-                pointRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    padding: 10,
-                    cornerRadius: 8,
-                    displayColors: false
-                }
-            },
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    grid: { color: '#f1f5f9', borderDash: [5, 5] },
-                    ticks: { stepSize: 1, font: { size: 11 } },
-                    border: { display: false }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 11 } },
-                    border: { display: false }
-                }
-            }
+const buildChart = (chartData) => {
+  const ctx = chartCanvas.value;
+  if (!ctx) return;
+  if (chartInstance) chartInstance.destroy();
+
+  const isDark = document.documentElement.classList.contains('dark') ||
+                 document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+  const textColor = isDark ? '#94a3b8' : '#64748b';
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: chartData.labels,
+      datasets: [
+        {
+          label: 'Publicações',
+          data: chartData.data,
+          backgroundColor: (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280);
+            g.addColorStop(0, 'rgba(99,102,241,0.85)');
+            g.addColorStop(1, 'rgba(99,102,241,0.15)');
+            return g;
+          },
+          borderRadius: 6,
+          borderSkipped: false,
+          borderColor: 'rgba(99,102,241,0.9)',
+          borderWidth: 0,
         }
-    });
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1e293b' : '#0f172a',
+          titleColor: '#fff', bodyColor: '#94a3b8',
+          padding: 12, cornerRadius: 8, displayColors: false,
+          callbacks: { label: (ctx) => ` ${ctx.parsed.y} publicação(ões)` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true, border: { display: false },
+          grid: { color: gridColor },
+          ticks: { stepSize: 1, color: textColor, font: { size: 11 } }
+        },
+        x: {
+          border: { display: false },
+          grid: { display: false },
+          ticks: { color: textColor, font: { size: 11 } }
+        }
+      },
+      animation: { duration: 600, easing: 'easeOutQuart' }
+    }
+  });
 };
 
-onMounted(fetchDashboardData);
-
-onBeforeUnmount(() => {
-    if (chartInstance) chartInstance.destroy();
-});
+onMounted(fetchData);
+onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 </script>
 
 <style scoped>
-.dashboard-view {
+.dashboard-page {
   padding: 2rem;
-  max-width: 1400px;
+  max-width: 1360px;
   margin: 0 auto;
-  animation: fadeIn 0.5s ease-out;
-  color: var(--text-main);
+  animation: fadeUp 0.4s ease-out both;
 }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+/* Header */
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+.page-title  { font-size: 1.8rem; font-weight: 800; color: var(--text-main); margin: 0; letter-spacing: -0.5px; }
+.page-subtitle { color: var(--text-secondary); margin: 0.25rem 0 0; font-size: 0.9rem; }
+.wave { display: inline-block; animation: wave 2s ease-in-out infinite; transform-origin: 70% 70%; }
+@keyframes wave { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(20deg); } 75% { transform: rotate(-10deg); } }
 
-/* HEADER */
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 2.5rem;
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--brand-primary); color: #fff;
+  padding: 0.65rem 1.25rem; border-radius: 8px;
+  font-weight: 600; font-size: 0.9rem; text-decoration: none;
+  transition: all 0.2s; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
 }
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
-.welcome-text {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 0;
-  letter-spacing: -0.5px;
-}
-
-.subtitle {
-  color: var(--text-secondary);
-  margin: 0.5rem 0 0 0;
-  font-size: 0.95rem;
-}
-
-.btn-create {
-  background-color: var(--brand-primary);
-  color: white;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s;
-  box-shadow: var(--shadow-sm);
-}
-.btn-create:hover { background-color: var(--brand-primary-hover); transform: translateY(-1px); }
-.icon-plus { font-size: 1.2rem; line-height: 1; }
-
-/* KPI CARDS */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.kpi-card {
-  background: var(--bg-surface);
-  padding: 1.5rem;
-  border-radius: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.kpi-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-
-.kpi-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 2rem; font-weight: 800; color: var(--text-main); margin: 0.5rem 0 0 0; line-height: 1; }
-
-.kpi-icon {
-  width: 48px; height: 48px;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* Cores dos KPIs (Essas podem manter cores fixas suaves ou adaptar) */
-.kpi-card.blue .kpi-icon { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.kpi-card.green .kpi-icon { background-color: rgba(16, 185, 129, 0.1); color: #10b981; }
-.kpi-card.purple .kpi-icon { background-color: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
-
-/* DASHBOARD GRID */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-}
-
-.panel-card {
-  background: var(--bg-surface);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-  display: flex; flex-direction: column;
-}
-
-.panel-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 1.5rem;
-}
-.panel-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
-
-.badge { background: var(--bg-body); color: var(--text-secondary); padding: 0.25rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
-.link-action { color: var(--brand-primary); font-size: 0.85rem; font-weight: 600; text-decoration: none; }
-.link-action:hover { text-decoration: underline; }
-
-.chart-container { height: 300px; position: relative; width: 100%; }
-
-/* TABELA MODERNA */
-.table-responsive { overflow-x: auto; }
-.modern-table { width: 100%; border-collapse: collapse; }
-.modern-table th {
-  text-align: left; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;
-  font-weight: 700; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);
-}
-.modern-table td { padding: 1rem 0; border-bottom: 1px solid var(--bg-body); vertical-align: middle; color: var(--text-main); }
-.modern-table tr:last-child td { border-bottom: none; }
-
-.item-title { display: block; font-weight: 600; color: var(--text-main); font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-.mini-tag { font-size: 0.7rem; background: var(--bg-body); color: var(--text-secondary); padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 500; }
-.item-date { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
-.action-btn { color: var(--text-muted); transition: color 0.2s; padding: 0.5rem; }
-.action-btn:hover { color: var(--brand-primary); }
-
-/* LOADING */
-.loading-container {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 400px; color: var(--text-muted);
-}
-.spinner {
-  width: 32px; height: 32px; border: 3px solid var(--border-color); border-top-color: var(--brand-primary);
-  border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;
-}
+/* Loading */
+.loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; color: var(--text-muted); gap: 1rem; }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* RESPONSIVIDADE */
-@media (max-width: 1024px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
+/* KPI */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+.kpi-card {
+  background: var(--bg-card, var(--bg-surface));
+  border: 1px solid var(--border-color);
+  border-radius: 14px; padding: 1.25rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-left { display: flex; flex-direction: column; gap: 4px; }
+.kpi-label { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); }
+.kpi-value { font-size: 2.2rem; font-weight: 800; color: var(--text-main); line-height: 1; margin: 4px 0; }
+.kpi-sub   { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.trend-blue   { color: #3b82f6; }
+.trend-green  { color: #10b981; }
+.trend-purple { color: #8b5cf6; }
+.kpi-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-@media (max-width: 640px) {
-  .dashboard-view { padding: 1.5rem; }
-  .desktop-only { display: none !important; }
-  .view-header { margin-bottom: 1.5rem; }
-  .welcome-text { font-size: 1.5rem; }
-  .kpi-grid { grid-template-columns: 1fr; }
+/* Grid */
+.dash-grid { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; }
+
+/* Panels */
+.panel {
+  background: var(--bg-card, var(--bg-surface));
+  border: 1px solid var(--border-color);
+  border-radius: 14px; padding: 1.5rem;
 }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
+.panel-title { font-size: 1rem; font-weight: 700; color: var(--text-main); margin: 0; }
+.panel-sub   { font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0; }
+.badge-pill  { background: var(--bg-hover); color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+.link-sm     { font-size: 0.82rem; font-weight: 600; color: var(--brand-primary); text-decoration: none; }
+.link-sm:hover { text-decoration: underline; }
+
+.chart-wrap  { height: 260px; position: relative; }
+
+/* Side stack */
+.side-stack  { display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* Quick actions */
+.actions-panel { padding: 1.25rem 1.5rem; }
+.quick-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 1rem; }
+.qa-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0.65rem 1rem; border-radius: 8px;
+  font-size: 0.88rem; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: all 0.15s; border: none;
+}
+.qa-btn.primary  { background: var(--brand-primary); color: #fff; }
+.qa-btn.primary:hover { filter: brightness(1.08); }
+.qa-btn.secondary { background: rgba(99,102,241,0.1); color: var(--brand-primary); }
+.qa-btn.secondary:hover { background: rgba(99,102,241,0.18); }
+.qa-btn.ghost    { background: var(--bg-hover); color: var(--text-secondary); }
+.qa-btn.ghost:hover { color: var(--text-main); }
+
+/* Recent */
+.recent-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
+.recent-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border-color);
+}
+.recent-item:last-child { border-bottom: none; }
+.item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-primary); flex-shrink: 0; }
+.item-body { flex: 1; min-width: 0; }
+.item-title { font-size: 0.875rem; font-weight: 600; color: var(--text-main); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-meta  { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.item-cat   { font-size: 0.7rem; background: var(--bg-hover); color: var(--text-secondary); padding: 1px 7px; border-radius: 4px; }
+.item-date  { font-size: 0.72rem; color: var(--text-muted); }
+.item-edit  { color: var(--text-muted); transition: color 0.15s; padding: 4px; flex-shrink: 0; }
+.item-edit:hover { color: var(--brand-primary); }
+.empty-list { color: var(--text-muted); font-size: 0.875rem; padding: 1rem 0; text-align: center; }
+.alert-error { color: #ef4444; font-size: 0.875rem; }
+
+/* Responsive */
+@media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } .side-stack { display: grid; grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .dashboard-page { padding: 1.25rem; } .kpi-row { grid-template-columns: 1fr; } .side-stack { display: flex; flex-direction: column; } }
 </style>

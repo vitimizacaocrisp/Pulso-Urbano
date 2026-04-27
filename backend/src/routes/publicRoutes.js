@@ -69,23 +69,33 @@ router.get('/api/highlight', asyncHandler(async (req, res) => {
 // Anteriormente o HomeView calculava isso no cliente a partir de
 // TODOS os registros. Agora o banco faz o GROUP BY.
 // ─────────────────────────────────────────────────────────────────────
+// No arquivo publicRoutes.js
 router.get('/api/categories', asyncHandler(async (req, res) => {
   const cacheKey = 'public:categories';
   const cached = sGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`
-    SELECT category AS name, COUNT(id) AS count
+    SELECT 
+      category::text AS name, 
+      COUNT(id) AS count
     FROM analyses
-    WHERE category IS NOT NULL AND category != ''
-    GROUP BY category
+    WHERE 
+      category IS NOT NULL 
+      AND category::text NOT IN ('', '""', 'null', '[]')
+    GROUP BY category::text
     ORDER BY count DESC
   `;
-
   const payload = {
     success: true,
-    data: results.map(r => ({ name: r.name, count: parseInt(r.count, 10) }))
+    data: results.map(r => ({ 
+      // O cast ::text pode retornar a string com aspas extras (ex: "Crime" vira '"Crime"')
+      // Esse replace limpa as aspas para o frontend
+      name: r.name.replace(/^"|"$/g, ''), 
+      count: parseInt(r.count, 10) 
+    }))
   };
+  
   sSet(cacheKey, payload, TTL_LONG);
   res.json(payload);
 }));

@@ -1,1128 +1,508 @@
 <template>
-  <div class="content-manager-wrapper">
+  <div class="manager-page">
 
-    <!-- MODAL 1: MENU DE SELEÇÃO DE TIPO (GRADE DE ÍCONES) -->
-    <div v-if="showResourceTypeMenu" class="modal-overlay" @click.self="closeResourceMenu">
-      <div class="modal-content menu-content">
-        <div class="modal-header">
-          <h3>Adicionar ao Conteúdo</h3>
-          <button @click="closeResourceMenu" class="btn-close-modal">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="menu-instruction">Escolha o tipo de recurso que deseja inserir:</p>
-          <div class="resource-grid">
-            <button @click="selectResourceType('image')" class="resource-btn">
-              <span class="icon">🖼️</span>
-              <span class="label">Imagem</span>
-            </button>
-            <button @click="selectResourceType('audio')" class="resource-btn">
-              <span class="icon">🎵</span>
-              <span class="label">Áudio</span>
-            </button>
-            <button @click="selectResourceType('video')" class="resource-btn">
-              <span class="icon">🎥</span>
-              <span class="label">Vídeo</span>
-            </button>
+    <!-- Modais de mídia (componente compartilhado) -->
+    <AnalysisMediaModal
+      :show-resource-menu="showResourceMenu"
+      :show-media-input="showMediaInput"
+      :active-type="activeMediaType"
+      file-input-id="cmFileInput"
+      @close-menu="showResourceMenu = false"
+      @close-media="showMediaInput = false"
+      @select-type="onSelectType"
+      @back-to-menu="showMediaInput = false; showResourceMenu = true"
+      @confirm="onMediaConfirm"
+    />
 
-            <button @click="selectResourceType('notebook')" class="resource-btn highlight-purple">
-              <span class="icon">🐍</span>
-              <span class="label">Notebook</span>
-            </button>
-            <button @click="selectResourceType('script')" class="resource-btn highlight-purple">
-              <span class="icon">📜</span>
-              <span class="label">Script</span>
-            </button>
-
-            <button @click="selectResourceType('document')" class="resource-btn highlight-blue">
-              <span class="icon">📄</span>
-              <span class="label">Documento</span>
-            </button>
-            <button @click="selectResourceType('data')" class="resource-btn highlight-green">
-              <span class="icon">📊</span>
-              <span class="label">Dados (CSV/XLS)</span>
-            </button>
-
-            <button @click="selectResourceType('link')" class="resource-btn">
-              <span class="icon">🔗</span>
-              <span class="label">Link Card</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 2: INPUT DE URL OU UPLOAD -->
-    <div v-if="showMediaModal" class="modal-overlay" @click.self="closeMediaModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Inserir {{ mediaTypeLabels[activeMediaType] }}</h3>
-          <button @click="closeMediaModal" class="btn-close-modal">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="modal-tabs">
-            <button 
-              :class="['tab-btn', { active: mediaInputType === 'url' }]" 
-              @click="mediaInputType = 'url'"
-            >
-              🔗 Via URL
-            </button>
-            <button 
-              v-if="activeMediaType !== 'link'"
-              :class="['tab-btn', { active: mediaInputType === 'file' }]" 
-              @click="mediaInputType = 'file'"
-            >
-              📂 Upload do Computador
-            </button>
-          </div>
-
-          <div v-if="mediaInputType === 'url'" class="input-section">
-            <label>Cole o link aqui:</label>
-            <input 
-              type="text" 
-              v-model="mediaUrlInput" 
-              placeholder="https://..." 
-              class="modal-input"
-            >
-          </div>
-
-          <div v-if="mediaInputType === 'file' && activeMediaType !== 'link'" class="input-section">
-            <label>Selecione os arquivos:</label>
-            <div class="file-upload-box">
-              <input 
-                type="file" 
-                multiple
-                ref="mediaFileInputRef" 
-                @change="handleModalFileChange" 
-                :accept="getAcceptAttribute(activeMediaType)"
-                class="file-input-hidden"
-                id="modalFileUpload"
-              >
-              <label for="modalFileUpload" class="file-upload-label">
-                <span v-if="selectedMediaFiles.length > 0">
-                  ✅ {{ selectedMediaFiles.length }} arquivo(s) selecionado(s)
-                </span>
-                <span v-else>Escolher Arquivos...</span>
-              </label>
-            </div>
-            <div v-if="selectedMediaFiles.length > 0" class="selected-files-list" style="margin-top: 5px; font-size: 0.85em; color: #666;">
-                <div v-for="(f, i) in selectedMediaFiles" :key="i">📄 {{ f.name }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="returnToMenu" class="btn-back">⬅ Voltar</button>
-          <button @click="confirmMediaInsertion" class="btn-confirm">Inserir</button>
-        </div>
-      </div>
-    </div>
-
-    <header class="main-header-bar">
-      <div class="header-content">
-        <h1>Gestor de Conteúdo</h1>
-        <p>Crie e publique novas páginas de análise.</p>
+    <!-- Barra superior -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Nova Análise</h1>
+        <p class="page-subtitle">Crie e publique uma nova página de análise.</p>
       </div>
       <div class="header-actions">
-        <button type="button" @click="isPreviewMode = !isPreviewMode" class="btn-toggle-preview">
-          {{ isPreviewMode ? '⬅️ Voltar a Editar' : '👁️ Visualizar Prévia' }}
+        <div class="autosave-indicator" v-if="lastSaved">
+          <Icon icon="mdi:cloud-check-outline" width="16" />
+          Salvo às {{ lastSaved }}
+        </div>
+        <button type="button" class="btn-ghost" @click="isPreview = !isPreview">
+          <Icon :icon="isPreview ? 'mdi:pencil-outline' : 'mdi:eye-outline'" width="17" />
+          {{ isPreview ? 'Editar' : 'Prévia' }}
+        </button>
+        <button type="button" class="btn-primary" :disabled="isFormInvalid || isLoading" @click="publish">
+          <Icon v-if="isLoading" icon="mdi:loading" width="17" class="spin" />
+          <Icon v-else icon="mdi:publish" width="17" />
+          {{ isLoading ? 'Publicando...' : 'Publicar' }}
         </button>
       </div>
-    </header>
-
-    <section v-show="!isPreviewMode" class="content-section">
-      <form @submit.prevent="publishAnalysis" class="form-container">
-       <fieldset>
-         <legend>Metadados da Análise</legend>
-         <div class="form-group">
-           <label for="title">Título da Análise <span class="required">*</span></label>
-           <input type="text" id="title" v-model="newAnalysis.title" required>
-         </div>
-         <div class="form-group">
-           <label for="subtitle">Subtítulo</label>
-           <input type="text" id="subtitle" v-model="newAnalysis.subtitle">
-         </div>
-         <div class="form-grid">
-           <div class="form-group">
-             <label for="tag">Tag (Ex: Vitimização) <span class="required">*</span></label>
-             <input type="text" id="tag" v-model="newAnalysis.tag" required>
-           </div>
-           <div class="form-group">
-             <label for="author">Autor(es) <span class="required">*</span></label>
-             <input type="text" id="author" v-model="newAnalysis.author" required>
-           </div>
-           <div class="form-group">
-             <label for="nationality">Nacionalidade <span class="required">*</span></label>
-             <input 
-               type="text" 
-               id="nationality" 
-               v-model="newAnalysis.nationality" 
-               maxlength="100"
-               placeholder="Ex: Brasileira"
-               required
-             >
-             <small class="char-count">{{ newAnalysis.nationality?.length || 0 }}/100</small>
-           </div>
-           <div class="form-group">
-             <label for="studyPeriod">Período de Estudo</label>
-             <input type="text" id="studyPeriod" v-model="newAnalysis.studyPeriod" placeholder="Ex: 2022-2023">
-           </div>
-         </div>
-
-         <!-- Campos JSONB: Estados e Cidades -->
-         <div class="form-grid jsonb-fields">
-           <div class="form-group">
-             <label>Estados (JSONB)</label>
-             <div class="tag-input-container">
-               <div class="tags-list">
-                 <span v-for="(state, index) in statesList" :key="index" class="tag-chip">
-                   {{ state }}
-                   <button type="button" @click="removeState(index)" class="tag-remove">×</button>
-                 </span>
-               </div>
-               <input 
-                 type="text" 
-                 v-model="stateInput" 
-                 @keydown.enter.prevent="addState"
-                 placeholder="Digite e pressione Enter"
-                 class="tag-input"
-               >
-             </div>
-             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
-           </div>
-
-           <div class="form-group">
-             <label>Cidades (JSONB)</label>
-             <div class="tag-input-container">
-               <div class="tags-list">
-                 <span v-for="(city, index) in citiesList" :key="index" class="tag-chip city-chip">
-                   {{ city }}
-                   <button type="button" @click="removeCity(index)" class="tag-remove">×</button>
-                 </span>
-               </div>
-               <input 
-                 type="text" 
-                 v-model="cityInput" 
-                 @keydown.enter.prevent="addCity"
-                 placeholder="Digite e pressione Enter"
-                 class="tag-input"
-               >
-             </div>
-             <small class="field-hint">Pressione Enter ou vírgula para adicionar</small>
-           </div>
-         </div>
-
-         <div class="form-group">
-           <label for="source">Fonte</label>
-           <input type="text" id="source" v-model="newAnalysis.source" placeholder="Ex: IBGE, Datafolha, etc.">
-         </div>
-         <div class="form-group">
-           <label for="category">Categoria <span class="required">*</span></label>
-           <select id="category" v-model="newAnalysis.category" required>
-            <option value="" disabled>Selecione uma categoria</option>
-            <option>Metodologia e Amostra</option>
-            <option>Crimes Contra o Patrimônio</option>
-            <option>Crimes Contra a Pessoa</option>
-            <option>Sensação de Segurança</option>
-            <option>Subnotificação (Cifras Ocultas)</option>
-            <option>Perfil das Vítimas</option>
-            <option>Violência Doméstica e Gênero</option>
-            <option>Outras Categorias</option>
-           </select>
-         </div>
-         <div class="form-group">
-           <label for="description">Descrição Curta (para o card) <span class="required">*</span></label>
-           <textarea id="description" v-model="newAnalysis.description" rows="3" required></textarea>
-         </div>
-
-         <!-- Checkboxes para with_header e with_footer -->
-         <div class="form-group checkbox-group">
-           <label class="checkbox-label">
-             <input type="checkbox" v-model="newAnalysis.with_header">
-             <span class="checkmark"></span>
-             <span class="label-text">Com Cabeçalho (with_header)</span>
-           </label>
-           <label class="checkbox-label">
-             <input type="checkbox" v-model="newAnalysis.with_footer">
-             <span class="checkmark"></span>
-             <span class="label-text">Com Rodapé (with_footer)</span>
-           </label>
-         </div>
-       </fieldset>
-
-       <fieldset class="main-content">
-         <legend>Conteúdo Principal</legend>
-         <div class="form-group">
-           <label for="content">Conteúdo Completo (suporta Markdown/HTML) <span class="required">*</span></label>
-
-           <!-- TOOLBAR DO EDITOR -->
-           <div class="content-toolbar single-button-toolbar">
-             <button type="button" @click="openResourceMenu" class="toolbar-main-btn">
-               <span class="plus-icon">➕</span> Adicionar Recurso
-             </button>
-             <span class="toolbar-hint">Clique para adicionar imagens, vídeos, notebooks, documentos, etc.</span>
-
-             <!-- Botões de formatação -->
-             <div class="editor-format-buttons">
-               <button type="button" @click="applyFormat('bold')" title="Negrito (Ctrl+B)" class="format-btn">
-                 <strong>B</strong>
-               </button>
-               <button type="button" @click="applyFormat('italic')" title="Itálico (Ctrl+I)" class="format-btn">
-                 <em>I</em>
-               </button>
-               <button type="button" @click="applyFormat('heading')" title="Título" class="format-btn">
-                 H
-               </button>
-               <button type="button" @click="applyFormat('list')" title="Lista" class="format-btn">
-                 ••
-               </button>
-               <button type="button" @click="applyFormat('code')" title="Código" class="format-btn">
-                 { }
-               </button>
-               <button type="button" @click="applyFormat('link')" title="Link" class="format-btn">
-                 🔗
-               </button>
-               <button type="button" @click="applyFormat('image')" title="Imagem" class="format-btn">
-                 🖼️
-               </button>
-               <button type="button" @click="applyFormat('quote')" title="Citação" class="format-btn">
-                 "
-               </button>
-             </div>
-           </div>
-
-           <!-- Monaco Editor Container -->
-           <div id="editor-container" ref="editorContainer" class="editor-container"></div>
-
-           <!-- Textarea oculto para compatibilidade -->
-           <textarea id="content" v-model="newAnalysis.content" style="display: none;"></textarea>
-         </div>
-       </fieldset>
-
-       <fieldset>
-         <legend>Configurações Finais</legend>
-         <div class="form-group">
-           <label for="coverImage">Imagem de Capa <span class="required">*</span></label>
-           <input type="file" id="coverImage" @change="handleFileSelection($event, 'coverImage')" accept="image/*" required>
-           <div v-if="newAnalysis.coverImage && newAnalysis.coverImage.name" class="file-name-preview">
-             Arquivo: {{ newAnalysis.coverImage.name }}
-           </div>
-           <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização da imagem de capa" class="image-preview" />
-         </div>
-
-         <div class="form-group">
-           <label for="referenceLinks">Links de Referência (Rodapé)</label>
-           <textarea id="referenceLinks" v-model="newAnalysis.referenceLinks" rows="3" placeholder="Coloque um link por linha..."></textarea>
-         </div>
-       </fieldset>
-
-        <div class="form-actions">
-            <button type="button" @click="confirmAndClearForm" class="btn-clear">
-                🗑️ Limpar Tudo
-            </button>
-            <button type="submit" class="btn-publish" :disabled="isFormInvalid || isLoading">
-                <span v-if="isLoading">Publicando...</span>
-                <span v-else>Publicar Análise</span>
-            </button>
-        </div>
-
-      </form>
-      <div v-if="feedback.message" :class="['feedback-message', feedback.type]">{{ feedback.message }}</div>
-    </section>
-
-    <!-- PRÉ-VISUALIZAÇÃO DA NOTÍCIA -->
-    <section v-show="isPreviewMode" class="news-preview">
-      <div class="preview-cover" v-if="imagePreviewUrl">
-        <img :src="imagePreviewUrl" alt="Imagem de Capa" class="cover-image" />
-      </div>
-      <div class="preview-header">
-        <h1 class="preview-title">{{ newAnalysis.title || 'Título da Análise' }}</h1>
-        <h2 v-if="newAnalysis.subtitle" class="preview-subtitle">{{ newAnalysis.subtitle }}</h2>
-        <div class="preview-meta">
-          <span class="preview-category" v-if="newAnalysis.category">{{ newAnalysis.category }}</span>
-          <span class="preview-date" v-if="newAnalysis.lastUpdate">Atualizado em: {{ formatDate(newAnalysis.lastUpdate) }}</span>
-          <span class="preview-author" v-if="newAnalysis.author">Por {{ newAnalysis.author }}</span>
-          <span class="preview-nationality" v-if="newAnalysis.nationality">{{ newAnalysis.nationality }}</span>
-        </div>
-      </div>
-      <div class="preview-description">
-        {{ newAnalysis.description || '' }}
-      </div>
-
-      <IsolatedRenderer :content="renderedContent" />
-
-      <div v-if="newAnalysis.referenceLinks">
-        <h3 class="preview-section-title">Referências:</h3>
-        <ul class="preview-links">
-            <li v-for="(link, idx) in (newAnalysis.referenceLinks || '').split('\n').filter(l => l.trim() !== '')" :key="idx">
-            <a :href="link.startsWith('http') ? link : `//${link}`" target="_blank" rel="noopener noreferrer">{{ link }}</a>
-            </li>
-        </ul>
     </div>
-    </section>
+
+    <!-- Feedback -->
+    <transition name="slide-down">
+      <div v-if="feedback.message" class="feedback-bar" :class="feedback.type">
+        <Icon :icon="feedbackIcon" width="18" />
+        {{ feedback.message }}
+        <button @click="feedback.message = ''" type="button" class="fb-close">×</button>
+      </div>
+    </transition>
+
+    <!-- Editor / Preview -->
+    <div v-if="!isPreview" class="editor-layout">
+
+      <!-- LEFT: Form fields -->
+      <div class="editor-left">
+        <div class="panel">
+          <AnalysisFormFields
+            v-model="form"
+            :image-preview-url="imagePreviewUrl"
+            cover-input-id="cmCoverInput"
+            @cover-change="handleCoverChange"
+          />
+        </div>
+      </div>
+
+      <!-- RIGHT: Monaco editor -->
+      <div class="editor-right">
+        <div class="panel editor-panel">
+          <div class="editor-toolbar">
+            <span class="toolbar-label">Conteúdo</span>
+            <div class="toolbar-actions">
+              <button type="button" class="tbr-btn" @click="showResourceMenu = true" title="Adicionar recurso">
+                <Icon icon="mdi:plus-circle-outline" width="16" /> Recurso
+              </button>
+              <button v-for="fmt in formats" :key="fmt.type" type="button"
+                class="tbr-btn icon-only" :title="fmt.label" @click="applyFmt(fmt.type)">
+                <span v-html="fmt.html"></span>
+              </button>
+            </div>
+          </div>
+          <div ref="editorEl" class="monaco-wrap"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Preview -->
+    <div v-else class="preview-wrap">
+      <div class="preview-inner">
+        <img v-if="imagePreviewUrl" :src="imagePreviewUrl" class="preview-cover" alt="Capa" />
+        <div class="preview-header">
+          <span class="preview-cat">{{ form.category }}</span>
+          <h1 class="preview-title">{{ form.title || 'Título da Análise' }}</h1>
+          <h2 v-if="form.subtitle" class="preview-subtitle">{{ form.subtitle }}</h2>
+          <div class="preview-meta">
+            <span v-if="form.author">Por <strong>{{ form.author }}</strong></span>
+            <span v-if="form.nationality" class="preview-badge">{{ form.nationality }}</span>
+          </div>
+        </div>
+        <p class="preview-desc">{{ form.description }}</p>
+        <IsolatedRenderer :content="renderedContent" />
+        <div v-if="form.referenceLinks" class="preview-refs">
+          <h3>Referências</h3>
+          <ul>
+            <li v-for="(l, i) in form.referenceLinks.split('\n').filter(x => x.trim())" :key="i">
+              <a :href="l.startsWith('http') ? l : `//${l}`" target="_blank">{{ l }}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom bar (mobile) -->
+    <div class="bottom-action-bar">
+      <button type="button" class="btn-ghost" @click="confirmClear">
+        <Icon icon="mdi:delete-outline" width="17" /> Limpar
+      </button>
+      <button type="button" class="btn-primary" :disabled="isFormInvalid || isLoading" @click="publish">
+        <Icon v-if="isLoading" icon="mdi:loading" width="17" class="spin" />
+        {{ isLoading ? 'Publicando...' : 'Publicar Análise' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { marked } from 'marked';
 import axios from 'axios';
 import { openDB } from 'idb';
 import * as monaco from 'monaco-editor';
-import { 
-    mediaTypeLabels, 
-    getAcceptAttribute, 
-    formatText, 
-    generateUrlMediaHtml, 
-    generateFileMediaHtml 
-} from '@/assets/js/analysisUtils.js';
-import IsolatedRenderer from "@/components/IsolatedRenderer.vue"
-
+import { Icon } from '@iconify/vue';
+import { formatText, generateUrlMediaHtml, generateFileMediaHtml } from '@/assets/js/analysisUtils.js';
+import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
+import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
+import AnalysisMediaModal from '@/components/admin/AnalysisMediaModal.vue';
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
 
-const monacoEditorTheme = computed(() => isDark.value ? 'vs-dark' : 'vs-light');
-
 const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
-// --- LÓGICA DO BANCO DE DADOS (INDEXEDDB) ---
-const DB_NAME = 'analysis-draft-db';
-const STORE_NAME = 'files-store';
-const DB_VERSION = 1;
-let dbPromise = null;
+// ── State ──────────────────────────────────────────────────────────────
+const isPreview  = ref(false);
+const isLoading  = ref(false);
+const lastSaved  = ref('');
+const feedback   = ref({ message: '', type: '' });
+const editorEl   = ref(null);
+let   monacoEditor = null;
 
-const initDb = () => {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
-        }
-      },
-    });
+const showResourceMenu = ref(false);
+const showMediaInput   = ref(false);
+const activeMediaType  = ref('');
+const contentMediaMap  = ref(new Map());
+
+const imagePreviewUrl  = ref('');
+
+const getInitial = () => ({
+  title: '', subtitle: '', tag: '', author: '', nationality: '',
+  studyPeriod: '', source: '', category: '', description: '', content: '',
+  referenceLinks: '', with_header: false, with_footer: false,
+  states: [], cities: [], coverImage: null
+});
+
+const form = ref(getInitial());
+
+const feedbackIcon = computed(() => ({
+  success: 'mdi:check-circle-outline',
+  error:   'mdi:alert-circle-outline',
+  info:    'mdi:information-outline'
+}[feedback.value.type] || 'mdi:information-outline'));
+
+const isFormInvalid = computed(() =>
+  !form.value.title || !form.value.tag || !form.value.author ||
+  !form.value.category || !form.value.description || !form.value.content ||
+  !form.value.nationality || !form.value.coverImage
+);
+
+// ── Toolbar formats ───────────────────────────────────────────────────
+const formats = [
+  { type: 'bold',   label: 'Negrito',  html: '<strong>B</strong>' },
+  { type: 'italic', label: 'Itálico',  html: '<em>I</em>' },
+  { type: 'heading',label: 'Título',   html: 'H' },
+  { type: 'list',   label: 'Lista',    html: '≡' },
+  { type: 'code',   label: 'Código',   html: '&lt;/&gt;' },
+  { type: 'quote',  label: 'Citação',  html: '"' },
+];
+const applyFmt = (type) => { if (monacoEditor) formatText(monacoEditor, type); };
+
+// ── Media modal handlers ──────────────────────────────────────────────
+const onSelectType = (type) => {
+  activeMediaType.value = type;
+  showResourceMenu.value = false;
+  showMediaInput.value   = true;
+};
+
+const onMediaConfirm = async ({ mode, url, files, type }) => {
+  showMediaInput.value = false;
+  if (mode === 'url') {
+    const html = await generateUrlMediaHtml(url, type);
+    insertIntoEditor(html);
+  } else {
+    for (const file of files) {
+      const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, type);
+      contentMediaMap.value.set(placeholderId, { file, blobUrl, type });
+      insertIntoEditor(html);
+    }
   }
+};
+
+const insertIntoEditor = (text) => {
+  if (!monacoEditor) { form.value.content += '\n' + text; return; }
+  const pos = monacoEditor.getPosition();
+  monacoEditor.executeEdits('', [{
+    range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+    text: '\n' + text + '\n', forceMoveMarkers: true
+  }]);
+  monacoEditor.focus();
+};
+
+// ── Cover image ───────────────────────────────────────────────────────
+const handleCoverChange = (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
+  form.value.coverImage = f;
+  imagePreviewUrl.value = URL.createObjectURL(f);
+};
+
+// ── Monaco ────────────────────────────────────────────────────────────
+const initEditor = () => {
+  if (!editorEl.value || monacoEditor) return;
+  monacoEditor = monaco.editor.create(editorEl.value, {
+    value: form.value.content,
+    language: 'markdown',
+    theme: isDark.value ? 'vs-dark' : 'vs',
+    fontSize: 14, lineNumbers: 'on', wordWrap: 'on',
+    minimap: { enabled: false }, scrollBeyondLastLine: false,
+    automaticLayout: true, tabSize: 2, insertSpaces: true,
+    renderLineHighlight: 'line',
+  });
+  monacoEditor.onDidChangeModelContent(() => {
+    form.value.content = monacoEditor.getValue();
+  });
+  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFmt('bold'));
+  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFmt('italic'));
+};
+
+watch(isDark, (v) => { if (monacoEditor) monaco.editor.setTheme(v ? 'vs-dark' : 'vs'); });
+watch(isPreview, async (v) => {
+  if (!v) { await nextTick(); setTimeout(() => monacoEditor?.layout(), 350); }
+});
+
+// ── Rendered preview ──────────────────────────────────────────────────
+const renderedContent = computed(() => {
+  let c = form.value.content?.trim() || '';
+  if (!c) return '<p><em>Comece a escrever...</em></p>';
+  for (const [id, { blobUrl }] of contentMediaMap.value.entries()) {
+    if (blobUrl) c = c.replace(new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), blobUrl);
+  }
+  c = c.split('/uploads/').map((part, i) => i === 0 ? part : API_BASE_URL + '/uploads/' + part).join('');
+  if (c.startsWith('```html')) c = c.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
+  return /^</.test(c) ? c : marked.parse(c, { headerIds: false, mangle: false });
+});
+
+// ── Draft (IndexedDB + localStorage) ──────────────────────────────────
+const DB_NAME = 'pu-draft-db', STORE = 'files', DRAFT_KEY = 'pu-new-draft';
+let dbPromise = null;
+const getDb = () => {
+  if (!dbPromise) dbPromise = openDB(DB_NAME, 1, { upgrade(db) { db.createObjectStore(STORE); } });
   return dbPromise;
 };
-const saveFileToDb = async (file, key) => {
-  const db = await initDb();
-  await db.put(STORE_NAME, file, key);
-};
-const getFileFromDb = async (key) => {
-  const db = await initDb();
-  return await db.get(STORE_NAME, key);
-};
-const clearAllDraftFiles = async () => {
-  const db = await initDb();
-  await db.clear(STORE_NAME);
-  console.log("Rascunho de arquivos limpo do IndexedDB.");
-};
-// --- FIM DA LÓGICA DO BANCO DE DADOS ---
+const dbPut = async (k, v) => { const db = await getDb(); await db.put(STORE, v, k); };
+const dbGet = async (k) => { const db = await getDb(); return db.get(STORE, k); };
+const dbClear = async () => { const db = await getDb(); await db.clear(STORE); };
 
-const DRAFT_KEY = 'analysisFormDraft';
-
-const isPreviewMode = ref(false);
-const isLoading = ref(false);
-const feedback = ref({ message: '', type: '' });
-
-// Referências para os Modais
-const showResourceTypeMenu = ref(false);
-const showMediaModal = ref(false);
-
-const activeMediaType = ref('');
-const mediaInputType = ref('url');
-const mediaUrlInput = ref('');
-const mediaFileInputRef = ref(null);
-const selectedMediaFiles = ref([]); 
-
-// Monaco Editor
-const editorContainer = ref(null);
-let editor = null;
-
-const contentImages = ref(new Map());
-const imagePreviewUrl = ref('');
-
-// Campos JSONB
-const statesList = ref([]);
-const citiesList = ref([]);
-const stateInput = ref('');
-const cityInput = ref('');
-
-const getInitialAnalysisState = () => ({
-  title: '',
-  subtitle: '',
-  tag: '',
-  author: '',
-  lastUpdate: '',
-  nationality: '',
-  states: [],
-  cities: [],
-  with_header: false,
-  with_footer: false,
-  studyPeriod: '',
-  source: '',
-  category: '',
-  description: '',
-  content: '',
-  referenceLinks: '',
-  coverImage: null
-});
-
-const newAnalysis = ref(getInitialAnalysisState());
-
-// --- CONTROLE DE TAGS (JSONB) ---
-const addState = () => {
-  const value = stateInput.value.trim();
-  if (value && !statesList.value.includes(value)) {
-    statesList.value.push(value);
-    newAnalysis.value.states = [...statesList.value];
-    stateInput.value = '';
-  }
-};
-
-const removeState = (index) => {
-  statesList.value.splice(index, 1);
-  newAnalysis.value.states = [...statesList.value];
-};
-
-const addCity = () => {
-  const value = cityInput.value.trim();
-  if (value && !citiesList.value.includes(value)) {
-    citiesList.value.push(value);
-    newAnalysis.value.cities = [...citiesList.value];
-    cityInput.value = '';
-  }
-};
-
-const removeCity = (index) => {
-  citiesList.value.splice(index, 1);
-  newAnalysis.value.cities = [...citiesList.value];
-};
-
-// --- MONACO EDITOR ---
-const initMonacoEditor = () => {
-  if (!editorContainer.value) return;
-
-  if (typeof window !== 'undefined' && window.monaco) {
-    createEditor();
-    return;
-  }
-  try {
-    createEditor();
-  } catch (error) {
-    console.error('Erro ao inicializar Monaco Editor:', error);
-    const textarea = document.createElement('textarea');
-    textarea.id = 'content';
-    textarea.vModel = 'newAnalysis.content';
-    textarea.rows = 15;
-    textarea.className = 'main-textarea';
-    textarea.required = true;
-    editorContainer.value.innerHTML = '';
-    editorContainer.value.appendChild(textarea);
-  }
-};
-
-const createEditor = () => {
-  if (!editorContainer.value || editor) return;
-
-  editor = monaco.editor.create(editorContainer.value, {
-    value: newAnalysis.value.content,
-    language: 'markdown',
-    theme: monacoEditorTheme.value,
-    fontSize: 14,
-    lineNumbers: 'on',
-    minimap: { enabled: true },
-    scrollBeyondLastLine: false,
-    wordWrap: 'on',
-    wrappingIndent: 'same',
-    automaticLayout: true,
-    formatOnPaste: true,
-    formatOnType: true,
-    suggestOnTriggerCharacters: true,
-    quickSuggestions: true,
-    folding: true,
-    renderLineHighlight: 'all',
-    scrollbar: { vertical: 'visible', horizontal: 'visible', useShadows: false },
-    lineDecorationsWidth: 10,
-    lineNumbersMinChars: 3,
-    overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true,
-    glyphMargin: false,
-    fixedOverflowWidgets: true,
-    renderWhitespace: 'selection',
-    tabSize: 2,
-    insertSpaces: true,
-  });
-
-  editor.onDidChangeModelContent(() => {
-    newAnalysis.value.content = editor.getValue();
-  });
-
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFormat('bold'));
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFormat('italic'));
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => applyFormat('heading'));
-};
-
-const applyFormat = (type) => {
-    formatText(editor, type);
-};
-
-// --- CONTROLE DOS MENUS E MODAIS ---
-const openResourceMenu = () => { showResourceTypeMenu.value = true; };
-const closeResourceMenu = () => { showResourceTypeMenu.value = false; };
-
-const selectResourceType = (type) => {
-    activeMediaType.value = type;
-    showResourceTypeMenu.value = false;
-    mediaInputType.value = 'url'; 
-    mediaUrlInput.value = '';
-    selectedMediaFiles.value = [];
-    if (mediaFileInputRef.value) mediaFileInputRef.value.value = '';
-    showMediaModal.value = true;
-};
-
-const returnToMenu = () => {
-    showMediaModal.value = false;
-    showResourceTypeMenu.value = true;
-};
-
-const closeMediaModal = () => { showMediaModal.value = false; };
-
-const handleModalFileChange = (event) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-        selectedMediaFiles.value = Array.from(files);
-    }
-};
-
-const confirmMediaInsertion = async () => {
-    if (mediaInputType.value === 'url') {
-        if (!mediaUrlInput.value) {
-            alert("Por favor, insira uma URL válida.");
-            return;
-        }
-        const html = await generateUrlMediaHtml(mediaUrlInput.value, activeMediaType.value);
-        insertMediaIntoTextarea(html);
-    } else {
-        if (selectedMediaFiles.value.length === 0 && activeMediaType.value !== 'link') {
-            alert("Por favor, selecione pelo menos um arquivo.");
-            return;
-        }
-
-        let batchHtml = '';
-        const loadingBtn = document.querySelector('.btn-confirm');
-        const originalText = loadingBtn ? loadingBtn.innerText : 'Inserir';
-        if(loadingBtn) loadingBtn.innerText = 'Processando...';
-
-        for (const file of selectedMediaFiles.value) {
-            try {
-                const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, activeMediaType.value);
-
-                contentImages.value.set(placeholderId, { 
-                    file, 
-                    blobUrl, 
-                    type: activeMediaType.value 
-                });
-
-                batchHtml += html + '\n';
-            } catch (error) {
-                console.error(`Erro ao processar arquivo ${file.name}`, error);
-            }
-        }
-
-        insertMediaIntoTextarea(batchHtml);
-
-        if(loadingBtn) loadingBtn.innerText = originalText;
-    }
-    closeMediaModal();
-};
-
-const insertMediaIntoTextarea = (markdownToInsert) => {
-  if (!editor) {
-      newAnalysis.value.content += '\n' + markdownToInsert;
-      return;
-  }
-  const position = editor.getPosition();
-  const range = new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column);
-  editor.executeEdits('', [{ range: range, text: '\n' + markdownToInsert + '\n', forceMoveMarkers: true }]);
-  const newPosition = new monaco.Position(position.lineNumber + 1, markdownToInsert.length + 1);
-  editor.setPosition(newPosition);
-  editor.focus();
-};
-
-// --- RENDERIZAÇÃO ---
-const renderedContent = computed(() => {
-  if (!newAnalysis.value.content) return '<p><em>Comece a escrever...</em></p>';
-
-  let content = newAnalysis.value.content.trim();
-
-  // Decodifica HTML escapado
-  if (content.includes('&lt;') && content.includes('&gt;')) {
-    const txt = document.createElement('textarea');
-    txt.innerHTML = content;
-    content = txt.value;
-  }
-
-  // Substitui placeholders
-  for (const [id, data] of contentImages.value.entries()) {
-    if (data.blobUrl) {
-      const regex = new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      content = content.replace(regex, data.blobUrl);
-    }
-  }
-
-  // Corrige URLs relativas
-  content = content.replace(
-    /(src=["']|href=["']|url\()(\/uploads\/.*?)(["')])/g, 
-    `$1${API_BASE_URL}$2$3`
-  );
-
-  // Remove wrapper ```html ... ```
-  if (content.startsWith('```html')) {
-    content = content.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim();
-  }
-
-  // REGRA SIMPLES: Se começa com "<", é HTML → retorna direto
-  // Senão, é Markdown → converte
-  const isHTML = /^</.test(content.trim());
-
-  return isHTML ? content : marked.parse(content, { headerIds: false, mangle: false });
-});
-
-// ---- RASCUNHO (DRAFT) ----
 const saveDraft = async () => {
-  const draftData = JSON.parse(JSON.stringify(newAnalysis.value)); 
-  const processFile = async (file, fieldPath) => {
+  const d = JSON.parse(JSON.stringify({ ...form.value, coverImage: null }));
+  if (form.value.coverImage instanceof File) {
+    const k = `draft_cover_${Date.now()}`;
+    await dbPut(k, form.value.coverImage);
+    d.coverImage = { key: k, name: form.value.coverImage.name };
+  }
+  d.mediaMap = {};
+  for (const [id, { file, type }] of contentMediaMap.value.entries()) {
     if (file instanceof File) {
-      const key = `draft_${fieldPath}_${Date.now()}`;
-      await saveFileToDb(file, key);
-      return { indexedDbKey: key, name: file.name, type: file.type };
-    }
-    return file;
-  };
-
-  if (draftData.coverImage) {
-    draftData.coverImage = await processFile(draftData.coverImage, 'coverImage');
-  }
-
-  draftData.contentMediaMap = {};
-  const contentMapPromises = [];
-  for (const [placeholderId, mediaData] of contentImages.value.entries()) {
-    if (mediaData.file instanceof File) {
-      const key = `draft_${placeholderId}`;
-      contentMapPromises.push(saveFileToDb(mediaData.file, key).then(() => {
-        draftData.contentMediaMap[placeholderId] = { 
-            indexedDbKey: key, 
-            name: mediaData.file.name, 
-            type: mediaData.file.type,
-            categoryType: mediaData.type 
-        };
-      }));
-    } else if (mediaData.indexedDbKey) {
-      draftData.contentMediaMap[placeholderId] = mediaData;
+      const k = `draft_media_${id}`;
+      await dbPut(k, file);
+      d.mediaMap[id] = { key: k, type };
     }
   }
-  await Promise.all(contentMapPromises);
-  const draftToStore = { data: draftData, expires: Date.now() + (60 * 60 * 1000) };
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draftToStore));
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({ d, exp: Date.now() + 3600_000 }));
+  lastSaved.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
 const loadDraft = async () => {
-  await initDb();
-  const savedDraft = localStorage.getItem(DRAFT_KEY);
-  if (!savedDraft) return;
-
-  const draft = JSON.parse(savedDraft);
-  if (draft.expires < Date.now()) {
-    await clearAllDraftFiles();
-    localStorage.removeItem(DRAFT_KEY);
-    return;
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  const saved = JSON.parse(raw);
+  if (saved.exp < Date.now()) { await dbClear(); localStorage.removeItem(DRAFT_KEY); return; }
+  const d = saved.d;
+  if (d.coverImage?.key) {
+    const f = await dbGet(d.coverImage.key);
+    if (f) { d.coverImage = f; imagePreviewUrl.value = URL.createObjectURL(f); }
+    else d.coverImage = null;
   }
-  const draftData = draft.data;
-  const reconstructFile = async (stub) => {
-    if (stub && stub.indexedDbKey) {
-      return await getFileFromDb(stub.indexedDbKey);
+  if (d.mediaMap) {
+    for (const [id, { key, type }] of Object.entries(d.mediaMap)) {
+      const f = await dbGet(key);
+      if (f) contentMediaMap.value.set(id, { file: f, blobUrl: URL.createObjectURL(f), type });
     }
-    return null;
-  };
-
-  if (draftData.coverImage) {
-    draftData.coverImage = await reconstructFile(draftData.coverImage);
-    if(draftData.coverImage) imagePreviewUrl.value = URL.createObjectURL(draftData.coverImage);
+    delete d.mediaMap;
   }
-
-  if(draftData.contentMediaMap) {
-    for (const placeholderId in draftData.contentMediaMap) {
-      const item = draftData.contentMediaMap[placeholderId];
-      const file = await reconstructFile(item);
-      if(file) {
-        contentImages.value.set(placeholderId, { 
-            file, 
-            blobUrl: URL.createObjectURL(file), 
-            indexedDbKey: item.indexedDbKey,
-            type: item.categoryType 
-        });
-      }
-    }
-    delete draftData.contentMediaMap;
-  }
-
-  // Restaurar arrays de estados e cidades
-  if (draftData.states) statesList.value = [...draftData.states];
-  if (draftData.cities) citiesList.value = [...draftData.cities];
-
-  Object.assign(newAnalysis.value, draftData);
-  if (editor && newAnalysis.value.content) editor.setValue(newAnalysis.value.content);
+  Object.assign(form.value, d);
+  if (monacoEditor && d.content) monacoEditor.setValue(d.content);
 };
 
-let debounceTimer = null;
-watch(newAnalysis, () => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(saveDraft, 2000);
+let draftTimer = null;
+watch(form, () => {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 2000);
 }, { deep: true });
 
-onMounted(async () => {
-  await loadDraft();
-  nextTick(() => initMonacoEditor());
-  watch(() => newAnalysis.value.content, (newContent) => {
-    if (editor && editor.getValue() !== newContent) editor.setValue(newContent);
-  }, { immediate: true });
-
-  setInterval(async () => {
-    const savedDraft = localStorage.getItem(DRAFT_KEY);
-    if (!savedDraft) return;
-    const draft = JSON.parse(savedDraft);
-    if (draft.expires < Date.now()) {
-      await clearAllDraftFiles();
-      localStorage.removeItem(DRAFT_KEY);
-      resetForm();
-    }
-  }, 60 * 1000);
-});
-
-const cleanupBlobUrls = () => {
+// ── Reset ─────────────────────────────────────────────────────────────
+const reset = async () => {
+  await dbClear(); localStorage.removeItem(DRAFT_KEY);
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
-  for (const mediaData of contentImages.value.values()) {
-    if (mediaData.blobUrl) URL.revokeObjectURL(mediaData.blobUrl);
-  }
-};
-
-onBeforeUnmount(() => {
-  cleanupBlobUrls();
-  if (editor) {
-    editor.dispose();
-    editor = null;
-  }
-});
-
-const isFormInvalid = computed(() =>
-  !newAnalysis.value.title ||
-  !newAnalysis.value.tag ||
-  !newAnalysis.value.description ||
-  !newAnalysis.value.content ||
-  !newAnalysis.value.author ||
-  !newAnalysis.value.category ||
-  !newAnalysis.value.coverImage ||
-  !newAnalysis.value.nationality
-);
-
-const handleFileSelection = (event, fieldName) => {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
-  if (fieldName === 'coverImage') {
-    if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
-    newAnalysis.value.coverImage = files[0];
-    imagePreviewUrl.value = URL.createObjectURL(files[0]);
-  }
-};
-
-const resetForm = async () => {
-  await clearAllDraftFiles();
-  localStorage.removeItem(DRAFT_KEY);
-  cleanupBlobUrls();
-  newAnalysis.value = getInitialAnalysisState();
-  statesList.value = [];
-  citiesList.value = [];
-  stateInput.value = '';
-  cityInput.value = '';
+  for (const { blobUrl } of contentMediaMap.value.values()) URL.revokeObjectURL(blobUrl);
+  contentMediaMap.value.clear();
   imagePreviewUrl.value = '';
-  contentImages.value.clear();
-  if (editor) editor.setValue('');
-  if(document.getElementById('coverImage')) document.getElementById('coverImage').value = null;
+  form.value = getInitial();
+  if (monacoEditor) monacoEditor.setValue('');
 };
 
-const confirmAndClearForm = async () => {
-  if (window.confirm('Tem certeza que deseja limpar todo o formulário?')) {
-    await resetForm();
+const confirmClear = async () => {
+  if (confirm('Limpar todo o formulário? O rascunho será apagado.')) {
+    await reset();
     feedback.value = { message: 'Formulário limpo.', type: 'success' };
+    setTimeout(() => { feedback.value.message = ''; }, 3000);
   }
 };
 
-// --- FUNÇÃO DE PUBLICAÇÃO OTIMIZADA PARA R2 (URLS PRÉ-ASSINADAS) ---
-const publishAnalysis = async () => {
+// ── Publish ───────────────────────────────────────────────────────────
+const publish = async () => {
   if (isFormInvalid.value) {
-    feedback.value = { message: 'Por favor, preencha todos os campos obrigatórios.', type: 'error' };
-    return;
+    feedback.value = { message: 'Preencha todos os campos obrigatórios (*).', type: 'error' }; return;
   }
-
   isLoading.value = true;
   feedback.value = { message: 'Preparando arquivos...', type: 'info' };
   const token = localStorage.getItem('authToken');
 
   try {
-    // 1. Coleta de Arquivos
     const filesToUpload = [];
-
-    // Capa
-    if (newAnalysis.value.coverImage instanceof File) {
-      filesToUpload.push({
-        file: newAnalysis.value.coverImage,
-        category: 'cover',
-        tempId: 'cover'
-      });
+    if (form.value.coverImage instanceof File) filesToUpload.push({ file: form.value.coverImage, category: 'cover', tempId: 'cover' });
+    for (const [id, { file, type }] of contentMediaMap.value.entries()) {
+      if (file instanceof File) filesToUpload.push({ file, category: type || 'image', tempId: id });
     }
 
-    // Mídia no conteúdo
-    for (const [placeholderId, mediaData] of contentImages.value.entries()) {
-      if (mediaData.file instanceof File) {
-        filesToUpload.push({
-          file: mediaData.file,
-          category: mediaData.type || 'image',
-          tempId: placeholderId
-        });
-      }
-    }
-
-    const uploadedUrls = {}; 
-
-    // 2. Upload para R2 via Signed URL
+    const uploaded = {};
     if (filesToUpload.length > 0) {
-      feedback.value = { message: `Enviando ${filesToUpload.length} arquivo(s) para nuvem...`, type: 'info' };
-
-      // A) Solicitar URLs assinadas ao backend
-      const metaData = filesToUpload.map(f => ({
-        fileName: f.file.name,
-        fileType: f.file.type,
-        category: f.category,
-        tempId: f.tempId
-      }));
-
-      const urlRes = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`, 
-        { files: metaData }, 
-        { headers: { 'Authorization': `Bearer ${token}` } }
+      feedback.value = { message: `Enviando ${filesToUpload.length} arquivo(s)...`, type: 'info' };
+      const { data: urlRes } = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`,
+        { files: filesToUpload.map(f => ({ fileName: f.file.name, fileType: f.file.type, category: f.category, tempId: f.tempId })) },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      const uploadPlans = urlRes.data.data;
-
-      // B) Fazer o Upload (PUT direto na URL do R2)
-      await Promise.all(uploadPlans.map(async (plan) => {
-        const fileObj = filesToUpload.find(f => f.tempId === plan.tempId);
-        if (!fileObj) return;
-
-        // IMPORTANTE: Enviar o arquivo binário direto, com o Content-Type correto
-        await axios.put(plan.uploadUrl, fileObj.file, {
-          headers: { 
-            'Content-Type': fileObj.file.type 
-          }
-        });
-
-        // O backend agora retorna a 'publicUrl' (ex: [https://pub-xxx.r2.dev/file.jpg](https://pub-xxx.r2.dev/file.jpg))
-        uploadedUrls[plan.tempId] = plan.publicUrl;
+      await Promise.all(urlRes.data.map(async (plan) => {
+        const fo = filesToUpload.find(f => f.tempId === plan.tempId);
+        if (!fo) return;
+        await axios.put(plan.uploadUrl, fo.file, { headers: { 'Content-Type': fo.file.type } });
+        uploaded[plan.tempId] = plan.publicUrl;
       }));
     }
 
-    // 3. Montar JSON final para salvar no banco
-    feedback.value = { message: 'Finalizando publicação...', type: 'info' };
-
-    let finalContent = newAnalysis.value.content;
-
-    // Substituir Placeholders pelas URLs Públicas do R2
-    for (const [placeholderId, publicUrl] of Object.entries(uploadedUrls)) {
-        if (placeholderId !== 'cover') {
-             const regex = new RegExp(placeholderId.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g');
-            finalContent = finalContent.replace(regex, publicUrl);
-        }
+    let finalContent = form.value.content;
+    for (const [id, url] of Object.entries(uploaded)) {
+      if (id !== 'cover') finalContent = finalContent.replace(new RegExp(id.replace(/[-\\^$*+?.()|[\]\\{}]/g, '\\$&'), 'g'), url);
     }
 
-    // Data automática da última atualização
-    const currentDate = new Date().toISOString();
-
-    const finalData = {
-        ...newAnalysis.value,
-        lastUpdate: currentDate,
-        content: finalContent,
-        coverImagePath: uploadedUrls['cover'] || null, 
-        documentFiles: [], 
-        dataFiles: [],
-        audioFiles: [],
-        videoFiles: []
+    const payload = {
+      ...form.value, lastUpdate: new Date().toISOString(),
+      content: finalContent, coverImagePath: uploaded['cover'] || null,
     };
+    delete payload.coverImage;
 
-    delete finalData.coverImage;
-
-    //console.log("Dados finais a serem enviados para o backend:", finalData);
-
-    // 4. Salvar Metadados no Backend
-    const response = await axios.post(`${API_BASE_URL}/api/admin/analyses`, finalData, {
-      headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
-      }
+    const { data } = await axios.post(`${API_BASE_URL}/api/admin/analyses`, payload, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     });
 
-    feedback.value = { message: response.data.message || 'Análise publicada com sucesso!', type: 'success' };
-    await resetForm();
-    isPreviewMode.value = false;
-
+    feedback.value = { message: data.message || 'Análise publicada com sucesso!', type: 'success' };
+    await reset(); isPreview.value = false;
   } catch (err) {
-    console.error(err);
     feedback.value = { message: err.response?.data?.message || err.message || 'Falha ao publicar.', type: 'error' };
   } finally {
     isLoading.value = false;
-    setTimeout(() => { feedback.value = { message: '', type: '' }; }, 7000);
+    setTimeout(() => { if (feedback.value.type !== 'error') feedback.value.message = ''; }, 6000);
   }
 };
 
-// Helper para formatar data
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR');
-};
-
-watch(isPreviewMode, async (newVal) => {
-  if (!newVal) {
-    await nextTick();
-    setTimeout(() => {
-      if (editor) { 
-        editor.layout();
-        editor.focus();
-      }
-    }, 550);
-  }
+// ── Lifecycle ─────────────────────────────────────────────────────────
+onMounted(async () => {
+  await loadDraft();
+  await nextTick();
+  initEditor();
 });
-
-watch(isDark, (newValue) => {
-  if (editor) monaco.editor.setTheme(newValue ? 'vs-dark' : 'vs');
+onBeforeUnmount(() => {
+  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
+  for (const { blobUrl } of contentMediaMap.value.values()) URL.revokeObjectURL(blobUrl);
+  if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; }
+  clearTimeout(draftTimer);
 });
 </script>
 
 <style scoped>
-/* Estilos para os novos campos */
-.char-count {
-  display: block;
-  text-align: right;
-  color: #666;
-  font-size: 0.8em;
-  margin-top: 2px;
-}
+.manager-page { padding: 1.75rem 2rem; max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+.page-title  { font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin: 0; letter-spacing: -0.5px; }
+.page-subtitle { color: var(--text-secondary); margin: 4px 0 0; font-size: 0.875rem; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-.jsonb-fields {
-  margin-top: 15px;
-}
+.autosave-indicator { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #10b981; }
 
-.tag-input-container {
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 8px;
-  min-height: 42px;
-  background: white;
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--brand-primary); color: #fff;
+  border: none; border-radius: 8px; padding: 9px 18px;
+  font-size: 0.875rem; font-weight: 700; cursor: pointer;
+  transition: all 0.15s; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
 }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 6px;
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-hover); border: 1px solid var(--border-color);
+  border-radius: 8px; padding: 8px 16px;
+  font-size: 0.875rem; font-weight: 600; color: var(--text-secondary);
+  cursor: pointer; transition: all 0.15s;
 }
+.btn-ghost:hover { border-color: var(--text-main); color: var(--text-main); }
 
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 0.9em;
-  border: 1px solid #bbdefb;
+/* Feedback */
+.feedback-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: 10px; font-size: 0.875rem; font-weight: 600;
+  border: 1px solid transparent;
 }
+.feedback-bar.success { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); color: #059669; }
+.feedback-bar.error   { background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.25);  color: #dc2626; }
+.feedback-bar.info    { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.25); color: var(--brand-primary); }
+.fb-close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.2rem; line-height: 1; color: inherit; opacity: 0.7; }
+.fb-close:hover { opacity: 1; }
 
-.city-chip {
-  background: #f3e5f5;
-  color: #7b1fa2;
-  border-color: #e1bee7;
+/* Editor layout */
+.editor-layout { display: grid; grid-template-columns: 420px 1fr; gap: 1.25rem; align-items: start; }
+.editor-left, .editor-right { display: flex; flex-direction: column; gap: 0; }
+.panel {
+  background: var(--bg-card, var(--bg-surface));
+  border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem;
 }
+.editor-panel { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 
-.tag-remove {
-  background: none;
-  border: none;
-  color: inherit;
-  margin-left: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1.1em;
-  padding: 0;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
+/* Toolbar */
+.editor-toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-bottom: 1px solid var(--border-color);
+  background: var(--bg-hover); flex-wrap: wrap; gap: 6px;
 }
-
-.tag-remove:hover {
-  background: rgba(0,0,0,0.1);
+.toolbar-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+.toolbar-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.tbr-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-card, #fff); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 5px 10px;
+  font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
+  cursor: pointer; transition: all 0.12s;
 }
+.tbr-btn:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+.tbr-btn.icon-only { padding: 5px 8px; min-width: 30px; justify-content: center; }
 
-.tag-input {
-  border: none;
-  outline: none;
-  flex: 1;
-  min-width: 120px;
-  padding: 4px;
-  font-size: 0.95em;
-}
+.monaco-wrap { height: 580px; }
 
-.field-hint {
-  color: #888;
-  font-size: 0.8em;
-  margin-top: 4px;
-  display: block;
-}
+/* Preview */
+.preview-wrap { background: #fff; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+.preview-inner { max-width: 780px; margin: 0 auto; padding: 3rem 2rem; }
+.preview-cover { width: 100%; height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 2rem; }
+.preview-cat { display: inline-block; background: rgba(99,102,241,0.1); color: var(--brand-primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; margin-bottom: 1rem; }
+.preview-title { font-size: 2.5rem; font-weight: 900; color: #0f172a; line-height: 1.1; margin: 0 0 0.5rem; }
+.preview-subtitle { font-size: 1.25rem; font-weight: 300; color: #475569; margin: 0 0 1rem; }
+.preview-meta { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; color: #64748b; flex-wrap: wrap; }
+.preview-badge { background: #fff3e0; color: #e65100; padding: 2px 10px; border-radius: 4px; font-size: 0.8em; }
+.preview-desc { font-size: 1.1rem; color: #475569; line-height: 1.6; margin: 1.5rem 0; }
+.preview-refs h3 { font-size: 1rem; color: #0f172a; margin-bottom: 0.5rem; }
+.preview-refs ul { list-style: none; padding: 0; }
+.preview-refs li a { color: var(--brand-primary); text-decoration: none; font-size: 0.875rem; }
 
-.checkbox-group {
-  display: flex;
-  gap: 20px;
-  margin-top: 10px;
-  padding: 10px;
-  background: #f5f5f5;
-  border-radius: 6px;
-}
+/* Bottom bar */
+.bottom-action-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border-color); padding: 0.75rem 1rem; z-index: 100; justify-content: space-between; align-items: center; }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  gap: 8px;
-  font-weight: normal;
-}
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.slide-down-enter-active, .slide-down-leave-active { transition: all 0.25s; }
+.slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-10px); }
 
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.label-text {
-  user-select: none;
-}
-
-.preview-nationality {
-  display: inline-block;
-  background: #fff3e0;
-  color: #e65100;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  margin-left: 8px;
+@media (max-width: 1100px) { .editor-layout { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .manager-page { padding: 1rem; padding-bottom: 80px; }
+  .bottom-action-bar { display: flex; }
+  .header-actions .btn-primary { display: none; }
+  .monaco-wrap { height: 400px; }
 }
 </style>
-
-<style src="@/assets/css/admin/addAndEditAnalisys.css"></style>
