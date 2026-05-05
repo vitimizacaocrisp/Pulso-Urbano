@@ -282,18 +282,20 @@ const loadAnalysis = async (id) => {
       return [];
     };
 
+    const safeText = (val) => typeof val === 'string' ? val : '';
+
     form.value = {
-      title:           a.title          || '',
-      subtitle:        a.subtitle       || '',
-      tag:             a.tag            || '',
-      author:          a.author         || '',
-      nationality:     a.nationality    || '',
-      studyPeriod:     a.study_period   || '',
-      source:          a.source         || '',
-      category:        a.category       || '',
-      description:     a.description   || '',
-      content:         a.content        || '',
-      referenceLinks:  a.reference_links || '',
+      title:           safeText(a.title),
+      subtitle:        safeText(a.subtitle),
+      tag:             safeText(a.tag),
+      author:          safeText(a.author),
+      nationality:     safeText(a.nationality),
+      studyPeriod:     safeText(a.study_period),
+      source:          safeText(a.source),
+      category:        safeText(a.category),
+      description:     safeText(a.description),
+      content:         safeText(a.content),
+      referenceLinks:  safeText(a.reference_links),
       with_header:     a.with_header    ?? false,
       with_footer:     a.with_footer    ?? false,
       states:          parseJsonField(a.states),
@@ -638,7 +640,7 @@ onBeforeUnmount(() => {
 .tip { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
 
 /* Editor layout */
-.editor-layout { display: grid; grid-template-columns: 420px 1fr; gap: 1.25rem; align-items: start; }
+.editor-layout { display: grid; grid-template-rows: 420px 1fr; row-gap: 5rem; align-items: center; }
 .editor-left, .editor-right { display: flex; flex-direction: column; }
 .panel {
   background: var(--bg-card); border: 1px solid var(--border-color);
@@ -715,7 +717,9 @@ onBeforeUnmount(() => {
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 
-@media (max-width: 1100px) { .editor-layout { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { 
+  .editor-layout { grid-template-columns: 1fr; }
+  button #backToTopBtn { display: none; }}
 @media (max-width: 768px) {
   .edit-page { padding: 1rem; padding-bottom: 80px; }
   .bottom-action-bar { display: flex; }

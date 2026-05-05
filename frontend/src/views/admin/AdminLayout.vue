@@ -113,20 +113,6 @@
         </router-view>
       </div>
 
-      <!-- MOBILE BOTTOM NAV -->
-      <nav class="bottom-nav">
-        <router-link :to="{ name: 'AdminDashboard' }" class="bottom-item">
-          <Icon icon="mdi:view-dashboard-outline" width="22" />
-          <span>Início</span>
-        </router-link>
-        <router-link :to="{ name: 'ContentManager' }" class="bottom-item bottom-cta">
-          <div class="cta-circle"><Icon icon="mdi:plus" width="26" /></div>
-        </router-link>
-        <router-link :to="{ name: 'EditAnalysis' }" class="bottom-item">
-          <Icon icon="mdi:file-document-multiple-outline" width="22" />
-          <span>Conteúdo</span>
-        </router-link>
-      </nav>
     </div>
   </div>
 </template>
@@ -317,15 +303,6 @@ const logout = () => {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   text-decoration: none; color: var(--text-muted); font-size: 0.65rem;
   transition: color 0.2s;
-}
-.bottom-item.router-link-active { color: var(--brand-primary); }
-.bottom-cta { position: relative; top: -16px; }
-.cta-circle {
-  width: 52px; height: 52px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-hover, #4f46e5));
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 16px rgba(99,102,241,0.4);
-  border: 3px solid var(--bg-body);
 }
 
 /* Transitions */

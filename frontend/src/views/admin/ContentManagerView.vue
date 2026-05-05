@@ -448,7 +448,7 @@ onBeforeUnmount(() => {
 .fb-close:hover { opacity: 1; }
 
 /* Editor layout */
-.editor-layout { display: grid; grid-template-columns: 420px 1fr; gap: 1.25rem; align-items: start; }
+.editor-layout { display: grid; grid-template-rows: 420px 1fr; row-gap: 5rem; align-items: center; }
 .editor-left, .editor-right { display: flex; flex-direction: column; gap: 0; }
 .panel {
   background: var(--bg-card, var(--bg-surface));
@@ -498,11 +498,15 @@ onBeforeUnmount(() => {
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.25s; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-10px); }
 
-@media (max-width: 1100px) { .editor-layout { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { 
+  .editor-layout { grid-template-columns: 1fr; } 
+  button #backToTopBtn { display: none; }
+}
 @media (max-width: 768px) {
   .manager-page { padding: 1rem; padding-bottom: 80px; }
   .bottom-action-bar { display: flex; }
   .header-actions .btn-primary { display: none; }
   .monaco-wrap { height: 400px; }
 }
+
 </style>

@@ -364,7 +364,7 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
        tag, author, description, content, reference_links,
        cover_image_path, nationality, states, cities, with_header, with_footer)
     VALUES
-      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category},
+      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category ? JSON.stringify(states) : null},
        ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
        ${coverImagePath}, ${nationality}, ${states ? JSON.stringify(states) : null}, ${cities ? JSON.stringify(cities) : null}, ${with_header}, ${with_footer})
     RETURNING id

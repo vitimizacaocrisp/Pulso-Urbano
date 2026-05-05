@@ -142,19 +142,19 @@ const results = computed(() => {
   return allAnalyses.value
     .map(a => {
       let score = 0;
-      const id   = String(a.id).toLowerCase();
-      const title = (a.title || '').toLowerCase();
-      const author = (a.author || '').toLowerCase();
-      const tag   = (a.tag || '').toLowerCase();
-      const cat   = (a.category || '').toLowerCase();
+      const id     = String(a.id).toLowerCase();
+      const title  = String(a.title || '').toLowerCase();
+      const author = String(a.author || '').toLowerCase();
+      const tag    = String(a.tag || '').toLowerCase();
+      const cat    = String(a.category || '').toLowerCase();
 
-      if (id === q)        score += 100;
-      if (title === q)     score += 80;
-      if (title.startsWith(q)) score += 50;
-      if (title.includes(q))   score += 20;
-      if (cat.includes(q))     score += 10;
-      if (tag.includes(q))     score += 8;
-      if (author.includes(q))  score += 6;
+      if (id === q)             score += 100;
+      if (title === q)          score += 80;
+      if (title.startsWith(q))  score += 50;
+      if (title.includes(q))    score += 20;
+      if (cat.includes(q))      score += 10;
+      if (tag.includes(q))      score += 8;
+      if (author.includes(q))   score += 6;
 
       return { ...a, _score: score };
     })
