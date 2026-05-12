@@ -26,7 +26,7 @@
             <div class="featured-grid">
               <figure class="featured-image-wrapper">
                 <img :src="getFullMediaPath(dailyHighlight.data.cover_image_path)" alt="Imagem de capa do destaque">
-                <router-link :to="`/categoria/${dailyHighlight.data.category?.toLowerCase()}`" class="category-badge-overlay">
+                <router-link :to="`/categoria/${dailyHighlight.data.category?.toLowerCase?.() || 'outros'}`" class="category-badge-overlay">
                   {{ dailyHighlight.data.category }}
                 </router-link>
               </figure>
