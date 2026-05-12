@@ -640,7 +640,7 @@ onBeforeUnmount(() => {
 .tip { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
 
 /* Editor layout */
-.editor-layout { display: grid; grid-template-rows: 420px 1fr; row-gap: 5rem; align-items: center; }
+.editor-layout { display: grid; grid-template-columns: 1fr 1fr; column-gap: 5rem; row-gap: 2rem; align-items: start; }
 .editor-left, .editor-right { display: flex; flex-direction: column; }
 .panel {
   background: var(--bg-card); border: 1px solid var(--border-color);
@@ -717,13 +717,47 @@ onBeforeUnmount(() => {
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 
-@media (max-width: 1100px) { 
-  .editor-layout { grid-template-columns: 1fr; }
-  button #backToTopBtn { display: none; }}
+@media (max-width: 1200px) {
+  .editor-layout { column-gap: 2rem; }
+  .editor-toolbar { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 1024px) { 
+  .editor-layout { grid-template-columns: 1fr; column-gap: 0; row-gap: 3rem; }
+  .monaco-wrap { height: 500px; }
+}
+
 @media (max-width: 768px) {
-  .edit-page { padding: 1rem; padding-bottom: 80px; }
+  .edit-page { padding: 1rem; padding-bottom: 85px; gap: 1rem; }
+  .page-header { flex-direction: column; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
   .bottom-action-bar { display: flex; }
-  .header-actions .btn-primary, .header-actions .btn-ghost, .header-actions .btn-danger-ghost { display: none; }
-  .monaco-wrap { height: 400px; }
+  .header-actions .btn-primary { display: inline-flex; }
+  .header-actions .btn-ghost { display: inline-flex; }
+  .header-actions .btn-danger-ghost { display: inline-flex; }
+  .id-badge { display: none; }
+  .editor-layout { row-gap: 2rem; }
+  .panel { padding: 1rem; }
+  .editor-toolbar { padding: 8px 10px; }
+  .toolbar-label { font-size: 0.7rem; }
+  .tbr-btn { padding: 4px 8px; font-size: 0.7rem; }
+  .monaco-wrap { height: 350px; }
+  .search-section { padding: 1rem; }
+  .search-section-header { font-size: 0.8rem; }
+}
+
+@media (max-width: 480px) {
+  .edit-page { padding: 0.75rem; padding-bottom: 85px; }
+  .page-title { font-size: 1.25rem; }
+  .page-subtitle { font-size: 0.75rem; }
+  .header-actions { gap: 6px; }
+  .btn-primary, .btn-ghost, .btn-danger-ghost { padding: 7px 12px; font-size: 0.75rem; }
+  .monaco-wrap { height: 300px; }
+  .panel { padding: 0.75rem; }
+  .editor-toolbar { padding: 6px 8px; }
+  .tbr-btn { padding: 3px 6px; font-size: 0.65rem; }
+  .tbr-btn.icon-only { min-width: 26px; padding: 3px 6px; }
+  .toolbar-label { display: none; }
+  .bottom-action-bar { padding: 0.5rem; }
 }
 </style>
