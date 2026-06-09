@@ -3,19 +3,19 @@
     <div class="modal-window fade-in-up">
       <header class="modal-header">
         <div class="header-title">
-             <i class="fas fa-chart-bar icon"></i>
+             <Icon icon="mdi:chart-bar" class="icon" />
              <h3>Visualização de Dados</h3>
         </div>
         <p class="file-name">{{ file.name }}</p>
         <button class="close-btn" @click="$emit('close')" aria-label="Fechar">
-            <i class="fas fa-times"></i>
+            <Icon icon="mdi:close" />
         </button>
       </header>
 
       <div class="modal-body">
         <!-- Seção de Gráfico -->
         <div class="viz-section">
-            <h4 class="section-title"><i class="fas fa-chart-pie"></i> Análise Gráfica</h4>
+            <h4 class="section-title"><Icon icon="mdi:chart-pie" /> Análise Gráfica</h4>
             
             <div v-if="chartData" class="chart-container">
               <Bar :data="chartData" :options="chartOptions" />
@@ -27,7 +27,7 @@
             </div>
             
             <div v-else-if="parsingError" class="state-box error">
-              <i class="fas fa-exclamation-triangle"></i>
+              <Icon icon="mdi:alert" />
               {{ parsingError }}
             </div>
         </div>
@@ -36,7 +36,7 @@
 
         <!-- Seção de Tabela -->
         <div class="viz-section">
-            <h4 class="section-title"><i class="fas fa-table"></i> Dados Tabulares</h4>
+            <h4 class="section-title"><Icon icon="mdi:table" /> Dados Tabulares</h4>
             <div class="table-wrapper">
                 <DataTableViewer :file="file" @data-parsed="onDataParsed" />
             </div>
@@ -48,6 +48,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { Icon } from '@iconify/vue';
 import DataTableViewer from './DataTableViewer.vue';
 import { Bar } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
@@ -100,7 +101,7 @@ const onDataParsed = ({ headers, rows }) => {
       labels: rows.slice(0, 30).map(row => row[labelHeader] || "N/A"),
       datasets: [{
         label: dataHeader,
-        backgroundColor: '#6366f1', // Mantive hardcoded pois ChartJS precisa de cor
+        backgroundColor: 'var(--brand-primary)', // Mantive hardcoded pois ChartJS precisa de cor
         borderRadius: 4,
         data: rows.slice(0, 30).map(row => parseFloat(row[dataHeader]) || 0),
       }],

@@ -18,14 +18,14 @@
             <h3>Canais de Atendimento</h3>
             <ul class="contact-list">
               <li>
-                <div class="icon-box"><i class="fas fa-envelope"></i></div>
+                <div class="icon-box"><Icon icon="mdi:email" /></div>
                 <div class="info-text">
                   <span class="label">Email</span>
                   <a href="mailto:contato@pulsourbano.org" class="link">contato@pulsourbano.org</a>
                 </div>
               </li>
               <li>
-                <div class="icon-box"><i class="fas fa-map-marker-alt"></i></div>
+                <div class="icon-box"><Icon icon="mdi:map-marker" /></div>
                 <div class="info-text">
                   <span class="label">Localização</span>
                   <span class="value">Belo Horizonte, MG, Brasil</span>
@@ -36,10 +36,10 @@
             <div class="social-section">
               <h4>Siga-nos</h4>
               <div class="social-icons">
-                <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-                <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                <a href="#" aria-label="Facebook"><Icon icon="mdi:facebook" /></a>
+                <a href="#" aria-label="Twitter"><Icon icon="mdi:twitter" /></a>
+                <a href="#" aria-label="Instagram"><Icon icon="mdi:instagram" /></a>
+                <a href="#" aria-label="YouTube"><Icon icon="mdi:youtube" /></a>
               </div>
             </div>
           </div>
@@ -70,7 +70,7 @@
               <div class="form-group">
                 <label for="name">Nome Completo</label>
                 <div class="input-wrapper">
-                    <i class="fas fa-user input-icon"></i>
+                    <Icon icon="mdi:account" class="input-icon" />
                     <input type="text" id="name" v-model="form.name" placeholder="Seu nome" required>
                 </div>
               </div>
@@ -78,7 +78,7 @@
               <div class="form-group">
                 <label for="email">Email</label>
                 <div class="input-wrapper">
-                    <i class="fas fa-at input-icon"></i>
+                    <Icon icon="mdi:at" class="input-icon" />
                     <input type="email" id="email" v-model="form.email" placeholder="seu@email.com" required>
                 </div>
               </div>
@@ -86,7 +86,7 @@
               <div class="form-group">
                 <label for="subject">Assunto</label>
                 <div class="input-wrapper">
-                    <i class="fas fa-tag input-icon"></i>
+                    <Icon icon="mdi:tag" class="input-icon" />
                     <input type="text" id="subject" v-model="form.subject" placeholder="Sobre o que quer falar?">
                 </div>
               </div>
@@ -97,13 +97,13 @@
               </div>
 
               <div v-if="submissionStatus.message" :class="['submission-status', submissionStatus.type]">
-                <i :class="submissionStatus.type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle'"></i>
+                <Icon :icon="submissionStatus.type === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle'" />
                 {{ submissionStatus.message }}
               </div>
 
               <button type="submit" class="btn-submit" :disabled="isSubmitting">
-                <span v-if="isSubmitting"><i class="fas fa-spinner fa-spin"></i> Enviando...</span>
-                <span v-else>Enviar Mensagem <i class="fas fa-paper-plane"></i></span>
+                <span v-if="isSubmitting"><Icon icon="svg-spinners:ring-resize" /> Enviando...</span>
+                <span v-else>Enviar Mensagem <Icon icon="mdi:send" /></span>
               </button>
             </form>
           </div>
@@ -116,8 +116,15 @@
 
 <script setup>
 import { reactive, ref, onMounted, onUnmounted } from 'vue';
+import { Icon } from '@iconify/vue';
+import emailjs from '@emailjs/browser';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
+
+// Credenciais do EmailJS (definidas no .env.local — ver .env.example).
+const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
 const form = reactive({
   name: '',
@@ -167,12 +174,35 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
   submissionStatus.value = { message: '', type: '' };
 
+  // Sem credenciais configuradas, evita uma falha silenciosa.
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    submissionStatus.value = {
+      message: 'Envio de e-mail ainda não configurado. Defina as variáveis VITE_EMAILJS_* no .env.',
+      type: 'error'
+    };
+    isSubmitting.value = false;
+    return;
+  }
+
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Parâmetros disponíveis no template do EmailJS como {{from_name}}, {{reply_to}}, {{subject}}, {{message}}.
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      {
+        from_name: form.name,
+        reply_to:  form.email,
+        subject:   form.subject || 'Contato pelo site Pulso Urbano',
+        message:   form.message,
+      },
+      { publicKey: EMAILJS_PUBLIC_KEY }
+    );
+
     submissionStatus.value = { message: 'Mensagem enviada com sucesso! Obrigado pelo contato.', type: 'success' };
     form.name = ''; form.email = ''; form.subject = ''; form.message = '';
   } catch (error) {
-    submissionStatus.value = { message: 'Erro ao enviar. Tente novamente.', type: 'error' };
+    console.error('EmailJS error:', error);
+    submissionStatus.value = { message: 'Erro ao enviar. Tente novamente em instantes.', type: 'error' };
   } finally {
     isSubmitting.value = false;
   }
@@ -187,8 +217,9 @@ const handleSubmit = async () => {
 
 /* Header Compacto e Moderno */
 .contact-header {
-    background-color: var(--bg-header); /* Usa a variável escura padrão */
-    color: white;
+    /* Banner cobalt fixo — texto branco legível em qualquer tema */
+    background: linear-gradient(135deg, #1d39c4 0%, #2f54eb 100%);
+    color: #ffffff;
     padding: 4rem 1.5rem 6rem;
     text-align: center;
     margin-bottom: -3rem;
@@ -197,10 +228,11 @@ const handleSubmit = async () => {
     font-size: 2.5rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
+    color: #ffffff;
 }
 .header-content p {
     font-size: 1.1rem;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.85);
     max-width: 600px;
     margin: 0 auto;
 }
@@ -338,7 +370,7 @@ const handleSubmit = async () => {
     outline: none;
     border-color: var(--brand-primary);
     background-color: var(--bg-card);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(47, 84, 235, 0.1);
 }
 
 .btn-submit {

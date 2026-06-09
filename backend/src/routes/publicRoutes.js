@@ -3,8 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const router  = express.Router();
 const { asyncHandler } = require('../middleware/middlewares');
+const { loginRateLimiter } = require('../middleware/rateLimiter');
 const { testConnection }     = require('../db/dbConnect');
-const { testConnectionData } = require('../middleware/s3Connection');
+const { testConnectionData } = require('../services/storage');
 const { sql } = require('../db/dbConnect');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
@@ -12,19 +13,9 @@ const jwt     = require('jsonwebtoken');
 
 const safeJson = (val) => JSON.stringify(val || []);
 
-// ─────────────────────────────────────────────────────────────────────
-// Cache leve server-side (mesmo padrão do adminRoutes)
-// ─────────────────────────────────────────────────────────────────────
-const serverCache = new Map();
-function sGet(key) {
-  const e = serverCache.get(key);
-  if (!e) return null;
-  if (Date.now() > e.expiresAt) { serverCache.delete(key); return null; }
-  return e.data;
-}
-function sSet(key, data, ttlMs) {
-  serverCache.set(key, { data, expiresAt: Date.now() + ttlMs });
-}
+// Cache server-side compartilhado (Upstash Redis com fallback em memória)
+const { cacheGet, cacheSet } = require('../cache/serverCache');
+
 const TTL_SHORT = 30_000;       // 30 s — highlight, lista paginada
 const TTL_LONG  = 5 * 60_000;  // 5 min — análise individual
 
@@ -37,6 +28,12 @@ router.get('/', async (req, res) => {
   res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' });
 });
 
+// Health check leve (sem tocar DB/R2) — ideal para keep-alive/monitoramento.
+// Mantém o backend "quente" e reduz o cold start sem custo de round-trips.
+router.get('/health', (req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 // ─────────────────────────────────────────────────────────────────────
 // NOVA ROTA: Destaque do dia (análise mais recente com imagem)
 // Substitui a chamada de /api/analyses-list feita pelo HomeView
@@ -44,7 +41,7 @@ router.get('/', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────
 router.get('/api/highlight', asyncHandler(async (req, res) => {
   const cacheKey = 'public:highlight';
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`
@@ -60,7 +57,7 @@ router.get('/api/highlight', asyncHandler(async (req, res) => {
   }
 
   const payload = { success: true, data: results[0] };
-  sSet(cacheKey, payload, TTL_SHORT);
+  await cacheSet(cacheKey, payload, TTL_SHORT);
   res.json(payload);
 }));
 
@@ -72,7 +69,7 @@ router.get('/api/highlight', asyncHandler(async (req, res) => {
 // No arquivo publicRoutes.js
 router.get('/api/categories', asyncHandler(async (req, res) => {
   const cacheKey = 'public:categories';
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`
@@ -96,7 +93,7 @@ router.get('/api/categories', asyncHandler(async (req, res) => {
     }))
   };
   
-  sSet(cacheKey, payload, TTL_LONG);
+  await cacheSet(cacheKey, payload, TTL_LONG);
   res.json(payload);
 }));
 
@@ -106,7 +103,7 @@ router.get('/api/categories', asyncHandler(async (req, res) => {
 router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const cacheKey = `public:analysis:${id}`;
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`
@@ -123,7 +120,7 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
   }
 
   const payload = { success: true, data: results[0] };
-  sSet(cacheKey, payload, TTL_LONG);
+  await cacheSet(cacheKey, payload, TTL_LONG);
   res.json(payload);
 }));
 
@@ -134,7 +131,7 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
 router.get('/api/analyses-list', asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, category, sort = 'date_desc' } = req.query;
   const cacheKey = `public:list:${JSON.stringify(req.query)}`;
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const whereClauses = [];
@@ -169,24 +166,58 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
     success: true,
     data: { analyses, total: parseInt(totalResult[0].count, 10) }
   };
-  sSet(cacheKey, payload, TTL_SHORT);
+  await cacheSet(cacheKey, payload, TTL_SHORT);
   res.json(payload);
 }));
 
 // ─────────────────────────────────────────────────────────────────────
-// Autenticação Admin
+// Autenticação Admin — credenciais validadas contra a tabela `admins`
 // ─────────────────────────────────────────────────────────────────────
-router.post('/admin-auth', asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  const isAdminEmail       = email === process.env.ADMIN_EMAIL;
-  const isPasswordCorrect  = await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH);
+router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
+  const { email, password, rememberMe } = req.body;
+  const remember = rememberMe !== false; // default true se omitido
 
-  if (!isAdminEmail || !isPasswordCorrect) {
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios.' });
+  }
+
+  const rows = await sql`
+    SELECT id, email, password_hash
+    FROM admins
+    WHERE email = ${email} AND is_active = TRUE
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
     return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
   }
 
-  const token = jwt.sign({ email: process.env.ADMIN_EMAIL }, process.env.JWT_SECRET, { expiresIn: '168h' });
-  res.json({ success: true, message: 'Login bem-sucedido!', token });
+  const admin = rows[0];
+  const isPasswordCorrect = await bcrypt.compare(password, admin.password_hash);
+
+  if (!isPasswordCorrect) {
+    return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+  }
+
+  const token = jwt.sign(
+    { id: admin.id, email: admin.email },
+    process.env.JWT_SECRET,
+    { expiresIn: remember ? '168h' : '12h' }
+  );
+
+  // Token vai num cookie httpOnly — inacessível ao JavaScript (mitiga XSS).
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // só HTTPS em produção
+    sameSite: 'lax',                               // same-origin via proxy
+  };
+  // "Lembrar-me": cookie persistente (7 dias). Sem: cookie de sessão
+  // (expira ao fechar o navegador).
+  if (remember) cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+
+  res.cookie('authToken', token, cookieOptions);
+
+  res.json({ success: true, message: 'Login bem-sucedido!' });
 }));
 
 module.exports = router;

@@ -15,7 +15,7 @@
                 <!-- Seção Missão -->
                 <section class="card-modern scroll-reveal delay-1">
                     <div class="card-icon">
-                        <i class="fas fa-bullseye"></i>
+                        <Icon icon="mdi:bullseye-arrow" width="22" />
                     </div>
                     <div class="card-content">
                         <h3>Nossa Missão</h3>
@@ -27,7 +27,7 @@
                 <!-- Seção Visão/Contexto -->
                 <section class="card-modern scroll-reveal delay-2">
                     <div class="card-icon">
-                        <i class="fas fa-eye"></i>
+                        <Icon icon="mdi:eye" width="22" />
                     </div>
                     <div class="card-content">
                         <h3>A Cifra Oculta</h3>
@@ -39,7 +39,7 @@
                 <!-- Seção Metodologia -->
                 <section class="card-modern scroll-reveal delay-3">
                     <div class="card-icon">
-                        <i class="fas fa-chart-network"></i>
+                        <Icon icon="mdi:graph-outline" width="22" />
                     </div>
                     <div class="card-content">
                         <h3>Metodologia Rigorosa</h3>
@@ -56,7 +56,7 @@
                             <p>Este projeto é desenvolvido em estreita colaboração com o <strong>CRISP - Centro de Estudos de Criminalidade e Segurança Pública da UFMG</strong>, uma referência nacional em pesquisas na área.</p>
                         </div>
                         <div class="partner-logo-placeholder">
-                            <i class="fas fa-university"></i>
+                            <Icon icon="mdi:school" width="22" />
                             <span>UFMG / CRISP</span>
                         </div>
                     </div>
@@ -69,6 +69,7 @@
 
 <script setup>
 import { onMounted } from 'vue';
+import { Icon } from '@iconify/vue';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 

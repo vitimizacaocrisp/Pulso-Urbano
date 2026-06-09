@@ -5,15 +5,23 @@
       <div class="divider"></div>
     </div>
 
-    <div v-if="isLoading" class="state-container">
-      <div class="spinner"></div>
-      <p>A atualizar feed...</p>
+    <div v-if="isLoading" class="posts-grid">
+      <article v-for="n in 6" :key="'sk' + n" class="post-card skeleton-card">
+        <div class="card-image-wrapper"><div class="sk-shimmer sk-img"></div></div>
+        <div class="card-content">
+          <div class="sk-shimmer sk-meta"></div>
+          <div class="sk-shimmer sk-title"></div>
+          <div class="sk-shimmer sk-title sk-short"></div>
+          <div class="sk-shimmer sk-text"></div>
+          <div class="sk-shimmer sk-text sk-short"></div>
+        </div>
+      </article>
     </div>
     <div v-else-if="error" class="state-container error">
-      <i class="fas fa-exclamation-circle"></i> {{ error }}
+      <Icon icon="mdi:alert-circle" /> {{ error }}
     </div>
     <div v-else-if="posts.length === 0" class="state-container empty">
-      <i class="far fa-newspaper"></i>
+      <Icon icon="mdi:newspaper-variant-outline" width="32" />
       <p>Nenhuma publicação encontrada no momento.</p>
     </div>
 
@@ -53,12 +61,14 @@
 
 <script>
 import axios from 'axios';
+import { Icon } from '@iconify/vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export default {
   name: 'RecentPosts',
+  components: { Icon },
   props: {
     postCount: { type: Number, required: true, default: 6 },
     category:  { type: String, default: null }
@@ -155,7 +165,23 @@ export default {
 .description { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: auto; }
 .tag-pill { background-color: var(--bg-hover); color: var(--text-secondary); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; transition: background 0.2s; }
-.post-card:hover .tag-pill { background-color: rgba(99,102,241,0.1); color: var(--brand-primary); }
+.post-card:hover .tag-pill { background-color: rgba(47, 84, 235,0.1); color: var(--brand-primary); }
+
+/* ── Skeleton ── */
+.skeleton-card { pointer-events: none; }
+.sk-shimmer {
+  display: block;
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border-color) 37%, var(--bg-hover) 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+  animation: sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.sk-img   { width: 100%; height: 200px; border-radius: 0; }
+.sk-meta  { width: 60%; height: 12px; margin-bottom: 14px; }
+.sk-title { height: 18px; margin-bottom: 10px; }
+.sk-text  { height: 12px; margin-bottom: 8px; }
+.sk-short { width: 55%; }
 .state-container { padding: 3rem; text-align: center; background: var(--bg-hover); border-radius: var(--radius-lg); color: var(--text-secondary); }
 .state-container.error { color: var(--sys-danger); }
 .state-container i { font-size: 2rem; margin-bottom: 1rem; display: block; }

@@ -2,26 +2,17 @@ import { createRouter, createWebHistory } from "vue-router";
 import { ref } from 'vue';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const isRouteLoading = ref(false);
 
 const checkAuthStatus = async () => {
-  const token = localStorage.getItem('authToken');
-  if (!token) {
-    return false;
-  }
-  
+  // O token vive num cookie httpOnly, enviado automaticamente (withCredentials).
   try {
-    // A URL completa da API deve ser configurada globalmente no Axios ou vir de variáveis de ambiente
-    await axios.get(API_BASE_URL + '/api/admin/verify-token', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return true; // Token é válido.
+    await axios.get(API_BASE_URL + '/api/admin/verify-token');
+    return true; // Cookie válido.
   } catch (error) {
-    console.error("Token inválido ou expirado. Removendo...");
-    localStorage.removeItem('authToken'); // Limpa o token inválido.
-    return false;
+    return false; // Sem cookie, inválido ou expirado.
   }
 };
 
@@ -133,12 +124,9 @@ router.beforeEach(async (to, from, next) => {
      EVITA LOGIN DUPLICADO
   ───────────────────────────── */
   if (to.name === 'AdminLogin') {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      const isAuth = await checkAuthStatus();
-      if (isAuth) {
-        return next({ name: 'AdminDashboard' });
-      }
+    const isAuth = await checkAuthStatus();
+    if (isAuth) {
+      return next({ name: 'AdminDashboard' });
     }
   }
 

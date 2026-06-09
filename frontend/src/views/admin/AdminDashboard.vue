@@ -12,10 +12,25 @@
       </router-link>
     </div>
 
-    <!-- Loading -->
-    <div v-if="isLoading" class="loading-screen">
-      <div class="spinner"></div>
-      <p>Sincronizando dados...</p>
+    <!-- Loading (skeleton) -->
+    <div v-if="isLoading">
+      <div class="kpi-row">
+        <div v-for="n in 3" :key="'k' + n" class="kpi-card skeleton-card">
+          <div class="kpi-left">
+            <span class="sk-shimmer sk-l1"></span>
+            <span class="sk-shimmer sk-l2"></span>
+            <span class="sk-shimmer sk-l3"></span>
+          </div>
+          <div class="sk-shimmer sk-kpi-icon"></div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="panel skeleton-card"><div class="sk-shimmer sk-block sk-chart"></div></div>
+        <div class="side-stack">
+          <div class="panel skeleton-card"><div class="sk-shimmer sk-block sk-side"></div></div>
+          <div class="panel skeleton-card"><div class="sk-shimmer sk-block sk-side"></div></div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -39,17 +54,31 @@
       <!-- Main grid -->
       <div class="dash-grid">
 
-        <!-- Chart -->
-        <div class="panel chart-panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">Publicações</h2>
-              <p class="panel-sub">Últimos 6 meses</p>
+        <!-- Charts (coluna esquerda) -->
+        <div class="chart-col">
+          <div class="panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Publicações</h2>
+                <p class="panel-sub">Últimos 6 meses</p>
+              </div>
+              <span class="badge-pill">{{ totalPublications }} total</span>
             </div>
-            <span class="badge-pill">{{ totalPublications }} total</span>
+            <div class="chart-wrap">
+              <canvas ref="chartCanvas"></canvas>
+            </div>
           </div>
-          <div class="chart-wrap">
-            <canvas ref="chartCanvas"></canvas>
+
+          <div class="panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Distribuição por Categoria</h2>
+                <p class="panel-sub">Top {{ categories.length }} categorias</p>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap-doughnut">
+              <canvas ref="catChartCanvas"></canvas>
+            </div>
           </div>
         </div>
 
@@ -118,15 +147,18 @@ import { Icon } from '@iconify/vue';
 import axios from 'axios';
 import Chart from 'chart.js/auto';
 
-const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 const router  = useRouter();
 
 const isLoading      = ref(true);
 const error          = ref(null);
 const recentAnalyses = ref([]);
+const categories     = ref([]);
 const stats          = ref({ totalAnalyses: 0, newThisMonth: 0, uniqueTags: 0 });
 const chartCanvas    = ref(null);
+const catChartCanvas = ref(null);
 let chartInstance    = null;
+let catChartInstance = null;
 
 const totalPublications = computed(() => stats.value.totalAnalyses || 0);
 
@@ -151,17 +183,15 @@ const kpiCards = computed(() => [
 const fetchData = async () => {
   isLoading.value = true;
   error.value = null;
-  const token = localStorage.getItem('authToken');
-  if (!token) { router.push({ name: 'AdminLogin' }); return; }
 
   try {
-    const { data } = await axios.get(`${API_URL}/api/admin/dashboard-data`, {
-      headers: { Authorization: `Bearer ${token}` }, timeout: 15000
-    });
+    // Auth via cookie httpOnly (withCredentials global).
+    const { data } = await axios.get(`${API_URL}/api/admin/dashboard-data`, { timeout: 15000 });
     const d = data.data;
     stats.value          = d.stats;
     recentAnalyses.value = d.recentAnalyses;
-    setTimeout(() => buildChart(d.chartData), 80);
+    categories.value     = d.categories || [];
+    setTimeout(() => { buildChart(d.chartData); buildCatChart(categories.value); }, 80);
   } catch (err) {
     if (err.response?.status === 401) {
       router.push({ name: 'AdminLogin' });
@@ -194,13 +224,13 @@ const buildChart = (chartData) => {
           data: chartData.data,
           backgroundColor: (ctx) => {
             const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280);
-            g.addColorStop(0, 'rgba(99,102,241,0.85)');
-            g.addColorStop(1, 'rgba(99,102,241,0.15)');
+            g.addColorStop(0, 'rgba(47, 84, 235,0.85)');
+            g.addColorStop(1, 'rgba(47, 84, 235,0.15)');
             return g;
           },
           borderRadius: 6,
           borderSkipped: false,
-          borderColor: 'rgba(99,102,241,0.9)',
+          borderColor: 'rgba(47, 84, 235,0.9)',
           borderWidth: 0,
         }
       ]
@@ -233,8 +263,47 @@ const buildChart = (chartData) => {
   });
 };
 
+const buildCatChart = (cats) => {
+  const ctx = catChartCanvas.value;
+  if (!ctx) return;
+  if (catChartInstance) catChartInstance.destroy();
+  if (!cats || cats.length === 0) return;
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#cbd5e1' : '#475569';
+  const palette = ['#2f54eb', '#0ea5a4', '#d6336c', '#f59f00', '#7048e8', '#1c7ed6'];
+
+  catChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: cats.map(c => c.name || '—'),
+      datasets: [{
+        data: cats.map(c => c.count),
+        backgroundColor: cats.map((_, i) => palette[i % palette.length]),
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 10 } },
+        tooltip: {
+          backgroundColor: isDark ? '#1e293b' : '#0f172a',
+          titleColor: '#fff', bodyColor: '#94a3b8', padding: 10, cornerRadius: 8,
+        }
+      },
+      animation: { duration: 600 }
+    }
+  });
+};
+
 onMounted(fetchData);
-onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
+onBeforeUnmount(() => {
+  if (chartInstance) chartInstance.destroy();
+  if (catChartInstance) catChartInstance.destroy();
+});
 </script>
 
 <style scoped>
@@ -258,7 +327,7 @@ onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
   background: var(--brand-primary); color: #fff;
   padding: 0.65rem 1.25rem; border-radius: 8px;
   font-weight: 600; font-size: 0.9rem; text-decoration: none;
-  transition: all 0.2s; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+  transition: all 0.2s; box-shadow: 0 2px 8px rgba(47, 84, 235,0.3);
 }
 .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
@@ -287,7 +356,9 @@ onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 .kpi-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 /* Grid */
-.dash-grid { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; }
+.dash-grid { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; align-items: start; }
+.chart-col { display: flex; flex-direction: column; gap: 1.5rem; }
+.chart-wrap-doughnut { height: 240px; }
 
 /* Panels */
 .panel {
@@ -319,8 +390,8 @@ onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 }
 .qa-btn.primary  { background: var(--brand-primary); color: #fff; }
 .qa-btn.primary:hover { filter: brightness(1.08); }
-.qa-btn.secondary { background: rgba(99,102,241,0.1); color: var(--brand-primary); }
-.qa-btn.secondary:hover { background: rgba(99,102,241,0.18); }
+.qa-btn.secondary { background: rgba(47, 84, 235,0.1); color: var(--brand-primary); }
+.qa-btn.secondary:hover { background: rgba(47, 84, 235,0.18); }
 .qa-btn.ghost    { background: var(--bg-hover); color: var(--text-secondary); }
 .qa-btn.ghost:hover { color: var(--text-main); }
 
@@ -341,6 +412,25 @@ onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 .item-edit:hover { color: var(--brand-primary); }
 .empty-list { color: var(--text-muted); font-size: 0.875rem; padding: 1rem 0; text-align: center; }
 .alert-error { color: #ef4444; font-size: 0.875rem; }
+
+/* ── Categorias ── */
+/* ── Skeleton ── */
+.skeleton-card { pointer-events: none; }
+.sk-shimmer {
+  display: block;
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border-color) 37%, var(--bg-hover) 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+  animation: sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.sk-l1 { width: 55%; height: 12px; display: block; }
+.sk-l2 { width: 40%; height: 26px; display: block; margin: 12px 0; }
+.sk-l3 { width: 50%; height: 10px; display: block; }
+.sk-kpi-icon { width: 46px; height: 46px; border-radius: 12px; }
+.sk-block { width: 100%; border-radius: 8px; }
+.sk-chart { height: 300px; }
+.sk-side  { height: 150px; }
 
 /* Responsive */
 @media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } .side-stack { display: grid; grid-template-columns: 1fr 1fr; } }

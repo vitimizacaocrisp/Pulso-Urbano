@@ -103,7 +103,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue', 'select']);
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const query           = ref('');
 const allAnalyses     = ref([]);
@@ -235,7 +235,7 @@ watch(() => props.modelValue, (v) => { selectedAnalysis.value = v; });
 }
 .search-header:focus-within {
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
+  box-shadow: 0 0 0 4px rgba(47, 84, 235,0.12);
 }
 .search-icon-wrap {
   padding: 0 12px; color: var(--text-muted); flex-shrink: 0;
@@ -277,14 +277,14 @@ watch(() => props.modelValue, (v) => { selectedAnalysis.value = v; });
 .result-item:hover, .result-item.focused { background: var(--bg-hover); }
 .result-thumb {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
-  background: rgba(99,102,241,0.1); color: var(--brand-primary);
+  background: rgba(47, 84, 235,0.1); color: var(--brand-primary);
   display: flex; align-items: center; justify-content: center;
 }
 .result-body { flex: 1; min-width: 0; }
 .result-title { font-size: 0.9rem; font-weight: 600; color: var(--text-main); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.result-title :deep(mark) { background: rgba(99,102,241,0.2); color: var(--brand-primary); border-radius: 2px; }
+.result-title :deep(mark) { background: rgba(47, 84, 235,0.2); color: var(--brand-primary); border-radius: 2px; }
 .result-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
-.result-cat   { font-size: 0.72rem; background: rgba(99,102,241,0.1); color: var(--brand-primary); padding: 1px 7px; border-radius: 4px; font-weight: 600; }
+.result-cat   { font-size: 0.72rem; background: rgba(47, 84, 235,0.1); color: var(--brand-primary); padding: 1px 7px; border-radius: 4px; font-weight: 600; }
 .result-sep   { color: var(--text-muted); font-size: 0.72rem; }
 .result-author { font-size: 0.72rem; color: var(--text-secondary); }
 .result-id    { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; margin-left: auto; }
@@ -318,7 +318,7 @@ watch(() => props.modelValue, (v) => { selectedAnalysis.value = v; });
 .sc-id { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; }
 .sc-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.sc-cat  { font-size: 0.72rem; background: rgba(99,102,241,0.1); color: var(--brand-primary); padding: 1px 7px; border-radius: 4px; font-weight: 600; }
+.sc-cat  { font-size: 0.72rem; background: rgba(47, 84, 235,0.1); color: var(--brand-primary); padding: 1px 7px; border-radius: 4px; font-weight: 600; }
 .sc-author, .sc-source { font-size: 0.72rem; color: var(--text-secondary); }
 .sc-change {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -327,7 +327,7 @@ watch(() => props.modelValue, (v) => { selectedAnalysis.value = v; });
   cursor: pointer; font-size: 0.72rem; font-weight: 600;
   transition: background 0.15s, color 0.15s;
 }
-.sc-change:hover { background: rgba(99,102,241,0.08); color: var(--brand-primary); }
+.sc-change:hover { background: rgba(47, 84, 235,0.08); color: var(--brand-primary); }
 
 /* Transitions */
 .drop-fade-enter-active, .drop-fade-leave-active { transition: opacity 0.15s, transform 0.15s; }

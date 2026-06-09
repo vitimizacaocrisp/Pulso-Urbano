@@ -7,7 +7,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "build": "echo \"No build step defined\""
@@ -27,7 +27,10 @@
     "@aws-sdk/client-s3": "^3.890.0",
     "@aws-sdk/s3-request-presigner": "^3.980.0",
     "@neondatabase/serverless": "^1.0.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "cross-env": "^10.0.0",
     "dotenv": "^17.2.1",

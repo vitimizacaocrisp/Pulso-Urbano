@@ -5,7 +5,7 @@
     <div class="search-hero">
       <div class="hero-noise"></div>
       <div class="hero-inner">
-        <p class="hero-eyebrow"><i class="fas fa-search"></i> Pesquisa</p>
+        <p class="hero-eyebrow"><Icon icon="mdi:magnify" /> Pesquisa</p>
         <h1 class="hero-title">
           <span v-if="displayQuery">Resultados para <em>"{{ displayQuery }}"</em></span>
           <span v-else>Explorar o acervo</span>
@@ -13,18 +13,25 @@
         <p class="hero-sub" v-if="!isLoading">
           <strong>{{ totalAnalyses }}</strong> análise{{ totalAnalyses !== 1 ? 's' : '' }} encontrada{{ totalAnalyses !== 1 ? 's' : '' }}
         </p>
+        <p class="hero-sub" v-else>
+          <Icon icon="svg-spinners:ring-resize" /> Buscando…
+        </p>
       </div>
     </div>
 
     <div class="layout-wrapper">
+      <!-- No mobile, teleporta o drawer de filtros para o body, escapando do
+           stacking context de .layout-wrapper (z-index:10). No desktop (disabled)
+           permanece no grid como coluna sticky. -->
+      <Teleport to="body" :disabled="!isMobile">
       <div v-if="filtersOpen" class="sidebar-overlay" @click="filtersOpen = false"></div>
 
       <aside class="filters-sidebar" :class="{ 'is-open': filtersOpen }">
         <div class="sidebar-header">
-          <span class="sidebar-title"><i class="fas fa-sliders-h"></i> Filtros</span>
+          <span class="sidebar-title"><Icon icon="mdi:tune" /> Filtros</span>
           <div class="sidebar-header-actions">
             <button class="clear-all-btn" @click="clearAllFilters" v-if="hasActiveFilters">Limpar</button>
-            <button class="sidebar-close-btn" @click="filtersOpen = false"><i class="fas fa-times"></i></button>
+            <button class="sidebar-close-btn" @click="filtersOpen = false"><Icon icon="mdi:close" /></button>
           </div>
         </div>
 
@@ -36,7 +43,7 @@
           <div class="filter-group">
             <button class="filter-group-toggle" @click="toggleGroup('category')">
               <span>Categoria</span>
-              <i class="fas" :class="openGroups.category ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              <Icon :icon="openGroups.category ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
             </button>
             <transition name="collapse">
               <div v-if="openGroups.category" class="filter-group-body">
@@ -52,7 +59,7 @@
           <div class="filter-group">
             <button class="filter-group-toggle" @click="toggleGroup('source')">
               <span>Fonte</span>
-              <i class="fas" :class="openGroups.source ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              <Icon :icon="openGroups.source ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
             </button>
             <transition name="collapse">
               <div v-if="openGroups.source" class="filter-group-body">
@@ -68,7 +75,7 @@
           <div class="filter-group">
             <button class="filter-group-toggle" @click="toggleGroup('period')">
               <span>Período</span>
-              <i class="fas" :class="openGroups.period ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              <Icon :icon="openGroups.period ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
             </button>
             <transition name="collapse">
               <div v-if="openGroups.period" class="filter-group-body period-inputs">
@@ -87,7 +94,7 @@
           <div class="filter-group">
             <button class="filter-group-toggle" @click="toggleGroup('tags')">
               <span>Tags</span>
-              <i class="fas" :class="openGroups.tags ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+              <Icon :icon="openGroups.tags ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
             </button>
             <transition name="collapse">
               <div v-if="openGroups.tags" class="filter-group-body tags-cloud">
@@ -101,15 +108,16 @@
           </div>
         </template>
       </aside>
+      </Teleport>
 
       <div class="main-content">
         <div class="controls-bar">
           <div class="search-field-wrapper">
-            <i class="fas fa-search field-icon"></i>
+            <Icon icon="mdi:magnify" class="field-icon" />
             <input ref="searchInputRef" type="text" v-model="searchQuery"
               placeholder="Título, ID, fonte, tag, texto..." class="main-search-input" @keyup.enter="applyFilters" />
             <button v-if="searchQuery" class="clear-search" @click="searchQuery = ''; applyFilters()">
-              <i class="fas fa-times"></i>
+              <Icon icon="mdi:close" />
             </button>
           </div>
           <div class="controls-right">
@@ -120,7 +128,7 @@
               <option value="title_asc">A → Z</option>
             </select>
             <button class="filter-toggle-btn" @click="filtersOpen = !filtersOpen" :class="{ active: hasActiveFilters }">
-              <i class="fas fa-filter"></i>
+              <Icon icon="mdi:filter-variant" />
               <span class="filter-toggle-label">Filtros</span>
               <span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
             </button>
@@ -128,11 +136,11 @@
         </div>
 
         <div class="active-pills" v-if="hasActiveFilters">
-          <span v-for="cat in activeFilters.categories" :key="'c-'+cat" class="pill" @click="removeFilter('categories', cat)">{{ cat }} <i class="fas fa-times"></i></span>
-          <span v-for="src in activeFilters.sources" :key="'s-'+src" class="pill" @click="removeFilter('sources', src)">{{ src }} <i class="fas fa-times"></i></span>
-          <span v-for="tag in activeFilters.tags" :key="'t-'+tag" class="pill" @click="removeFilter('tags', tag)">#{{ tag }} <i class="fas fa-times"></i></span>
+          <span v-for="cat in activeFilters.categories" :key="'c-'+cat" class="pill" @click="removeFilter('categories', cat)">{{ cat }} <Icon icon="mdi:close" /></span>
+          <span v-for="src in activeFilters.sources" :key="'s-'+src" class="pill" @click="removeFilter('sources', src)">{{ src }} <Icon icon="mdi:close" /></span>
+          <span v-for="tag in activeFilters.tags" :key="'t-'+tag" class="pill" @click="removeFilter('tags', tag)">#{{ tag }} <Icon icon="mdi:close" /></span>
           <span v-if="activeFilters.yearFrom || activeFilters.yearTo" class="pill" @click="clearPeriod">
-            {{ activeFilters.yearFrom || '...' }} – {{ activeFilters.yearTo || '...' }} <i class="fas fa-times"></i>
+            {{ activeFilters.yearFrom || '...' }} – {{ activeFilters.yearTo || '...' }} <Icon icon="mdi:close" />
           </span>
         </div>
 
@@ -141,12 +149,12 @@
           <p>Buscando análises...</p>
         </div>
         <div v-else-if="error" class="state-container error-state">
-          <i class="fas fa-exclamation-triangle"></i>
+          <Icon icon="mdi:alert" />
           <p>{{ error }}</p>
           <button @click="applyFilters" class="retry-btn">Tentar novamente</button>
         </div>
         <div v-else-if="!isLoading && analyses.length === 0" class="state-container empty-state">
-          <i class="fas fa-search"></i>
+          <Icon icon="mdi:magnify" />
           <p>Nenhuma análise encontrada.</p>
           <button @click="clearAllFilters" class="retry-btn">Limpar filtros</button>
         </div>
@@ -156,7 +164,7 @@
             :style="{ animationDelay: `${(index % limit) * 40}ms` }">
             <router-link :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }" class="card-image-link" v-if="analysis.cover_image_path">
               <img :src="getFullMediaPath(analysis.cover_image_path)" alt="" loading="lazy" />
-              <div class="card-img-overlay"><i class="fas fa-arrow-right"></i></div>
+              <div class="card-img-overlay"><Icon icon="mdi:arrow-right" /></div>
             </router-link>
             <div v-else class="card-no-image"><span>{{ getInitials(analysis.title) }}</span></div>
             <div class="card-body">
@@ -171,7 +179,7 @@
               </h3>
               <p class="card-desc">{{ analysis.description }}</p>
               <div class="card-footer">
-                <span class="card-source" v-if="analysis.source"><i class="fas fa-landmark"></i> {{ analysis.source }}</span>
+                <span class="card-source" v-if="analysis.source"><Icon icon="mdi:bank" /> {{ analysis.source }}</span>
                 <div class="card-tags" v-if="analysis.tag">
                   <span v-for="(tag, i) in processTags(analysis.tag)" :key="i" class="tag-chip">#{{ tag }}</span>
                 </div>
@@ -197,15 +205,17 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { Icon } from '@iconify/vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { useToast } from '@/composables/useToast';
 
+const toast  = useToast();
 const route  = useRoute();
-const router = useRouter();
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const analyses      = ref([]);
 const totalAnalyses = ref(0);
@@ -223,6 +233,7 @@ const sortBy       = ref('relevance');
 const displayQuery = ref('');
 const filtersOpen  = ref(false);
 const metaLoading  = ref(false);
+const isMobile     = ref(false); // controla o Teleport do drawer de filtros (<900px)
 const openGroups   = ref({ category: true, source: false, period: false, tags: false });
 
 const activeFilters = ref({ categories: [], sources: [], tags: [], yearFrom: null, yearTo: null });
@@ -249,7 +260,9 @@ const getFullMediaPath = (path) => {
 
 const processTags = (tagString) => {
   if (!tagString) return [];
-  return tagString.replace(/['"\-:;()\d]/g, '').split(/[\s,]+/).filter(t => t.trim().length > 1).slice(0, 4);
+  // tag pode vir como array (JSONB) — normaliza para texto antes do replace.
+  const s = Array.isArray(tagString) ? tagString.join(' ') : String(tagString);
+  return s.replace(/['"\-:;()\d]/g, '').split(/[\s,]+/).filter(t => t.trim().length > 1).slice(0, 4);
 };
 
 const formatDate = (d) => {
@@ -273,36 +286,15 @@ const highlight = (text) => {
   return result;
 };
 
-const scoreAnalysis = (a, q) => {
-  if (!q) return 1;
-  const terms = q.toLowerCase().split(/\s+/).filter(t => t.length > 1);
-  let score = 0;
-  const check = (field, weight) => {
-    if (!field) return;
-    const f = String(field).toLowerCase();
-    terms.forEach(t => {
-      if (f === t) score += weight * 2;
-      else if (f.startsWith(t)) score += weight * 1.5;
-      else if (f.includes(t)) score += weight;
-    });
-  };
-  check(a.id, 10); check(a.title, 8); check(a.tag, 6);
-  check(a.category, 5); check(a.source, 5); check(a.author, 4);
-  check(a.study_period, 3); check(a.description, 2);
-  return score;
-};
-
 // Carrega metadados de filtro via rota dedicada /filter-meta (cache 10 min)
 // Elimina a segunda chamada limit=all que existia antes
 const loadFilterMeta = async () => {
   if (availableCategories.value.length > 0) return;
   metaLoading.value = true;
   try {
-    const token   = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const meta = await fetchWithCache(
       CacheKeys.filterMeta,
-      () => axios.get(`${API_BASE_URL}/api/admin/filter-meta`, { headers }).then(r => r.data?.data),
+      () => axios.get(`${API_BASE_URL}/api/admin/filter-meta`).then(r => r.data?.data),
       TTL.META
     );
     if (meta) {
@@ -312,6 +304,7 @@ const loadFilterMeta = async () => {
     }
   } catch (e) {
     console.error('Erro ao carregar filtros:', e);
+    toast.error('Não foi possível carregar os filtros de busca.');
   } finally {
     metaLoading.value = false;
   }
@@ -326,9 +319,7 @@ const fetchAnalyses = async (isNewSearch = false) => {
   error.value = null;
 
   try {
-    const token   = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
+    // Auth via cookie httpOnly (withCredentials global).
     const params = { page: currentPage.value, limit: limit.value };
     if (searchQuery.value)                     params.search    = searchQuery.value;
     if (activeFilters.value.categories.length) params.category  = activeFilters.value.categories.join(',');
@@ -336,24 +327,25 @@ const fetchAnalyses = async (isNewSearch = false) => {
     if (activeFilters.value.tags.length)       params.tag       = activeFilters.value.tags.join(',');
     if (activeFilters.value.yearFrom)          params.year_from = activeFilters.value.yearFrom;
     if (activeFilters.value.yearTo)            params.year_to   = activeFilters.value.yearTo;
-    if (sortBy.value !== 'relevance')          params.sort      = sortBy.value;
+    // 'relevance' só faz sentido com busca; aí o backend ranqueia por ts_rank.
+    if (sortBy.value === 'relevance') {
+      if (searchQuery.value.trim()) params.sort = 'relevance';
+    } else {
+      params.sort = sortBy.value;
+    }
 
     const cacheKey = CacheKeys.analysesList(params);
 
     const result = await fetchWithCache(
       cacheKey,
-      () => axios.get(`${API_BASE_URL}/api/admin/analyses-list`, { headers, params }).then(r => r.data?.data),
+      () => axios.get(`${API_BASE_URL}/api/admin/analyses-list`, { params }).then(r => r.data?.data),
       TTL.DEFAULT
     );
 
-    let fresh = result?.analyses || [];
+    const fresh = result?.analyses || [];
     totalAnalyses.value = result?.total || 0;
 
-    if (sortBy.value === 'relevance' && searchQuery.value.trim()) {
-      fresh = fresh.map(a => ({ ...a, _score: scoreAnalysis(a, searchQuery.value) }))
-                   .sort((a, b) => b._score - a._score);
-    }
-
+    // Ranking de relevância agora é feito no servidor (ts_rank).
     analyses.value = isNewSearch ? fresh : [...analyses.value, ...fresh];
   } catch (err) {
     error.value = err.response?.data?.message || 'Falha ao buscar análises.';
@@ -362,7 +354,7 @@ const fetchAnalyses = async (isNewSearch = false) => {
   }
 };
 
-const applyFilters = () => { displayQuery.value = searchQuery.value; syncQueryParams(); fetchAnalyses(true); };
+const applyFilters = () => { displayQuery.value = searchQuery.value; fetchAnalyses(true); };
 const loadMore = () => { if (hasMore.value && !isLoadingMore.value && !isLoading.value) { currentPage.value++; fetchAnalyses(false); } };
 const clearAllFilters = () => { searchQuery.value = ''; sortBy.value = 'relevance'; activeFilters.value = { categories: [], sources: [], tags: [], yearFrom: null, yearTo: null }; applyFilters(); };
 const clearPeriod = () => { activeFilters.value.yearFrom = null; activeFilters.value.yearTo = null; applyFilters(); };
@@ -370,21 +362,11 @@ const removeFilter = (type, val) => { activeFilters.value[type] = activeFilters.
 const toggleTag = (tag) => { const idx = activeFilters.value.tags.indexOf(tag); if (idx === -1) activeFilters.value.tags.push(tag); else activeFilters.value.tags.splice(idx, 1); applyFilters(); };
 const toggleGroup = (key) => { openGroups.value[key] = !openGroups.value[key]; };
 
-const syncQueryParams = () => {
-  const q = {};
-  if (searchQuery.value)                     q.q   = searchQuery.value;
-  if (activeFilters.value.categories.length) q.cat = activeFilters.value.categories.join(',');
-  if (activeFilters.value.sources.length)    q.src = activeFilters.value.sources.join(',');
-  if (activeFilters.value.tags.length)       q.tag = activeFilters.value.tags.join(',');
-  if (activeFilters.value.yearFrom)          q.de  = activeFilters.value.yearFrom;
-  if (activeFilters.value.yearTo)            q.ate = activeFilters.value.yearTo;
-  router.replace({ query: q });
-};
-
+// Lê parâmetros iniciais apenas no mount (deep-link vindo do header com ?q=).
+// A busca NÃO escreve na URL ao digitar — é dirigida pelo input.
 const readQueryParams = () => {
   const q = route.query;
   if (q.q)   searchQuery.value = q.q;
-  if (q.id)  searchQuery.value = String(q.id);
   if (q.cat) activeFilters.value.categories = q.cat.split(',');
   if (q.src) activeFilters.value.sources    = q.src.split(',');
   if (q.tag) activeFilters.value.tags       = q.tag.split(',');
@@ -406,14 +388,24 @@ watch([hasMore, analyses], () => nextTick(setupObserver));
 let searchTimeout = null;
 watch(searchQuery, () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => applyFilters(), 400); });
 
+let mq = null;
+const onMqChange = (e) => { isMobile.value = e.matches; };
+
 onMounted(() => {
   readQueryParams();
   loadFilterMeta();     // paralelo — não bloqueia a lista
   fetchAnalyses(true);
   nextTick(() => { if (searchInputRef.value) searchInputRef.value.focus(); });
+  mq = window.matchMedia('(max-width: 900px)');
+  isMobile.value = mq.matches;
+  mq.addEventListener('change', onMqChange);
 });
 
-onUnmounted(() => { if (observer) observer.disconnect(); clearTimeout(searchTimeout); });
+onUnmounted(() => {
+  if (observer) observer.disconnect();
+  clearTimeout(searchTimeout);
+  if (mq) mq.removeEventListener('change', onMqChange);
+});
 </script>
 
 <style scoped>
@@ -462,7 +454,7 @@ onUnmounted(() => { if (observer) observer.disconnect(); clearTimeout(searchTime
 .search-field-wrapper { position: relative; flex: 1; min-width: 200px; }
 .field-icon   { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; pointer-events: none; }
 .main-search-input { width: 100%; padding: 0.625rem 2.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-full); background: var(--bg-input-form); color: var(--text-main); font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
-.main-search-input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+.main-search-input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(47, 84, 235,0.15); }
 .clear-search { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; }
 .controls-right { display: flex; gap: 0.5rem; align-items: center; }
 .sort-select  { padding: 0.575rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-input-form); color: var(--text-main); font-size: 0.85rem; cursor: pointer; }
@@ -471,8 +463,8 @@ onUnmounted(() => { if (observer) observer.disconnect(); clearTimeout(searchTime
 .filter-toggle-btn.active { border-color: var(--brand-primary); color: var(--brand-primary); }
 .filter-badge { background: var(--brand-primary); color: #fff; font-size: 0.65rem; font-weight: 700; border-radius: 99px; padding: 0.1rem 0.4rem; margin-left: 0.25rem; }
 .active-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
-.pill { display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); color: var(--brand-primary); border-radius: 99px; padding: 0.25rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-.pill:hover { background: rgba(99,102,241,0.2); }
+.pill { display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(47, 84, 235,0.1); border: 1px solid rgba(47, 84, 235,0.25); color: var(--brand-primary); border-radius: 99px; padding: 0.25rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.pill:hover { background: rgba(47, 84, 235,0.2); }
 .pill i { font-size: 0.65rem; }
 .state-container { text-align: center; padding: 6rem 2rem; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 .state-container i { font-size: 2.5rem; opacity: 0.3; }
@@ -492,18 +484,18 @@ onUnmounted(() => { if (observer) observer.disconnect(); clearTimeout(searchTime
 .card-no-image span { font-size: 2rem; font-weight: 900; color: var(--brand-primary); opacity: 0.35; }
 .card-body    { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; flex: 1; }
 .card-meta-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
-.card-category { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--brand-primary); background: rgba(99,102,241,0.08); padding: 0.15rem 0.6rem; border-radius: 99px; }
+.card-category { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--brand-primary); background: rgba(47, 84, 235,0.08); padding: 0.15rem 0.6rem; border-radius: 99px; }
 .card-date    { font-size: 0.72rem; color: var(--text-muted); }
 .card-title   { margin: 0 0 0.6rem; font-size: 1.05rem; font-weight: 700; line-height: 1.4; }
 .card-title a { color: var(--text-main); text-decoration: none; transition: color 0.2s; }
 .card-title a:hover { color: var(--brand-primary); }
-.card-title :deep(mark) { background: rgba(99,102,241,0.2); color: var(--brand-primary); border-radius: 2px; padding: 0 2px; }
+.card-title :deep(mark) { background: rgba(47, 84, 235,0.2); color: var(--brand-primary); border-radius: 2px; padding: 0 2px; }
 .card-desc    { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 1rem; }
 .card-footer  { display: flex; flex-direction: column; gap: 0.5rem; margin-top: auto; }
 .card-source  { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem; }
 .card-tags    { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .tag-chip     { font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); background: var(--bg-hover); border-radius: 99px; padding: 0.15rem 0.6rem; transition: all 0.15s; }
-.result-card:hover .tag-chip { background: rgba(99,102,241,0.1); color: var(--brand-primary); }
+.result-card:hover .tag-chip { background: rgba(47, 84, 235,0.1); color: var(--brand-primary); }
 .sentinel     { width: 100%; padding: 2.5rem 0; display: flex; justify-content: center; }
 .loading-more { display: flex; align-items: center; gap: 0.75rem; color: var(--text-secondary); font-size: 0.875rem; }
 .spinner-small { width: 18px; height: 18px; border: 2px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }

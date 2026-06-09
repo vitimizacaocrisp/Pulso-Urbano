@@ -11,13 +11,11 @@
  *  - listas paginadas / pesquisa  →  30 s  (dados que mudam com filtros)
  *  - listas completas (autocomplete, filtros)  →  5 min
  *  - categorias / fontes / tags   →  10 min
- *  - dados externos (IBGE)        →  24 h
  */
 
 const DEFAULT_TTL = 30_000;           // 30 s
 const LONG_TTL    = 5 * 60_000;       // 5 min
 const META_TTL    = 10 * 60_000;      // 10 min
-const IBGE_TTL    = 24 * 60 * 60_000; // 24 h
 
 // ─── Memória ────────────────────────────────────────────────────────
 const memCache = new Map(); // { key → { data, expiresAt } }
@@ -114,7 +112,6 @@ export const CacheKeys = {
   // Metadados globais
   filterMeta:       'filter:meta',                     // categorias + fontes + tags para filtros
   categories:       'categories:count',                // sidebar widget
-  ibge:             (ano) => `ibge:${ano}`,            // dados populacionais
 
   // Listas paginadas — chave baseada nos params
   analysesList:     (params) => `analyses:list:${JSON.stringify(params)}`,
@@ -127,4 +124,4 @@ export const CacheKeys = {
 };
 
 // ─── TTLs exportados para uso externo ───────────────────────────────
-export const TTL = { DEFAULT: DEFAULT_TTL, LONG: LONG_TTL, META: META_TTL, IBGE: IBGE_TTL };
+export const TTL = { DEFAULT: DEFAULT_TTL, LONG: LONG_TTL, META: META_TTL };

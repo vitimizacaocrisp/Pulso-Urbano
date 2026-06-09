@@ -81,7 +81,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
-import { mediaTypeLabels, getAcceptAttribute } from '@/assets/js/analysisUtils.js';
+import { mediaTypeLabels, getAcceptAttribute } from '@/utils/analysisUtils.js';
 
 const props = defineProps({
   showResourceMenu: Boolean,
@@ -173,7 +173,7 @@ const confirm = async () => {
   font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
   transition: all 0.15s;
 }
-.res-btn:hover { border-color: var(--brand-primary); background: rgba(99,102,241,0.08); color: var(--brand-primary); }
+.res-btn:hover { border-color: var(--brand-primary); background: rgba(47, 84, 235,0.08); color: var(--brand-primary); }
 .res-btn.purple:hover { border-color: #8b5cf6; background: rgba(139,92,246,0.08); color: #8b5cf6; }
 .res-btn.blue:hover   { border-color: #3b82f6; background: rgba(59,130,246,0.08); color: #3b82f6; }
 .res-btn.green:hover  { border-color: #10b981; background: rgba(16,185,129,0.08); color: #10b981; }
@@ -198,7 +198,7 @@ const confirm = async () => {
   border-radius: 8px; background: var(--bg-input-form, var(--bg-body));
   color: var(--text-main); font-size: 0.9rem;
 }
-.inp-field:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.inp-field:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(47, 84, 235,0.1); }
 
 .file-drop-sm {
   display: flex; align-items: center; gap: 10px;

@@ -5,7 +5,7 @@
     </div>
     
     <div v-if="error" class="error-msg">
-        <i class="fas fa-exclamation-circle"></i> {{ error }}
+        <Icon icon="mdi:alert-circle" /> {{ error }}
     </div>
     
     <div v-if="tableData.rows.length > 0" class="custom-table-container">
@@ -31,6 +31,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
+import { Icon } from '@iconify/vue';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -122,7 +123,7 @@ watch(() => props.file, (newFile) => {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-body);
     color: var(--text-main);
 }
 

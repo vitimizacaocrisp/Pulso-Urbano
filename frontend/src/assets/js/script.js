@@ -1,41 +1,15 @@
-// Garante que o script só rode após o carregamento completo do HTML
-document.addEventListener('DOMContentLoaded', function() {
+// Botão "voltar ao topo" (#back-to-top-btn está em index.html).
+document.addEventListener('DOMContentLoaded', function () {
+  const backToTopButton = document.getElementById('back-to-top-btn');
+  if (!backToTopButton) return;
 
-    // --- LÓGICA PARA O BOTÃO "VOLTAR AO TOPO" ---
-    const backToTopButton = document.getElementById('backToTopBtn');
+  const toggleVisibility = () => {
+    const scrolled = document.body.scrollTop > 100 || document.documentElement.scrollTop > 100;
+    backToTopButton.style.display = scrolled ? 'block' : 'none';
+  };
 
-    // Verifica se o botão existe na página antes de continuar
-    if (backToTopButton) {
-        // Função para mostrar/ocultar o botão
-        const scrollFunction = () => {
-            if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
-                backToTopButton.style.display = 'block';
-            } else {
-                backToTopButton.style.display = 'none';
-            }
-        };
-
-        // Função para rolar para o topo
-        const scrollToTop = () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-
-        // Adiciona os 'escutadores' de eventos
-        window.onscroll = scrollFunction;
-        backToTopButton.addEventListener('click', scrollToTop);
-    }
-
-
-    // --- LÓGICA PARA O MENU MOBILE ---
-    const mobileMenuIcon = document.getElementById('mobileMenuIcon');
-    const mainNavMenu = document.getElementById('mainNavMenu');
-
-    if (mobileMenuIcon && mainNavMenu) {
-        // Adiciona o 'escutador' de clique no ícone
-        mobileMenuIcon.addEventListener('click', () => {
-            // Alterna a classe que mostra/esconde o menu
-            mainNavMenu.classList.toggle('mobile-menu-open');
-        });
-    }
-
+  window.addEventListener('scroll', toggleVisibility);
+  backToTopButton.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 });

@@ -28,15 +28,7 @@ export default {
 }
 </script>
 
-<style>
-/* Estilos Globais Essenciais */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: #f8f9fa; /* Fundo cinza claro como na imagem */
-}
-
+<style scoped>
 .page-wrapper {
   display: flex;
   flex-direction: column;
@@ -45,15 +37,8 @@ body {
 
 .content-container {
   width: 100%;
-  max-width: 1240px;
+  max-width: var(--container-width);
   margin: 0 auto;
-  padding: 40px 20px; /* Espaçamento interno sem sobreposição */
-}
-
-.page-footer {
-  text-align: center;
-  padding: 40px;
-  color: #adb5bd;
-  font-size: 0.85rem;
+  padding: 40px 20px;
 }
 </style>

@@ -1,1 +1,7 @@
-/* /index.html    200
+# Proxy para o backend (mesma origem → cookie httpOnly first-party).
+# IMPORTANTE: troque a URL abaixo pela URL real do backend na Vercel.
+/api/*       https://pulso-urbano-backend.vercel.app/api/:splat   200
+/admin-auth  https://pulso-urbano-backend.vercel.app/admin-auth   200
+
+# Fallback SPA (precisa vir por último).
+/*           /index.html                                          200

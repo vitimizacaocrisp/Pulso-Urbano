@@ -2,30 +2,49 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, asyncHandler } = require('../middleware/middlewares');
 const { sql } = require('../db/dbConnect');
-const { 
-  generatePresignedUrls, 
-  deleteFileFromS3 
-} = require('../middleware/s3Connection');
+const {
+  generatePresignedUrls,
+  deleteFileFromS3
+} = require('../services/storage');
+const { cacheGet, cacheSet, cacheInvalidate } = require('../cache/serverCache');
 
-// ─────────────────────────────────────────────────────────────────────
-// Cache em memória simples para o servidor (Node.js)
-// Evita bater no banco para leituras frequentes de dados estáveis.
-// ─────────────────────────────────────────────────────────────────────
-const serverCache = new Map(); // { key → { data, expiresAt } }
+// Invalida todos os caches afetados por uma mutação de análise — tanto os do
+// admin quanto os públicos (públicos e admin compartilham o mesmo Redis).
+async function invalidateAnalysisCaches(id) {
+  await Promise.all([
+    cacheInvalidate('analyses:list'),
+    cacheInvalidate('categories:count'),
+    cacheInvalidate('filter:meta'),
+    cacheInvalidate('autocomplete:all'),
+    cacheInvalidate('public:list'),
+    cacheInvalidate('public:highlight'),
+    cacheInvalidate('public:categories'),
+    ...(id ? [cacheInvalidate(`analysis:${id}`), cacheInvalidate(`public:analysis:${id}`)] : []),
+  ]);
+}
 
-function sGet(key) {
-  const entry = serverCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { serverCache.delete(key); return null; }
-  return entry.data;
-}
-function sSet(key, data, ttlMs) {
-  serverCache.set(key, { data, expiresAt: Date.now() + ttlMs });
-}
-function sInvalidate(prefix) {
-  for (const key of serverCache.keys()) {
-    if (key.startsWith(prefix)) serverCache.delete(key);
+const { validateAnalysisPayload } = require('../validators/analysisValidator');
+
+// Detecta (uma vez, com cache) se o full-text search está disponível.
+// Se a migração 2026_full_text_search.sql não foi aplicada (coluna
+// search_vector ausente), a busca cai para ILIKE — funciona sem a migração.
+let ftsAvailable = null;
+async function isFtsAvailable() {
+  if (ftsAvailable !== null) return ftsAvailable;
+  try {
+    const rows = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'analyses' AND column_name = 'search_vector'
+      LIMIT 1
+    `;
+    ftsAvailable = rows.length > 0;
+    if (!ftsAvailable) {
+      console.warn('⚠️  Full-text search indisponível (coluna search_vector ausente) — usando ILIKE. Rode database/migrations/2026_full_text_search.sql para ativar.');
+    }
+  } catch {
+    ftsAvailable = false;
   }
+  return ftsAvailable;
 }
 
 const TTL_META      = 10 * 60 * 1000; // 10 min — categorias, fontes, tags
@@ -38,11 +57,21 @@ router.get('/verify-token', verifyToken, (req, res) => {
   res.status(200).json({ success: true, message: 'Token é válido.', userId: req.user.id });
 });
 
+// Logout — limpa o cookie. Sem verifyToken: funciona mesmo com sessão expirada.
+router.post('/logout', (req, res) => {
+  res.clearCookie('authToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+  res.json({ success: true, message: 'Logout realizado.' });
+});
+
 // ─────────────────────────────────────────────────────────────────────
 // Dashboard
 // ─────────────────────────────────────────────────────────────────────
 router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
-  const [statsResult, recentAnalysesResult, chartDataResult] = await Promise.all([
+  const [statsResult, recentAnalysesResult, chartDataResult, categoriesResult] = await Promise.all([
     sql`
       SELECT
         (SELECT COUNT(*) FROM analyses) AS "totalAnalyses",
@@ -67,6 +96,14 @@ router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
       FROM months
       LEFT JOIN analyses ON date_trunc('month', analyses.created_at) = months.month
       GROUP BY months.month ORDER BY months.month
+    `,
+    sql`
+      SELECT category::text AS name, COUNT(*) AS count
+      FROM analyses
+      WHERE category IS NOT NULL AND category::text NOT IN ('', '""', 'null', '[]')
+      GROUP BY category::text
+      ORDER BY count DESC
+      LIMIT 6
     `
   ]);
 
@@ -78,7 +115,11 @@ router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
       chartData: {
         labels: chartDataResult.map(r => r.month_name),
         data:   chartDataResult.map(r => r.publication_count)
-      }
+      },
+      categories: categoriesResult.map(r => ({
+        name: (r.name || '').replace(/^"|"$/g, ''),
+        count: parseInt(r.count, 10)
+      }))
     }
   });
 }));
@@ -89,7 +130,7 @@ router.get('/dashboard-data', verifyToken, asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────
 router.get('/filter-meta', verifyToken, asyncHandler(async (req, res) => {
   const cacheKey = 'filter:meta';
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
  const [categories, sources] = await Promise.all([
@@ -119,7 +160,7 @@ router.get('/filter-meta', verifyToken, asyncHandler(async (req, res) => {
     }
   };
 
-  sSet(cacheKey, payload, TTL_META);
+  await cacheSet(cacheKey, payload, TTL_META);
   res.json(payload);
 }));
 
@@ -129,7 +170,7 @@ router.get('/filter-meta', verifyToken, asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────
 router.get('/autocomplete', verifyToken, asyncHandler(async (req, res) => {
   const cacheKey = 'autocomplete:all';
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const analyses = await sql`
@@ -139,7 +180,7 @@ router.get('/autocomplete', verifyToken, asyncHandler(async (req, res) => {
   `;
 
   const payload = { success: true, data: { analyses } };
-  sSet(cacheKey, payload, TTL_META);
+  await cacheSet(cacheKey, payload, TTL_META);
   res.json(payload);
 }));
 
@@ -162,24 +203,36 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   // ── Cache key (apenas para buscas paginadas, não limit=all) ──
   if (limit !== 'all') {
     const cacheKey = `analyses:list:${JSON.stringify(req.query)}`;
-    const cached = sGet(cacheKey);
+    const cached = await cacheGet(cacheKey);
     if (cached) return res.json(cached);
   }
 
   // ── Construir WHERE clauses ──
   const whereClauses = [];
 
-if (search) {
-  whereClauses.push(sql`(
-    title           ILIKE ${'%' + search + '%'} OR
-    author          ILIKE ${'%' + search + '%'} OR
-    description     ILIKE ${'%' + search + '%'} OR
-    tag::text       ILIKE ${'%' + search + '%'} OR  -- Cast para text aqui
-    category::text  ILIKE ${'%' + search + '%'} OR  -- Cast para text aqui
-    source::text    ILIKE ${'%' + search + '%'} OR  -- Cast para text aqui
-    CAST(id AS TEXT) = ${search}
-  )`);
-}
+  // Busca híbrida: ILIKE (substring — funciona ao digitar parcial) sempre;
+  // se o FTS estiver disponível, soma o match por relevância (stemming + acentos).
+  const fts = search ? await isFtsAvailable() : false;
+  if (search) {
+    const like = '%' + search + '%';
+    const ilike = sql`(
+      title          ILIKE ${like} OR
+      author         ILIKE ${like} OR
+      description    ILIKE ${like} OR
+      tag::text      ILIKE ${like} OR
+      category::text ILIKE ${like} OR
+      source::text   ILIKE ${like} OR
+      CAST(id AS TEXT) = ${search}
+    )`;
+    if (fts) {
+      whereClauses.push(sql`(
+        search_vector @@ websearch_to_tsquery('portuguese', public.f_unaccent(${search}))
+        OR ${ilike}
+      )`);
+    } else {
+      whereClauses.push(ilike);
+    }
+  }
 
   // Categoria pode ser múltipla (csv: "Crimes,Drogas")
   if (category) {
@@ -228,9 +281,17 @@ if (search) {
     : sql``;
 
   // ── ORDER BY ──
-  const orderClause = sort === 'date_asc'  ? sql`ORDER BY created_at ASC`
-                    : sort === 'title_asc' ? sql`ORDER BY title ASC`
-                    : sql`ORDER BY created_at DESC`;
+  // 'relevance' usa ts_rank (só faz sentido quando há busca).
+  let orderClause;
+  if (sort === 'date_asc') {
+    orderClause = sql`ORDER BY created_at ASC`;
+  } else if (sort === 'title_asc') {
+    orderClause = sql`ORDER BY title ASC`;
+  } else if (sort === 'relevance' && search && fts) {
+    orderClause = sql`ORDER BY ts_rank(search_vector, websearch_to_tsquery('portuguese', public.f_unaccent(${search}))) DESC, created_at DESC`;
+  } else {
+    orderClause = sql`ORDER BY created_at DESC`;
+  }
 
   // ── SELECT ──
   const selectedFields = sql`
@@ -262,7 +323,7 @@ if (search) {
   // Cacheia apenas buscas paginadas
   if (limit !== 'all') {
     const cacheKey = `analyses:list:${JSON.stringify(req.query)}`;
-    sSet(cacheKey, payload, TTL_LIST_PAGE);
+    await cacheSet(cacheKey, payload, TTL_LIST_PAGE);
   }
 
   res.json(payload);
@@ -275,7 +336,7 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const cacheKey = `analysis:${id}`;
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
@@ -284,7 +345,7 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   }
 
   const payload = { success: true, data: results[0] };
-  sSet(cacheKey, payload, TTL_META); // Análise individual: cache 10 min
+  await cacheSet(cacheKey, payload, TTL_META); // Análise individual: cache 10 min
   res.json(payload);
 }));
 
@@ -293,7 +354,7 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────
 router.get('/categories-count', verifyToken, asyncHandler(async (req, res) => {
   const cacheKey = 'categories:count';
-  const cached = sGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const results = await sql`
@@ -316,7 +377,7 @@ router.get('/categories-count', verifyToken, asyncHandler(async (req, res) => {
   }));
 
   const payload = { success: true, data };
-  sSet(cacheKey, payload, TTL_META);
+  await cacheSet(cacheKey, payload, TTL_META);
   res.json(payload);
 }));
 
@@ -337,7 +398,8 @@ router.post('/generate-upload-urls', verifyToken, express.json(), asyncHandler(a
     const signedUrls = await generatePresignedUrls(files);
     res.json({ success: true, data: signedUrls });
   } catch (error) {
-    const status = error.message.includes('Tipo de arquivo') ? 400 : 500;
+    const isValidation = /Tipo de arquivo|excede o limite|Tamanho de arquivo inválido/.test(error.message);
+    const status = isValidation ? 400 : 500;
     res.status(status).json({ success: false, message: error.message || 'Erro ao preparar upload.' });
   }
 }));
@@ -352,11 +414,13 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     nationality, states, cities, with_header, with_footer,
   } = req.body;
 
-  if (!title || !content || !coverImagePath) {
-    return res.status(400).json({ success: false, message: 'Campos obrigatórios faltando (Título, Conteúdo ou Capa).' });
+  const validationError = validateAnalysisPayload(req.body);
+  if (validationError) {
+    return res.status(400).json({ success: false, message: validationError });
   }
-
-  const safeJson = (val) => JSON.stringify(val || []);
+  if (!coverImagePath) {
+    return res.status(400).json({ success: false, message: 'A imagem de capa é obrigatória.' });
+  }
 
   const result = await sql`
     INSERT INTO analyses
@@ -364,17 +428,13 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
        tag, author, description, content, reference_links,
        cover_image_path, nationality, states, cities, with_header, with_footer)
     VALUES
-      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category ? JSON.stringify(states) : null},
+      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category ? JSON.stringify(category) : null},
        ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
        ${coverImagePath}, ${nationality}, ${states ? JSON.stringify(states) : null}, ${cities ? JSON.stringify(cities) : null}, ${with_header}, ${with_footer})
     RETURNING id
   `;
 
-  // Invalidar caches relevantes
-  sInvalidate('analyses:list');
-  sInvalidate('categories:count');
-  sInvalidate('filter:meta');
-  sInvalidate('autocomplete:all');
+  await invalidateAnalysisCaches();
 
   res.status(201).json({ success: true, message: 'Análise publicada com sucesso!', analysisId: result[0]?.id });
 }));
@@ -390,6 +450,11 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     coverImagePath, filesToDelete,
     nationality, states, cities, with_header, with_footer
   } = req.body;
+
+  const validationError = validateAnalysisPayload(req.body);
+  if (validationError) {
+    return res.status(400).json({ success: false, message: validationError });
+  }
 
   const currentAnalysis = await sql`SELECT cover_image_path, content FROM analyses WHERE id = ${id}`;
   if (currentAnalysis.length === 0) {
@@ -428,12 +493,7 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     WHERE id = ${id}
   `;
 
-  // Invalidar caches
-  sInvalidate('analyses:list');
-  sInvalidate(`analysis:${id}`);
-  sInvalidate('categories:count');
-  sInvalidate('filter:meta');
-  sInvalidate('autocomplete:all');
+  await invalidateAnalysisCaches(id);
 
   res.json({ success: true, message: 'Análise atualizada com sucesso!' });
 }));
@@ -461,12 +521,7 @@ router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
 
   await sql`DELETE FROM analyses WHERE id = ${id}`;
 
-  // Invalidar caches
-  sInvalidate('analyses:list');
-  sInvalidate(`analysis:${id}`);
-  sInvalidate('categories:count');
-  sInvalidate('filter:meta');
-  sInvalidate('autocomplete:all');
+  await invalidateAnalysisCaches(id);
 
   res.json({ success: true, message: 'Análise deletada com sucesso.' });
 }));

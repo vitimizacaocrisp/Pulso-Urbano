@@ -120,15 +120,22 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import { Icon } from '@iconify/vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const router = useRouter();
 const sidebarCollapsed = ref(false);
 const mobileDrawerOpen = ref(false);
 
-const logout = () => {
-  localStorage.removeItem('authToken');
+const logout = async () => {
+  // O cookie é httpOnly: só o backend consegue limpá-lo.
+  try {
+    await axios.post(API_BASE_URL + '/api/admin/logout');
+  } catch (e) {
+    // Mesmo se falhar, segue para a tela de login.
+  }
   router.push({ name: 'AdminLogin' });
 };
 </script>
@@ -206,7 +213,7 @@ const logout = () => {
 }
 .nav-link:hover { background: var(--bg-hover); color: var(--brand-primary); }
 .nav-link.router-link-active {
-  background: rgba(99,102,241,0.12); color: var(--brand-primary); font-weight: 700;
+  background: rgba(47, 84, 235,0.12); color: var(--brand-primary); font-weight: 700;
 }
 .nav-link.router-link-active::before {
   content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);

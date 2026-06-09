@@ -9,7 +9,7 @@
         <div class="search-wrapper desktop-only">
           <BaseSearch @select="menuOpen = false" v-slot="{ query, updateQuery, results, isLoading, isOpen, handleFocus, handleEnter, selectItem }">
             <div class="search-input-group">
-                <i class="fas fa-search search-icon"></i>
+                <Icon icon="mdi:magnify" class="search-icon" />
                 <input 
                   type="text" 
                   :value="query"
@@ -45,17 +45,20 @@
                 <li><router-link to="/catalogo" class="nav-link">Catálogo</router-link></li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
-                <li><router-link to="/admin" class="nav-link admin-link"><i class="fas fa-lock"></i></router-link></li>
+                <li><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:lock" width="14" /></router-link></li>
                 <li class="nav-item-toggle"><ThemeToggle /></li>
              </ul>
         </nav>
 
         <button class="menu-btn" @click="toggleMenu" aria-label="Abrir menu">
-          <i class="fas fa-bars"></i>
+          <Icon icon="mdi:menu" width="24" />
         </button>
       </div>
     </div>
 
+    <!-- Teleportado para o body: tira o drawer do stacking context do header
+         (que é position:sticky; z-index:1000), garantindo que fique acima do conteúdo. -->
+    <Teleport to="body">
     <transition name="slide">
       <nav v-if="menuOpen" class="drawer">
         <div class="drawer-header">
@@ -63,7 +66,7 @@
           <div class="drawer-actions">
             <ThemeToggle />
             <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
-                <i class="fas fa-times"></i>
+                <Icon icon="mdi:close" width="22" />
             </button>
           </div>
         </div>
@@ -77,7 +80,7 @@
                     placeholder="Pesquisar..."
                     @keyup.enter="handleEnter"
                 >
-                <button @click="handleEnter"><i class="fas fa-search"></i></button>
+                <button @click="handleEnter"><Icon icon="mdi:magnify" width="18" /></button>
             </div>
         </BaseSearch>
 
@@ -94,11 +97,13 @@
     </transition>
     
     <div v-if="menuOpen" class="drawer-overlay" @click="toggleMenu"></div>
+    </Teleport>
   </header>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { Icon } from '@iconify/vue';
 import ThemeToggle from './ThemeToggle.vue';
 import BaseSearch from './BaseSearch.vue';
 
@@ -186,7 +191,7 @@ const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
     outline: none;
     background: rgba(255,255,255,0.1);
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 2px rgba(47, 84, 235, 0.2);
 }
 .search-spinner {
     position: absolute; right: 12px; top: 12px;
@@ -426,5 +431,26 @@ const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
 @media (max-width: 992px) {
     .desktop-nav, .desktop-only { display: none; }
     .menu-btn { display: block; }
+}
+
+/* Tablet em pé e menores: padding reduzido */
+@media (max-width: 768px) {
+    .header-bar { padding: 0 1.25rem; }
+}
+
+/* Celular */
+@media (max-width: 480px) {
+    .header-bar { padding: 0 1rem; height: 64px; }
+    .logo a { font-size: 1.35rem; }
+    .menu-btn { font-size: 1.4rem; }
+    .drawer { width: min(85vw, 320px); }
+}
+
+/* Celular pequeno */
+@media (max-width: 360px) {
+    .header-bar { padding: 0 0.75rem; height: 58px; }
+    .logo a { font-size: 1.15rem; }
+    .drawer { width: 88vw; padding: 1.1rem; }
+    .drawer-header h2 { font-size: 1.2rem; }
 }
 </style>

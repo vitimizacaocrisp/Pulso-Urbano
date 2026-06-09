@@ -6,7 +6,7 @@
       :show-resource-menu="showResourceMenu"
       :show-media-input="showMediaInput"
       :active-type="activeMediaType"
-      file-input-id="eaFileInput"
+      file-input-id="ea-file-input"
       @close-menu="showResourceMenu = false"
       @close-media="showMediaInput = false"
       @select-type="onSelectType"
@@ -138,7 +138,7 @@
             <AnalysisFormFields
               v-model="form"
               :image-preview-url="imagePreviewUrl"
-              cover-input-id="eaCoverInput"
+              cover-input-id="ea-cover-input"
               @cover-change="handleCoverChange"
             />
           </div>
@@ -186,7 +186,7 @@ import axios from 'axios';
 import { marked } from 'marked';
 import * as monaco from 'monaco-editor';
 import { Icon } from '@iconify/vue';
-import { formatText, generateUrlMediaHtml, generateFileMediaHtml } from '@/assets/js/analysisUtils.js';
+import { formatText, generateUrlMediaHtml, generateFileMediaHtml } from '@/utils/analysisUtils.js';
 import { cacheInvalidate } from '@/utils/apiCache.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
@@ -197,7 +197,7 @@ const { isDark } = useTheme();
 
 const route  = useRoute();
 const router = useRouter();
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ── Core state ─────────────────────────────────────────────────────────
 const selectedAnalysis   = ref(null);
@@ -446,9 +446,10 @@ const save = async () => {
       const metaData = filesToUpload.map(f => ({
         fileName: f.file.name,
         // Se o navegador não detectar o tipo, enviamos um tipo binário genérico
-        fileType: f.file.type || 'application/octet-stream', 
+        fileType: f.file.type || 'application/octet-stream',
+        fileSize: f.file.size,
         // Garante que a categoria não vá vazia (usa 'image' como padrão se f.category falhar)
-        category: f.category || 'image', 
+        category: f.category || 'image',
         tempId: f.tempId
       }));
 
@@ -640,7 +641,8 @@ onBeforeUnmount(() => {
 .tip { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
 
 /* Editor layout */
-.editor-layout { display: grid; grid-template-columns: 1fr 1fr; column-gap: 5rem; row-gap: 2rem; align-items: start; }
+.editor-layout { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2.5rem; row-gap: 2rem; align-items: stretch; }
+.editor-left .panel { height: 100%; }
 .editor-left, .editor-right { display: flex; flex-direction: column; }
 .panel {
   background: var(--bg-card); border: 1px solid var(--border-color);
@@ -666,16 +668,16 @@ onBeforeUnmount(() => {
 .monaco-wrap { height: 580px; }
 
 /* Preview */
-.preview-wrap { background: #fff; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+.preview-wrap { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
 .preview-inner { max-width: 780px; margin: 0 auto; padding: 3rem 2rem; }
 .preview-cover { width: 100%; height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 2rem; }
-.preview-cat { display: inline-block; background: rgba(99,102,241,0.1); color: var(--brand-primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; margin-bottom: 1rem; }
-.preview-title { font-size: 2.5rem; font-weight: 900; color: #0f172a; line-height: 1.1; margin: 0 0 0.5rem; }
-.preview-subtitle { font-size: 1.25rem; font-weight: 300; color: #475569; margin: 0 0 1rem; }
-.preview-meta { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; color: #64748b; flex-wrap: wrap; }
-.preview-badge { background: #fff3e0; color: #e65100; padding: 2px 10px; border-radius: 4px; font-size: 0.8em; }
-.preview-desc { font-size: 1.1rem; color: #475569; line-height: 1.6; margin: 1.5rem 0; }
-.preview-refs h3 { font-size: 1rem; color: #0f172a; margin-bottom: 0.5rem; }
+.preview-cat { display: inline-block; background: rgba(47, 84, 235,0.1); color: var(--brand-primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; margin-bottom: 1rem; }
+.preview-title { font-size: 2.5rem; font-weight: 900; color: var(--text-main); line-height: 1.1; margin: 0 0 0.5rem; }
+.preview-subtitle { font-size: 1.25rem; font-weight: 300; color: var(--text-secondary); margin: 0 0 1rem; }
+.preview-meta { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; color: var(--text-muted); flex-wrap: wrap; }
+.preview-badge { background: var(--bg-hover); color: var(--text-secondary); padding: 2px 10px; border-radius: 4px; font-size: 0.8em; }
+.preview-desc { font-size: 1.1rem; color: var(--text-secondary); line-height: 1.6; margin: 1.5rem 0; }
+.preview-refs h3 { font-size: 1rem; color: var(--text-main); margin-bottom: 0.5rem; }
 .preview-refs ul { list-style: none; padding: 0; }
 .preview-refs li a { color: var(--brand-primary); text-decoration: none; font-size: 0.875rem; }
 
@@ -689,7 +691,7 @@ onBeforeUnmount(() => {
 .dm-actions { display: flex; gap: 10px; justify-content: center; }
 
 /* Buttons */
-.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-primary); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+.btn-primary { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-primary); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: all 0.15s; box-shadow: 0 2px 8px rgba(47, 84, 235,0.3); }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-hover); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 16px; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
@@ -704,7 +706,7 @@ onBeforeUnmount(() => {
 .feedback-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 0.875rem; font-weight: 600; border: 1px solid transparent; }
 .feedback-bar.success { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); color: #059669; }
 .feedback-bar.error   { background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.25);  color: #dc2626; }
-.feedback-bar.info    { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.25); color: var(--brand-primary); }
+.feedback-bar.info    { background: rgba(47, 84, 235,0.1); border-color: rgba(47, 84, 235,0.25); color: var(--brand-primary); }
 .fb-close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.2rem; line-height: 1; color: inherit; opacity: 0.7; }
 .fb-close:hover { opacity: 1; }
 

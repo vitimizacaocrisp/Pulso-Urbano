@@ -25,9 +25,14 @@
   --brand-link-blue: #2980b9;
   --brand-dark-grey: #111a22;    
 
+  /* --- TIPOGRAFIA --- */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+
   /* --- PALETA DE SISTEMA (Feedback) --- */
-  --sys-primary: #007bff;
-  --sys-primary-hover: #0056b3;
+  /* Acento próprio (cobalt) — substitui o azul padrão do Bootstrap. */
+  --sys-primary: #2f54eb;
+  --sys-primary-hover: #1d39c4;
   --sys-success: #28a745;
   --sys-success-hover: #218838;
   --sys-danger: #dc3545;
@@ -131,16 +136,17 @@
 [data-theme="dark"] {
   /* --- Ajuste de Contraste e Cores --- */
   
-  /* Fundos: Tons de cinza neutro profundo para melhor leitura */
-  --bg-body: #121212;            
-  --bg-surface: #1e1e1e;         
-  --bg-hero: #1e1e1e;
-  --bg-dashboard: #0f0f0f;
-  --bg-input: #2d2d2d;
-  --bg-input-form: #2d2d2d;
-  --bg-card: #1e1e1e;
-  --bg-hover: #2c2c2c;
-  --bg-danger-light: #3e1a1d;
+  /* Fundos: PRETO real (não cinza). Superfícies levemente elevadas para
+     separar do fundo sem perder o aspecto "black/OLED". */
+  --bg-body: #000000;
+  --bg-surface: #0e0e0e;
+  --bg-hero: #0a0a0a;
+  --bg-dashboard: #000000;
+  --bg-input: #161616;
+  --bg-input-form: #161616;
+  --bg-card: #0e0e0e;
+  --bg-hover: #1c1c1c;
+  --bg-danger-light: #2a1416;
 
   /* Fundos Específicos (Escurecidos para não ofuscar) */
   --bg-notebook: #2c2a20;
@@ -148,10 +154,10 @@
   --bg-document: #1a2629;
   --bg-data: #1a291e;
   
-  /* Header/Footer (Funde com o tema escuro) */
-  --bg-header: #161616;
-  --bg-header-scrolled: rgba(22, 22, 22, 0.95);
-  --bg-footer: #0a0a0a;
+  /* Header/Footer (Funde com o preto) */
+  --bg-header: #000000;
+  --bg-header-scrolled: rgba(0, 0, 0, 0.92);
+  --bg-footer: #000000;
   
   /* Inputs de Navegação (Dark) */
   --bg-input-nav: rgba(255, 255, 255, 0.05);
@@ -166,7 +172,7 @@
   --text-main: #e6e6e6;          
   --text-primary: #d1d5db;
   --text-secondary: #a3a3a3;
-  --text-muted: #737373;
+  --text-muted: #8f8f8f;
   --text-light: #e6e6e6;
   --text-lighter: #a3a3a3;
   --text-inverse: #121212;       
@@ -186,4 +192,84 @@
   
   /* Ajustes Específicos */
   --loading-bar-bg: #333333;
+}
+
+/* =========================================
+   MODO CONFORTO VISUAL (SÉPIA / LEITURA)
+   Tons quentes e baixo contraste — reduz luz azul
+   e cansaço visual em sessões longas.
+   ========================================= */
+[data-theme="comfort"] {
+  /* Fundos quentes (creme/sépia) */
+  --bg-body: #f3e9d6;
+  --bg-surface: #fbf4e2;
+  --bg-hero: #ece0c8;
+  --bg-dashboard: #ece1ca;
+  --bg-input: #fbf4e2;
+  --bg-input-form: #fbf4e2;
+  --bg-card: #fbf4e2;
+  --bg-hover: #ece0c8;
+  --bg-danger-light: #f6e3df;
+
+  --bg-notebook: #f7eeda;
+  --bg-script: #f3ecdd;
+  --bg-document: #eef0e6;
+  --bg-data: #eef2e3;
+
+  /* Header/Footer */
+  --bg-header: #efe5cd;
+  --bg-header-scrolled: rgba(243, 233, 214, 0.95);
+  --bg-footer: #2b2419;
+
+  --bg-input-nav: rgba(91, 70, 54, 0.06);
+  --border-input-nav: rgba(91, 70, 54, 0.18);
+
+  /* Texto do header */
+  --text-header-logo: #463525;
+  --text-header-nav: #6b5640;
+  --text-header-hover: #2f2417;
+
+  /* Tipografia quente, baixo contraste (sem preto/branco puros) */
+  --text-main: #4a3b29;
+  --text-primary: #5b4636;
+  --text-secondary: #897359;
+  --text-muted: #a48f72;
+  --text-light: #4a3b29;
+  --text-lighter: #897359;
+  --text-inverse: #fbf4e2;
+  --text-header: #6b5640;
+
+  /* Bordas suaves */
+  --border-color: #e0d2b6;
+  --border-input: #d8c8a8;
+  --border-light: #e7dcc4;
+  --border-header: #e0d2b6;
+  --border-dark: #c9b794;
+
+  /* Acento levemente mais quente que o azul puro */
+  --brand-primary: #2f6db0;
+  --brand-primary-hover: #265a92;
+
+  --shadow-md: 0 4px 15px rgba(91, 70, 54, 0.10);
+  --shadow-lg: 0 8px 24px rgba(91, 70, 54, 0.16);
+  --overlay-color: rgba(43, 36, 25, 0.55);
+  --loading-bar-bg: #e0d2b6;
+}
+
+/* =========================================
+   CONTAINER RESPONSIVO
+   Aproveita melhor o espaço em telas grandes
+   sem esticar demais o conteúdo.
+   ========================================= */
+/* Notebooks 11–14" e telas estreitas: container um pouco menor */
+@media (max-width: 1366px) {
+  :root { --container-width: 1140px; }
+}
+/* Notebooks grandes 15–18" */
+@media (min-width: 1681px) {
+  :root { --container-width: 1320px; }
+}
+/* Monitores de computador (full HD+) */
+@media (min-width: 1920px) {
+  :root { --container-width: 1440px; }
 }

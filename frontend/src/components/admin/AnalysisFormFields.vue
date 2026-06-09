@@ -285,9 +285,10 @@ const coverLabel = computed(() => {
   padding: 9px 12px; border: 1px solid var(--border-color);
   border-radius: 8px; background: var(--bg-input-form, var(--bg-body));
   color: var(--text-main); font-size: 0.9rem;
+  font-family: inherit; /* evita o monospace padrão da textarea */
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.field-input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+.field-input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(47, 84, 235,0.12); }
 .field-textarea { resize: vertical; line-height: 1.5; }
 
 .field-hint { font-size: 0.75rem; color: var(--text-muted); }
@@ -311,7 +312,7 @@ const coverLabel = computed(() => {
   cursor: pointer; transition: border-color 0.2s, background 0.2s;
   color: var(--text-muted); text-align: center;
 }
-.file-drop:hover, .file-drop.has-file { border-color: var(--brand-primary); background: rgba(99,102,241,0.04); color: var(--brand-primary); }
+.file-drop:hover, .file-drop.has-file { border-color: var(--brand-primary); background: rgba(47, 84, 235,0.04); color: var(--brand-primary); }
 .file-drop-text { font-weight: 600; font-size: 0.9rem; }
 .file-drop-hint { font-size: 0.75rem; opacity: 0.7; }
 .file-hidden { display: none; }

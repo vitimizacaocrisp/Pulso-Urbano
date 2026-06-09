@@ -12,8 +12,16 @@ const asyncHandler = fn => (req, res, next) =>
 
 // --- Middleware de autenticação ---
 const verifyToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.split(' ')[1];
+    // Cookie httpOnly tem prioridade; o header Authorization é fallback
+    // (clientes de API). Ignora valores literais 'null'/'undefined' que o
+    // frontend possa enviar quando não há token em memória.
+    let token = req.cookies?.authToken || null;
+    if (!token) {
+        const headerToken = req.headers['authorization']?.split(' ')[1];
+        if (headerToken && headerToken !== 'null' && headerToken !== 'undefined') {
+            token = headerToken;
+        }
+    }
 
     if (!token) {
         return res.status(403).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });

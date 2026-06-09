@@ -4,6 +4,16 @@ const crypto = require('crypto');
 const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
+// --- VALIDAÇÃO DAS VARIÁVEIS DE AMBIENTE DO R2 (fail-fast) ---
+const REQUIRED_R2_ENV = [
+  'STORAGE_ENDPOINT', 'STORAGE_ASSESS_KEY_ID', 'STORAGE_SECRET_ACCESS_KEY',
+  'STORAGE_BUCKET_NAME', 'STORAGE_PUBLIC_URL',
+];
+const missingR2Env = REQUIRED_R2_ENV.filter((k) => !process.env[k]);
+if (missingR2Env.length > 0) {
+  console.error(`❌ [R2] Variáveis de ambiente ausentes: ${missingR2Env.join(', ')}. Uploads e deleções vão falhar.`);
+}
+
 // --- CONFIGURAÇÃO DO CLIENTE S3 (Cloudflare R2) ---
 const s3Client = new S3Client({
   endpoint: process.env.STORAGE_ENDPOINT, // O endpoint da conta R2
@@ -22,8 +32,9 @@ const s3Client = new S3Client({
 
 // --- LISTA PERMITIDA DE MIME TYPES (Mantido inalterado) ---
 const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp', 
-  'image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/heic', 'image/heif',
+  // Removido por segurança: 'image/svg+xml' (SVG pode conter scripts → stored XSS inline).
+  'image/jpeg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp',
+  'image/bmp', 'image/tiff', 'image/x-icon', 'image/heic', 'image/heif',
   'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 
   'audio/aac', 'audio/midi', 'audio/x-m4a', 'audio/flac', 'audio/webm',
   'video/mp4', 'video/mpeg', 'video/webm', 'video/quicktime', 'video/x-msvideo', 
@@ -35,8 +46,10 @@ const ALLOWED_MIME_TYPES = [
   'application/rtf', 'text/csv', 'application/csv', 'text/x-csv', 
   'text/comma-separated-values', 'text/tab-separated-values',
   'application/x-ipynb+json', 'application/json', 'text/json', 'application/geo+json',
-  'text/plain', 'text/javascript', 'application/javascript', 'text/x-python', 
-  'application/x-python-code', 'text/css', 'text/html', 'application/xml', 
+  // Removidos por segurança: 'text/html', 'text/javascript', 'application/javascript'
+  // (executam no navegador ao serem servidos pelo domínio público → stored XSS).
+  'text/plain', 'text/x-python',
+  'application/x-python-code', 'text/css', 'application/xml',
   'text/xml', 'application/x-sh', 'application/x-sql', 'text/x-r-source', 'text/markdown',
   'application/zip', 'application/x-zip-compressed', 'application/x-7z-compressed', 
   'application/x-rar-compressed', 'application/gzip', 'application/x-tar'
@@ -44,6 +57,12 @@ const ALLOWED_MIME_TYPES = [
 
 // Extensões permitidas (Mantido inalterado)
 const ALLOWED_EXTENSIONS = ['.ipynb', '.csv', '.R', '.py', '.sql', '.md'];
+
+// Tamanho máximo de upload (50 MB).
+// NOTA: este limite é validado no momento de gerar a URL assinada (advisory).
+// Não é uma garantia rígida — para impor tamanho no R2 use um Cloudflare Worker
+// na frente do bucket. Ver: backend/docs/r2-hard-size-limit.md
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 // --- MAPEAMENTO DE CATEGORIAS (Mantido inalterado) ---
 const FOLDER_MAP = {
@@ -61,10 +80,10 @@ const FOLDER_MAP = {
 // --- FUNÇÕES UTILITÁRIAS ---
 
 function isAllowedFileType(mimeType, fileName) {
-  const normalizedMime = mimeType.toLowerCase();
-  if (ALLOWED_MIME_TYPES.includes(normalizedMime)) return true;
-  const ext = path.extname(fileName).toLowerCase();
-  if (ALLOWED_EXTENSIONS.includes(ext)) return true;
+  const normalizedMime = (mimeType || '').toLowerCase();
+  if (normalizedMime && ALLOWED_MIME_TYPES.includes(normalizedMime)) return true;
+  const ext = path.extname(fileName || '').toLowerCase();
+  if (ext && ALLOWED_EXTENSIONS.includes(ext)) return true;
   return false;
 }
 
@@ -141,6 +160,16 @@ async function generatePresignedUrls(filesMeta) {
       throw new Error(`Tipo de arquivo não permitido: ${file.fileName} (${file.fileType})`);
     }
 
+    if (file.fileSize != null) {
+      const size = Number(file.fileSize);
+      if (!Number.isFinite(size) || size <= 0) {
+        throw new Error(`Tamanho de arquivo inválido: ${file.fileName}`);
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        throw new Error(`Arquivo excede o limite de ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB: ${file.fileName}`);
+      }
+    }
+
     const baseFolder = FOLDER_MAP[file.category] || 'uploads/others';
     const uniqueName = generateUniqueFilename(file.fileName);
     const key = `${baseFolder}/${uniqueName}`;
@@ -175,5 +204,8 @@ module.exports = {
   s3Client,
   testConnectionData,
   deleteFileFromS3,
-  generatePresignedUrls
+  generatePresignedUrls,
+  isAllowedFileType,
+  MAX_UPLOAD_BYTES,
+  ALLOWED_MIME_TYPES
 };

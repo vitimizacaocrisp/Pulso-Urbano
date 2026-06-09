@@ -22,7 +22,7 @@ import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 const props = defineProps({
   apiBaseUrl: {
     type: String,
-    default: () => process.env.VUE_APP_API_URL || 'http://localhost:3000'
+    default: () => import.meta.env.VITE_API_URL || ''
   }
 });
 
@@ -40,13 +40,11 @@ const fetchAllData = async () => {
   if (allAnalyses.value.length > 0) return;
   isLoading.value = true;
   try {
-    const token   = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
+    // Auth via cookie httpOnly (withCredentials global) — sem token em JS.
     const data = await fetchWithCache(
       CacheKeys.autocomplete,
       () => axios
-        .get(`${props.apiBaseUrl}/api/admin/autocomplete`, { headers })
+        .get(`${props.apiBaseUrl}/api/admin/autocomplete`)
         .then(r => r.data?.data?.analyses || []),
       TTL.META // 10 min
     );
@@ -59,14 +57,21 @@ const fetchAllData = async () => {
   }
 };
 
+// Campos como tag/category podem vir como array (JSONB) — normaliza para texto
+// antes de filtrar, evitando TypeError que quebraria a busca ao vivo.
+const norm = (v) => {
+  if (v == null) return '';
+  return (Array.isArray(v) ? v.join(' ') : String(v)).toLowerCase();
+};
+
 const filteredResults = computed(() => {
   if (!query.value.trim()) return [];
   const q = query.value.toLowerCase();
   return allAnalyses.value.filter(a =>
-    a.title?.toLowerCase().includes(q)    ||
-    a.tag?.toLowerCase().includes(q)      ||
-    a.author?.toLowerCase().includes(q)   ||
-    a.category?.toLowerCase().includes(q)
+    norm(a.title).includes(q)  ||
+    norm(a.tag).includes(q)    ||
+    norm(a.author).includes(q) ||
+    norm(a.category).includes(q)
   ).slice(0, 8);
 });
 
@@ -89,7 +94,8 @@ const selectItem = (item) => {
   query.value  = '';
   isOpen.value = false;
   emit('select', item);
-  if (item?.id) router.push({ name: 'Pesquisa', query: { id: item.id } });
+  // Abre a análise diretamente, em vez de "pesquisar pelo id".
+  if (item?.id) router.push({ name: 'AnalysisDetail', params: { id: item.id } });
 };
 
 const handleEnter = () => {

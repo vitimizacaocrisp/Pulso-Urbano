@@ -10,11 +10,11 @@
         </p>
         <div class="contact-block">
             <div class="contact-item">
-                 <i class="fas fa-map-marker-alt"></i>
+                 <Icon icon="mdi:map-marker" width="16" />
                  <span>Belo Horizonte, MG</span>
             </div>
             <div class="contact-item">
-                 <i class="fas fa-envelope"></i>
+                 <Icon icon="mdi:email" width="16" />
                  <a href="mailto:contato@pulsourbano.org">contato@pulsourbano.org</a>
             </div>
         </div>
@@ -50,7 +50,7 @@
             <div class="input-group">
                 <input type="email" placeholder="Seu melhor email" required>
                 <button type="submit" aria-label="Inscrever">
-                  <i class="fas fa-paper-plane"></i>
+                  <Icon icon="mdi:send" width="16" />
                 </button>
             </div>
           </form>
@@ -65,12 +65,12 @@
           
           <div class="social-actions">
             <div class="social-icons">
-              <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-              <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-              <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+              <a href="#" aria-label="Facebook"><Icon icon="mdi:facebook" width="18" /></a>
+              <a href="#" aria-label="Twitter"><Icon icon="mdi:twitter" width="18" /></a>
+              <a href="#" aria-label="Instagram"><Icon icon="mdi:instagram" width="18" /></a>
             </div>
             <button @click="scrollToTop" class="back-to-top" aria-label="Voltar ao topo">
-                <i class="fas fa-arrow-up"></i>
+                <Icon icon="mdi:arrow-up" width="18" />
             </button>
           </div>
       </div>
@@ -80,6 +80,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { Icon } from '@iconify/vue';
 
 const categories = ref([
     { name: 'Educação', path: '/categoria/educacao' },
@@ -104,7 +105,7 @@ const scrollToTop = () => {
   background-color: var(--bg-footer);
   /* Define uma cor base clara para o texto, já que o footer é escuro */
   color: var(--text-light); 
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   border-top: 1px solid var(--border-header);
 }
 

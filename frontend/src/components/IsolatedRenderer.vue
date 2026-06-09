@@ -9,8 +9,15 @@
 </template>
 
 <script>
+import { useTheme } from '@/composables/useTheme';
+
 export default {
   name: "IsolatedRenderer",
+
+  setup() {
+    const { theme } = useTheme();
+    return { theme };
+  },
 
   props: {
     content: {
@@ -47,10 +54,16 @@ export default {
 
     compiledHtml() {
       const content = this.cleanContent
-      
+
+      // Cor de texto do conteúdo conforme o tema ativo (o fundo do iframe é
+      // transparente e mostra o wrapper já tematizado).
+      const t = this.theme
+      const textColor = t === 'dark' ? '#d4d4d4' : t === 'comfort' ? '#4a3b29' : '#333'
+      const linkColor = t === 'comfort' ? '#2f6db0' : '#2563eb'
+
       // eslint-disable-next-line no-useless-escape
       const scriptEnd = '<\/script>'
-      
+
       return `
 <!DOCTYPE html>
 <html>
@@ -67,10 +80,12 @@ export default {
 html, body {
   height: auto;
   overflow: visible;
+  background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.6;
-  color: #333;
+  color: ${textColor};
 }
+a { color: ${linkColor}; }
 img, canvas, svg {
   max-width: 100%;
   height: auto;

@@ -25,13 +25,13 @@
 
           <form @submit.prevent="handleLogin">
             <div v-if="errorMessage" class="alert-error fade-in">
-              <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+              <Icon icon="mdi:alert-circle" /> {{ errorMessage }}
             </div>
 
             <div class="input-group">
               <label for="email">Email Corporativo</label>
               <div class="input-wrapper" :class="{ 'focused': focusedField === 'email' }">
-                <i class="fas fa-envelope input-icon"></i>
+                <Icon icon="mdi:email" class="input-icon" />
                 <input 
                   type="email" 
                   id="email" 
@@ -48,7 +48,7 @@
             <div class="input-group">
               <label for="password">Senha</label>
               <div class="input-wrapper" :class="{ 'focused': focusedField === 'password' }">
-                <i class="fas fa-lock input-icon"></i>
+                <Icon icon="mdi:lock" class="input-icon" />
                 <input 
                   :type="passwordFieldType" 
                   id="password" 
@@ -60,26 +60,26 @@
                   @blur="focusedField = null"
                 >
                 <button type="button" @click="togglePasswordVisibility" class="toggle-visibility" tabindex="-1">
-                  <i :class="isPasswordVisible ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                  <Icon :icon="isPasswordVisible ? 'mdi:eye-off' : 'mdi:eye'" />
                 </button>
               </div>
             </div>
 
             <div class="form-actions">
               <label class="remember-me">
-                <input type="checkbox"> <span>Lembrar-me</span>
+                <input type="checkbox" v-model="rememberMe"> <span>Lembrar-me</span>
               </label>
               <a href="#" class="forgot-password">Esqueceu a senha?</a>
             </div>
 
             <button type="submit" class="btn-submit" :disabled="isLoading">
               <span v-if="isLoading" class="spinner"></span>
-              <span v-else>Aceder ao Painel <i class="fas fa-arrow-right"></i></span>
+              <span v-else>Aceder ao Painel <Icon icon="mdi:arrow-right" /></span>
             </button>
           </form>
 
           <div class="back-link">
-            <a href="/"><i class="fas fa-arrow-left"></i> Voltar ao site principal</a>
+            <a href="/"><Icon icon="mdi:arrow-left" /> Voltar ao site principal</a>
           </div>
         </div>
       </div>
@@ -89,15 +89,18 @@
 
 <script>
 import axios from 'axios';
+import { Icon } from '@iconify/vue';
 
-const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default {
   name: 'AdminLoginView',
+  components: { Icon },
   data() {
     return {
       email: '',
       password: '',
+      rememberMe: true,
       isPasswordVisible: false,
       errorMessage: null,
       isLoading: false,
@@ -115,12 +118,13 @@ export default {
       this.errorMessage = null;
 
       try {
-        const response = await axios.post(API_URL+'/admin-auth', {
+        // O backend seta o cookie httpOnly na resposta; nada é guardado em JS.
+        await axios.post(API_URL+'/admin-auth', {
           email: this.email,
           password: this.password,
+          rememberMe: this.rememberMe,
         });
-        
-        localStorage.setItem('authToken', response.data.token);
+
         this.$router.push('/admin');
 
       } catch (error) {
@@ -145,7 +149,7 @@ export default {
   min-height: 100vh;
   /* Fundo adapta-se ao tema */
   background-color: var(--bg-body); 
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   color: var(--text-main);
 }
 
@@ -171,13 +175,13 @@ export default {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232f54eb' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   z-index: 0;
 }
 
 .brand-content { position: relative; z-index: 2; margin-top: auto; margin-bottom: auto; }
 .logo { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; letter-spacing: -1px; color: #fff; }
-.highlight { color: #6366f1; }
+.highlight { color: var(--brand-primary); }
 .brand-tagline { font-size: 1.5rem; font-weight: 300; opacity: 0.9; line-height: 1.4; max-width: 500px; color: #cbd5e1; }
 .brand-footer { position: relative; z-index: 2; font-size: 0.85rem; opacity: 0.6; color: #cbd5e1; }
 
@@ -239,7 +243,7 @@ export default {
 .input-wrapper.focused {
   border-color: var(--brand-primary);
   background-color: var(--bg-surface);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 4px rgba(47, 84, 235, 0.1);
 }
 
 .input-icon {

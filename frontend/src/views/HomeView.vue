@@ -33,7 +33,7 @@
               <div class="featured-content">
                 <header class="article-header">
                   <div class="article-meta">
-                    <span><i class="far fa-calendar"></i> {{ new Date(dailyHighlight.data.created_at).toLocaleDateString() }}</span>
+                    <span><Icon icon="mdi:calendar-blank-outline" /> {{ new Date(dailyHighlight.data.created_at).toLocaleDateString() }}</span>
                   </div>
                   <h1>{{ dailyHighlight.data.title }}</h1>
                   <div class="author-meta">
@@ -42,7 +42,7 @@
                 </header>
                 <p class="lead">{{ dailyHighlight.data.description }}</p>
                 <router-link :to="{ name: 'AnalysisDetail', params: { id: dailyHighlight.data.id } }" class="btn-text">
-                  Ler Análise Completa <i class="fas fa-arrow-right"></i>
+                  Ler Análise Completa <Icon icon="mdi:arrow-right" />
                 </router-link>
               </div>
             </div>
@@ -59,23 +59,6 @@
       </main>
 
       <aside class="sidebar">
-
-        <!-- Widget: Dados em Foco -->
-        <div class="sidebar-widget card-modern context-widget scroll-reveal delay-2">
-          <h3 class="widget-title">Dados em Foco</h3>
-          <div v-if="population.isLoading" class="status-message small"><div class="spinner-badge"></div></div>
-          <div v-else-if="population.error" class="status-message small error">Falha ao carregar.</div>
-          <div v-else class="stats-list">
-            <div class="stat-card">
-              <span class="stat-label">População Brasil ({{ population.data.ano }})</span>
-              <strong class="stat-number">{{ formatNumber(population.data.total) }}</strong>
-            </div>
-            <div v-if="population.data.topState" class="stat-card highlight">
-              <span class="stat-label">Maior Estado ({{ population.data.topState.uf }})</span>
-              <strong class="stat-number small">{{ formatNumber(population.data.topState.populacao) }}</strong>
-            </div>
-          </div>
-        </div>
 
         <!-- Widget: Newsletter -->
         <div class="sidebar-widget card-modern newsletter-widget scroll-reveal delay-3">
@@ -97,12 +80,13 @@
 <script setup>
 import { reactive, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import axios from 'axios';
+import { Icon } from '@iconify/vue';
 import RecentPosts from '@/components/RecentPosts.vue';
 import MeuHeader   from '@/components/MeuHeader.vue';
 import MeuFooter   from '@/components/MeuFooter.vue';
-import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { fetchWithCache, TTL } from '@/utils/apiCache.js';
 
-const API_BASE_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ─── Scroll reveal ────────────────────────────────────────────────────
 const setupScrollAnimations = () => {
@@ -150,7 +134,7 @@ class Particle {
     if (this.baseY < 0 || this.baseY > h) this.vy = -this.vy;
   }
   draw(ctx) {
-    ctx.fillStyle = 'rgba(99,102,241,0.8)';
+    ctx.fillStyle = 'rgba(47, 84, 235,0.8)';
     ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
   }
 }
@@ -193,7 +177,7 @@ const initCanvas = () => {
         const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d < 100) {
-          ctx.beginPath(); ctx.strokeStyle = `rgba(99,102,241,${1 - d / 100})`; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.strokeStyle = `rgba(47, 84, 235,${1 - d / 100})`; ctx.lineWidth = 0.5;
           ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
         }
       }
@@ -223,54 +207,21 @@ const initCanvas = () => {
 };
 
 // ─── Estado ───────────────────────────────────────────────────────────
-const population = reactive({ isLoading: true, error: null, data: { total: 0, topState: null, ano: null } });
 const dailyHighlight = reactive({ isLoading: true, error: null, data: null });
-//const categories     = reactive({ isLoading: true, error: null, data: [] });
 
-const formatNumber   = (num) => typeof num === 'number' ? num.toLocaleString('pt-BR') : '...';
 const getFullMediaPath = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
   return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
-// ─── Dados do IBGE — cacheia 24 h ─────────────────────────────────────
-const fetchPopulationData = async () => {
-  population.isLoading = true;
-  try {
-    const ano = new Date().getFullYear() - 1;
-    const processedData = await fetchWithCache(
-      CacheKeys.ibge(ano),
-      async () => {
-        const url = `https://apisidra.ibge.gov.br/values/t/6579/n3/all/v/9324/p/${ano}/h/n`;
-        const response = await axios.get(url);
-        const rawData  = response.data;
-        if (!Array.isArray(rawData) || rawData.length < 2) throw new Error('Formato IBGE inesperado.');
-        return rawData.slice(1).map(item => ({ uf: item.D3N, populacao: Number(item.V) || 0 }));
-      },
-      TTL.IBGE
-    );
-    population.data.total    = processedData.reduce((s, st) => s + st.populacao, 0);
-    population.data.topState = [...processedData].sort((a, b) => b.populacao - a.populacao)[0];
-    population.data.ano      = new Date().getFullYear() - 1;
-    population.error = null;
-  } catch (err) {
-    console.error('IBGE error:', err);
-    population.error = 'Falha ao carregar dados populacionais.';
-  } finally {
-    population.isLoading = false;
-  }
-};
-
 // ─── Destaque do dia — rota dedicada /api/highlight ───────────────────
 const fetchHighlight = async () => {
   dailyHighlight.isLoading = true;
   try {
-    const token   = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const data = await fetchWithCache(
       'highlight:day',
-      () => axios.get(`${API_BASE_URL}/api/highlight`, { headers }).then(r => r.data?.data),
+      () => axios.get(`${API_BASE_URL}/api/highlight`).then(r => r.data?.data),
       TTL.DEFAULT // 30 s
     );
     dailyHighlight.data  = data;
@@ -289,8 +240,6 @@ let cleanupCanvas;
 onMounted(() => {
   // Requests independentes e paralelas
   fetchHighlight();
-  // fetchCategories(); // Comentado pois a rota /api/categories não está sendo utilizada
-  fetchPopulationData();
   cleanupCanvas = initCanvas();
   nextTick(setupScrollAnimations);
 });
@@ -313,12 +262,23 @@ onUnmounted(() => { if (cleanupCanvas) cleanupCanvas(); });
 .hero-canvas-container {
   position: relative; height: 91vh; width: 100%; overflow: hidden;
   display: flex; justify-content: center; align-items: center;
-  background-color: var(--slate-900);
+  /* Gradiente-mesh atmosférico (cobalt + navy sobre quase-preto) */
+  background:
+    radial-gradient(55% 55% at 18% 22%, rgba(47, 84, 235, 0.28) 0%, transparent 60%),
+    radial-gradient(45% 50% at 85% 28%, rgba(29, 57, 196, 0.30) 0%, transparent 58%),
+    radial-gradient(70% 60% at 50% 108%, rgba(47, 84, 235, 0.20) 0%, transparent 60%),
+    var(--slate-950);
+}
+/* Textura de grão para profundidade/editorial */
+.hero-canvas-container::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.08; mix-blend-mode: overlay;
 }
 .interactive-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 .canvas-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: radial-gradient(circle at center, rgba(15,23,42,0.2) 0%, rgba(15,23,42,0.9) 100%);
+  background: radial-gradient(circle at center, rgba(2,6,23,0.15) 0%, rgba(2,6,23,0.82) 100%);
   z-index: 2; pointer-events: none;
 }
 .hero-content {
@@ -354,15 +314,6 @@ onUnmounted(() => { if (cleanupCanvas) cleanupCanvas(); });
 .btn-text:hover   { gap: 0.75rem; color: var(--brand-primary-hover); }
 .sidebar-widget   { padding: 1.5rem; margin-bottom: 2rem; background: var(--bg-card); }
 .widget-title     { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0 0 1.25rem 0; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-color); }
-.category-list    { list-style: none; padding: 0; margin: 0; }
-.category-item    { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); transition: all 0.2s; border-bottom: 1px solid var(--border-color); }
-.category-item:hover { background-color: var(--bg-hover); color: var(--brand-primary); padding-left: 1rem; }
-.cat-count        { background-color: var(--bg-hover); color: var(--text-muted); font-size: 0.75rem; padding: 0.15rem 0.6rem; border-radius: 99px; font-weight: 600; }
-.stats-list       { display: flex; flex-direction: column; gap: 1rem; }
-.stat-card        { background: var(--bg-hover); padding: 1rem; border-radius: var(--radius-md); border-left: 4px solid var(--border-color); }
-.stat-card.highlight { border-left-color: var(--brand-primary); background: rgba(99,102,241,0.1); }
-.stat-label       { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem; text-transform: uppercase; font-weight: 600; }
-.stat-number      { font-size: 1.5rem; color: var(--text-main); font-weight: 700; display: block; }
 .newsletter-widget { background: var(--bg-footer); color: white; text-align: center; padding: 2rem; }
 .widget-title.inverted { color: white; border-color: rgba(255,255,255,0.1); }
 .newsletter-content p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
@@ -372,7 +323,6 @@ onUnmounted(() => { if (cleanupCanvas) cleanupCanvas(); });
 .btn-subscribe { padding: 0.85rem; border-radius: 6px; border: none; font-weight: 700; cursor: pointer; background-color: var(--brand-primary); color: white; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; transition: background 0.2s; }
 .btn-subscribe:hover { background-color: var(--brand-primary-hover); }
 @keyframes spin { to { transform: rotate(360deg); } }
-.spinner-badge    { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
 .spinner-large    { width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto; }
 .status-message   { padding: 3rem; text-align: center; color: var(--text-muted); }
 .status-message.error { color: var(--sys-danger); }
