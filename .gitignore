@@ -16,8 +16,13 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 .claude/
 
+.agents/
+
+skills-lock.json
+
 .github/
 
+frontend-backup/
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

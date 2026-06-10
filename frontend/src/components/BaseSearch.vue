@@ -40,7 +40,7 @@ const fetchAllData = async () => {
   if (allAnalyses.value.length > 0) return;
   isLoading.value = true;
   try {
-    // Auth via cookie httpOnly (withCredentials global) — sem token em JS.
+    // Auth via header Authorization (interceptor do axios em main.js).
     const data = await fetchWithCache(
       CacheKeys.autocomplete,
       () => axios

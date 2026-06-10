@@ -118,13 +118,15 @@ export default {
       this.errorMessage = null;
 
       try {
-        // O backend seta o cookie httpOnly na resposta; nada é guardado em JS.
-        await axios.post(API_URL+'/admin-auth', {
+        // O backend devolve o token no corpo; guardamos no localStorage e o
+        // interceptor do axios (main.js) o envia no header de cada requisição.
+        const { data } = await axios.post(API_URL+'/admin-auth', {
           email: this.email,
           password: this.password,
           rememberMe: this.rememberMe,
         });
 
+        localStorage.setItem('authToken', data.token);
         this.$router.push('/admin');
 
       } catch (error) {

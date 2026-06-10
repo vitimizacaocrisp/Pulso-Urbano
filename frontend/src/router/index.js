@@ -7,12 +7,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const isRouteLoading = ref(false);
 
 const checkAuthStatus = async () => {
-  // O token vive num cookie httpOnly, enviado automaticamente (withCredentials).
+  // Sem token salvo: nem chega a bater no backend.
+  if (!localStorage.getItem('authToken')) return false;
+  // O interceptor do axios (main.js) injeta o header Authorization.
   try {
     await axios.get(API_BASE_URL + '/api/admin/verify-token');
-    return true; // Cookie válido.
+    return true; // Token válido.
   } catch (error) {
-    return false; // Sem cookie, inválido ou expirado.
+    return false; // Token inválido ou expirado.
   }
 };
 

@@ -59,11 +59,7 @@ router.get('/verify-token', verifyToken, (req, res) => {
 
 // Logout — limpa o cookie. Sem verifyToken: funciona mesmo com sessão expirada.
 router.post('/logout', (req, res) => {
-  res.clearCookie('authToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-  });
+  // Sem estado no servidor: o frontend só descarta o token do localStorage.
   res.json({ success: true, message: 'Logout realizado.' });
 });
 

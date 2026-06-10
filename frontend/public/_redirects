@@ -1,7 +1,5 @@
-# Proxy para o backend (mesma origem → cookie httpOnly first-party).
-# IMPORTANTE: troque a URL abaixo pela URL real do backend na Vercel.
-/api/*       https://pulso-urbano-backend.vercel.app/api/:splat   200
-/admin-auth  https://pulso-urbano-backend.vercel.app/admin-auth   200
+# O frontend chama o backend diretamente pela URL em VITE_API_URL
+# (cross-domain via header Authorization). Não há proxy de /api aqui.
 
-# Fallback SPA (precisa vir por último).
-/*           /index.html                                          200
+# Fallback SPA: toda rota do Vue Router cai no index.html.
+/*    /index.html    200

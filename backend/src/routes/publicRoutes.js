@@ -205,19 +205,10 @@ router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
     { expiresIn: remember ? '168h' : '12h' }
   );
 
-  // Token vai num cookie httpOnly — inacessível ao JavaScript (mitiga XSS).
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // só HTTPS em produção
-    sameSite: 'lax',                               // same-origin via proxy
-  };
-  // "Lembrar-me": cookie persistente (7 dias). Sem: cookie de sessão
-  // (expira ao fechar o navegador).
-  if (remember) cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
-
-  res.cookie('authToken', token, cookieOptions);
-
-  res.json({ success: true, message: 'Login bem-sucedido!' });
+  // Token devolvido no corpo. O frontend guarda no localStorage e o envia no
+  // header Authorization — funciona cross-domain (Netlify <-> Vercel), sem
+  // depender de cookie/proxy. A validade do JWT já respeita o "lembrar-me".
+  res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));
 
 module.exports = router;

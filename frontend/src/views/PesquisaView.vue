@@ -319,7 +319,7 @@ const fetchAnalyses = async (isNewSearch = false) => {
   error.value = null;
 
   try {
-    // Auth via cookie httpOnly (withCredentials global).
+    // Auth via header Authorization (interceptor do axios em main.js).
     const params = { page: currentPage.value, limit: limit.value };
     if (searchQuery.value)                     params.search    = searchQuery.value;
     if (activeFilters.value.categories.length) params.category  = activeFilters.value.categories.join(',');

@@ -120,22 +120,16 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
 import { Icon } from '@iconify/vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const router = useRouter();
 const sidebarCollapsed = ref(false);
 const mobileDrawerOpen = ref(false);
 
-const logout = async () => {
-  // O cookie é httpOnly: só o backend consegue limpá-lo.
-  try {
-    await axios.post(API_BASE_URL + '/api/admin/logout');
-  } catch (e) {
-    // Mesmo se falhar, segue para a tela de login.
-  }
+const logout = () => {
+  // Auth stateless: basta descartar o token local.
+  localStorage.removeItem('authToken');
   router.push({ name: 'AdminLogin' });
 };
 </script>

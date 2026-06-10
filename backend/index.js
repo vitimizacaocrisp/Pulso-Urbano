@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const cookieParser = require('cookie-parser');
 const { requestHandler, testConnection } = require('./src/db/dbConnect');
 const mainRoutes = require('./src/routes/routes');
 
@@ -31,7 +30,7 @@ app.use(cors({
       callback(new Error('Bloqueado pela política de CORS (Origem não permitida)'));
     }
   },
-  credentials: true, // Permite cookies e headers de autorização
+  credentials: false, // Auth via header Authorization (sem cookie)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Garante que UPDATE e DELETE funcionem
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
@@ -39,7 +38,6 @@ app.use(cors({
 // --- 4. MIDDLEWARES DE PARSE ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
 // --- 5. ROTAS ---
 app.use('/', mainRoutes);

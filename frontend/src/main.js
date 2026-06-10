@@ -7,8 +7,13 @@ import router from './router'
 import './assets/css/style.css'
 import './assets/js/script.js'
 
-// Envia o cookie httpOnly de autenticação em todas as requisições.
-axios.defaults.withCredentials = true
+// Injeta o token JWT (localStorage) no header Authorization de toda requisição.
+// Auth stateless: funciona cross-domain (Netlify <-> Vercel) sem cookie/proxy.
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 createApp(App)
   .use(router)

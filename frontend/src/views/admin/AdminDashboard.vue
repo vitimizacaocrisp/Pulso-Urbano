@@ -185,7 +185,7 @@ const fetchData = async () => {
   error.value = null;
 
   try {
-    // Auth via cookie httpOnly (withCredentials global).
+    // Auth via header Authorization (interceptor do axios em main.js).
     const { data } = await axios.get(`${API_URL}/api/admin/dashboard-data`, { timeout: 15000 });
     const d = data.data;
     stats.value          = d.stats;
