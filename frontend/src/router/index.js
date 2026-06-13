@@ -5,6 +5,9 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const isRouteLoading = ref(false);
+// Vira true após a 1ª navegação resolver. Enquanto false, App.vue mostra a
+// splash de boot; depois disso, navegações usam só a barra de progresso.
+export const appBooted = ref(false);
 
 const checkAuthStatus = async () => {
   // Sem token salvo: nem chega a bater no backend.
@@ -137,6 +140,7 @@ router.beforeEach(async (to, from, next) => {
 
 router.afterEach(() => {
   isRouteLoading.value = false;
+  appBooted.value = true;
 });
 
 
