@@ -71,7 +71,8 @@ export default {
   name: 'CardAnalisesCatalogo',
   components: { AnalysisCover },
   props: {
-    category: { type: String, default: null }
+    category: { type: String, default: null },
+    entryType: { type: String, default: null }
   },
   data() {
     return {
@@ -102,6 +103,7 @@ export default {
       try {
         const params = { page: this.currentPage, limit: PAGE_SIZE, sort: 'date_desc' };
         if (this.category) params.category = this.category;
+        if (this.entryType) params.entry_type = this.entryType;
 
         // Usa rota pública — sem token, sem sobrecarregar o admin endpoint
         const cacheKey = CacheKeys.analysesList(params);

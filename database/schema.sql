@@ -63,7 +63,8 @@ VALUES (
 ON CONFLICT (email) DO NOTHING;
 
 -- -------------------------------------------------------------
--- Após criar as tabelas, rode também a migração de full-text search:
---   database/migrations/2026_full_text_search.sql
--- (necessária para a busca por relevância funcionar)
+-- Após criar as tabelas, rode também as migrações:
+--   database/migrations/2026_full_text_search.sql  (busca por relevância)
+--   database/migrations/2026_content_types.sql     (produções acadêmicas e dados primários)
+-- O backend degrada graciosamente se elas não tiverem sido aplicadas.
 -- -------------------------------------------------------------

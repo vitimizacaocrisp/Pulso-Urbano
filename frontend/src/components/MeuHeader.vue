@@ -43,6 +43,8 @@
         <nav class="desktop-nav">
              <ul>
                 <li><router-link to="/catalogo" class="nav-link">Catálogo</router-link></li>
+                <li><router-link to="/producoes" class="nav-link">Produções</router-link></li>
+                <li><router-link to="/dados" class="nav-link">Dados</router-link></li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:lock" width="14" /></router-link></li>
@@ -89,6 +91,8 @@
 
             <li class="divider"></li>
             <li><router-link to="/catalogo" @click="toggleMenu">Catálogo</router-link></li>
+            <li><router-link to="/producoes" @click="toggleMenu">Produções Científicas</router-link></li>
+            <li><router-link to="/dados" @click="toggleMenu">Repositório de Dados</router-link></li>
             <li><router-link to="/sobre" @click="toggleMenu">Sobre</router-link></li>
             <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
             <li><router-link to="/admin" @click="toggleMenu">Administração</router-link></li>

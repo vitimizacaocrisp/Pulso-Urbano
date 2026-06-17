@@ -1,5 +1,54 @@
 import * as monaco from 'monaco-editor';
 
+// ── Tipos de conteúdo (ver migração 2026_content_types.sql) ──
+export const ENTRY_TYPES = [
+  { value: 'analysis', label: 'Análise', icon: 'mdi:chart-box-outline' },
+  { value: 'academic', label: 'Produção Acadêmica', icon: 'mdi:school-outline' },
+  { value: 'dataset',  label: 'Dado Primário',      icon: 'mdi:database-outline' },
+];
+export const ACADEMIC_TYPES = [
+  'Tese', 'Dissertação', 'Artigo Científico', 'Relatório Técnico',
+  'Capítulo de Livro', 'Trabalho em Congresso',
+];
+export const DATASET_INSTRUMENTS = [
+  'Questionário', 'Microdados / Banco de Dados', 'Livro de Códigos',
+  'Ficha Técnica de Amostragem', 'Material Complementar de Campo',
+];
+
+// meta (JSONB) pode chegar como objeto (neon) ou string — normaliza.
+export const parseMeta = (meta) => {
+  if (!meta) return {};
+  if (typeof meta === 'object') return meta;
+  try { return JSON.parse(meta); } catch { return {}; }
+};
+
+// Filtra linhas de referência/links válidas, descartando lixo cadastrado
+// (um único ".", traço, linha em branco). Exige >=2 caracteres alfanuméricos.
+export const parseReferenceLinks = (raw) => {
+  if (!raw) return [];
+  return String(raw)
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.replace(/[^a-zA-Z0-9]/g, '').length >= 2);
+};
+
+// Monta uma citação no estilo ABNT a partir dos metadados acadêmicos.
+export const buildCitation = (a) => {
+  if (!a) return '';
+  const m = parseMeta(a.meta);
+  const authors = (a.author || '').trim();
+  const year    = (m.year || '').trim();
+  const title   = (a.title || '').trim();
+  const venue   = (m.venue || '').trim();
+  const type    = (m.academicType || '').trim();
+  const parts = [];
+  if (authors) parts.push(authors.toUpperCase() + '.');
+  if (title)   parts.push(title + '.');
+  const tail = [type, venue, year].filter(Boolean).join(', ');
+  if (tail) parts.push(tail + '.');
+  return parts.join(' ');
+};
+
 export const mediaTypeLabels = {
     'image': 'Imagem',
     'audio': 'Áudio',

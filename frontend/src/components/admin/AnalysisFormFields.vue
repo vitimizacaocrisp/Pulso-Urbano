@@ -14,6 +14,88 @@
 
     <!-- TAB: Identificação -->
     <div v-show="activeTab === 'identity'" class="tab-pane">
+
+      <!-- Tipo de entrada -->
+      <div class="field-group">
+        <label class="field-label">Tipo de Entrada</label>
+        <div class="entry-type-seg">
+          <button v-for="t in ENTRY_TYPES" :key="t.value" type="button"
+            class="seg-btn" :class="{ active: entryType === t.value }"
+            @click="setEntryType(t.value)">
+            <Icon :icon="t.icon" width="16" /> {{ t.label }}
+          </button>
+        </div>
+        <span class="field-hint">
+          Produção acadêmica e dado primário ganham um formato próprio na página pública.
+        </span>
+      </div>
+
+      <!-- Metadados acadêmicos -->
+      <div v-if="entryType === 'academic'" class="meta-block">
+        <div class="meta-block-title"><Icon icon="mdi:school-outline" width="15" /> Metadados acadêmicos</div>
+        <div class="field-row two-col">
+          <div class="field-group">
+            <label class="field-label">Tipo de produção</label>
+            <select class="field-input" :value="metaVal('academicType')"
+              @change="updateMeta('academicType', $event.target.value)">
+              <option value="" disabled>Selecione...</option>
+              <option v-for="t in ACADEMIC_TYPES" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Ano</label>
+            <input type="text" class="field-input" :value="metaVal('year')"
+              @input="updateMeta('year', $event.target.value)" placeholder="Ex: 2024" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Veículo / Instituição / Evento</label>
+          <input type="text" class="field-input" :value="metaVal('venue')"
+            @input="updateMeta('venue', $event.target.value)"
+            placeholder="Ex: Revista Brasileira de Sociologia; UFMG; ANPOCS" />
+        </div>
+        <div class="field-row two-col">
+          <div class="field-group">
+            <label class="field-label">DOI / Link</label>
+            <input type="text" class="field-input" :value="metaVal('doi')"
+              @input="updateMeta('doi', $event.target.value)" placeholder="https://doi.org/..." />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Link do PDF</label>
+            <input type="text" class="field-input" :value="metaVal('pdfUrl')"
+              @input="updateMeta('pdfUrl', $event.target.value)" placeholder="Link para baixar o documento" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Ficha de dado primário -->
+      <div v-else-if="entryType === 'dataset'" class="meta-block">
+        <div class="meta-block-title"><Icon icon="mdi:database-outline" width="15" /> Ficha técnica do dado</div>
+        <div class="field-row two-col">
+          <div class="field-group">
+            <label class="field-label">Instrumento</label>
+            <select class="field-input" :value="metaVal('instrument')"
+              @change="updateMeta('instrument', $event.target.value)">
+              <option value="" disabled>Selecione...</option>
+              <option v-for="t in DATASET_INSTRUMENTS" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Formato dos dados</label>
+            <input type="text" class="field-input" :value="metaVal('dataFormat')"
+              @input="updateMeta('dataFormat', $event.target.value)" placeholder="Ex: CSV, SPSS, PDF" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Amostra / cobertura</label>
+          <input type="text" class="field-input" :value="metaVal('sampleSize')"
+            @input="updateMeta('sampleSize', $event.target.value)" placeholder="Ex: 2.500 domicílios, 27 UFs" />
+        </div>
+        <span class="field-hint">
+          Coloque os links de download dos arquivos em "Links de Referência" (aba Publicação).
+        </span>
+      </div>
+
       <div class="field-row two-col">
         <div class="field-group">
           <label class="field-label">Título <span class="req">*</span></label>
@@ -126,15 +208,22 @@
     <!-- TAB: Publicação -->
     <div v-show="activeTab === 'publish'" class="tab-pane">
       <div class="field-group">
-        <label class="field-label">Imagem de Capa <span class="req">*</span></label>
+        <label class="field-label">Imagem de Capa</label>
         <label :for="coverInputId" class="file-drop" :class="{ 'has-file': hasCover }">
           <Icon :icon="hasCover ? 'mdi:image-check-outline' : 'mdi:image-plus-outline'" width="28" />
           <span class="file-drop-text">{{ coverLabel }}</span>
-          <span class="file-drop-hint">PNG, JPG, WEBP — máx 10 MB</span>
+          <span class="file-drop-hint">PNG, JPG, WEBP — máx 10 MB · opcional</span>
         </label>
         <input type="file" :id="coverInputId" accept="image/*" class="file-hidden"
           @change="$emit('cover-change', $event)" />
         <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Pré-visualização" class="cover-preview" />
+        <div v-else class="auto-cover-block">
+          <div class="auto-cover-frame"><AnalysisCover :analysis="autoCoverAnalysis" /></div>
+          <span class="field-hint auto-cover-hint">
+            <Icon icon="mdi:auto-fix" width="14" />
+            Sem imagem? Uma capa automática é gerada a partir da categoria, tag e título.
+          </span>
+        </div>
       </div>
 
       <div class="field-group">
@@ -177,6 +266,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { Icon } from '@iconify/vue';
+import AnalysisCover from '@/components/AnalysisCover.vue';
+import { ENTRY_TYPES, ACADEMIC_TYPES, DATASET_INSTRUMENTS } from '@/utils/analysisUtils.js';
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -184,6 +275,17 @@ const props = defineProps({
   coverInputId: { type: String, default: 'coverImageInput' }
 });
 const emit = defineEmits(['update:modelValue', 'cover-change']);
+
+// ── Tipo de entrada + metadados específicos ──
+const entryType = computed(() => props.modelValue.entry_type || 'analysis');
+const setEntryType = (val) =>
+  emit('update:modelValue', { ...props.modelValue, entry_type: val });
+const metaVal = (key) => (props.modelValue.meta || {})[key] || '';
+const updateMeta = (key, val) =>
+  emit('update:modelValue', {
+    ...props.modelValue,
+    meta: { ...(props.modelValue.meta || {}), [key]: val }
+  });
 
 const categories = [
   'Metodologia e Amostra', 'Crimes Contra o Patrimônio', 'Crimes Contra a Pessoa',
@@ -240,6 +342,14 @@ const coverLabel = computed(() => {
   if (props.modelValue.coverImage?.serverPath) return 'Imagem atual mantida — clique para trocar';
   return 'Clique para selecionar a imagem de capa';
 });
+
+// Capa automática (preview) — gerada da categoria/tag/título quando não há imagem.
+const autoCoverAnalysis = computed(() => ({
+  title:    props.modelValue.title,
+  category: props.modelValue.category,
+  tag:      props.modelValue.tag,
+  source:   props.modelValue.source,
+}));
 </script>
 
 <style scoped>
@@ -281,6 +391,27 @@ const coverLabel = computed(() => {
 .field-label { font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
 .req { color: #ef4444; margin-left: 2px; }
 
+/* Seletor de tipo de entrada */
+.entry-type-seg { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-input-form, var(--bg-body)); color: var(--text-secondary);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.seg-btn:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+.seg-btn.active { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
+.meta-block {
+  display: flex; flex-direction: column; gap: 1.25rem;
+  padding: 1rem; border: 1px dashed var(--border-color); border-radius: 10px;
+  background: var(--bg-hover);
+}
+.meta-block-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--brand-primary);
+}
+
 .field-input {
   padding: 9px 12px; border: 1px solid var(--border-color);
   border-radius: 8px; background: var(--bg-input-form, var(--bg-body));
@@ -317,6 +448,9 @@ const coverLabel = computed(() => {
 .file-drop-hint { font-size: 0.75rem; opacity: 0.7; }
 .file-hidden { display: none; }
 .cover-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 8px; }
+.auto-cover-block { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.auto-cover-frame { width: 100%; height: 180px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); }
+.auto-cover-hint { display: flex; align-items: center; gap: 5px; }
 
 /* Toggles */
 .toggle-row { display: flex; flex-direction: column; gap: 12px; }

@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, asyncHandler } = require('../middleware/middlewares');
-const { sql } = require('../db/dbConnect');
+const { sql, hasContentTypeColumns } = require('../db/dbConnect');
+
+// Tipos de conteúdo aceitos (ver migração 2026_content_types.sql).
+const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+const safeEntryType = (v) => (ALLOWED_ENTRY_TYPES.includes(v) ? v : 'analysis');
+const safeMeta = (v) => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  return Object.keys(v).length ? JSON.stringify(v) : null;
+};
 const {
   generatePresignedUrls,
   deleteFileFromS3
@@ -193,8 +201,11 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     tag,
     year_from,
     year_to,
+    entry_type,
     sort = 'date_desc'  // date_desc | date_asc | title_asc
   } = req.query;
+
+  const ctColumns = await hasContentTypeColumns();
 
   // ── Cache key (apenas para buscas paginadas, não limit=all) ──
   if (limit !== 'all') {
@@ -264,6 +275,11 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     );
   }
 
+  // Tipo de conteúdo (analysis | academic | dataset) — usado por /producoes e /dados
+  if (entry_type && ctColumns && ALLOWED_ENTRY_TYPES.includes(entry_type)) {
+    whereClauses.push(sql`entry_type = ${entry_type}`);
+  }
+
   // Período de estudo (year_from / year_to) — filtra pelo campo study_period (texto)
   if (year_from) {
     whereClauses.push(sql`study_period IS NOT NULL AND CAST(SUBSTRING(study_period FROM '\\d{4}') AS INT) >= ${parseInt(year_from, 10)}`);
@@ -290,10 +306,16 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   }
 
   // ── SELECT ──
-  const selectedFields = sql`
-    id, title, author, source, tag, category, study_period,
-    description, cover_image_path, nationality, states, cities, created_at
-  `;
+  const selectedFields = ctColumns
+    ? sql`
+        id, title, author, source, tag, category, study_period,
+        description, cover_image_path, nationality, states, cities, created_at,
+        entry_type, meta
+      `
+    : sql`
+        id, title, author, source, tag, category, study_period,
+        description, cover_image_path, nationality, states, cities, created_at
+      `;
 
   let analyses;
 
@@ -408,27 +430,48 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks, coverImagePath,
     nationality, states, cities, with_header, with_footer,
+    entry_type, meta,
   } = req.body;
 
   const validationError = validateAnalysisPayload(req.body);
   if (validationError) {
     return res.status(400).json({ success: false, message: validationError });
   }
-  if (!coverImagePath) {
-    return res.status(400).json({ success: false, message: 'A imagem de capa é obrigatória.' });
-  }
+  // A imagem de capa é opcional: quando ausente, o frontend gera uma capa
+  // automática (SVG temático / foto) a partir da categoria, tag e título.
 
-  const result = await sql`
-    INSERT INTO analyses
-      (title, subtitle, last_update, study_period, source, category,
-       tag, author, description, content, reference_links,
-       cover_image_path, nationality, states, cities, with_header, with_footer)
-    VALUES
-      (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${category ? JSON.stringify(category) : null},
-       ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
-       ${coverImagePath}, ${nationality}, ${states ? JSON.stringify(states) : null}, ${cities ? JSON.stringify(cities) : null}, ${with_header}, ${with_footer})
-    RETURNING id
-  `;
+  const cat    = category ? JSON.stringify(category) : null;
+  const sts    = states   ? JSON.stringify(states)   : null;
+  const cts    = cities   ? JSON.stringify(cities)   : null;
+
+  let result;
+  if (await hasContentTypeColumns()) {
+    result = await sql`
+      INSERT INTO analyses
+        (title, subtitle, last_update, study_period, source, category,
+         tag, author, description, content, reference_links,
+         cover_image_path, nationality, states, cities, with_header, with_footer,
+         entry_type, meta)
+      VALUES
+        (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${cat},
+         ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
+         ${coverImagePath}, ${nationality}, ${sts}, ${cts}, ${with_header}, ${with_footer},
+         ${safeEntryType(entry_type)}, ${safeMeta(meta)})
+      RETURNING id
+    `;
+  } else {
+    result = await sql`
+      INSERT INTO analyses
+        (title, subtitle, last_update, study_period, source, category,
+         tag, author, description, content, reference_links,
+         cover_image_path, nationality, states, cities, with_header, with_footer)
+      VALUES
+        (${title}, ${subtitle}, ${lastUpdate}, ${studyPeriod}, ${source}, ${cat},
+         ${tag}, ${author}, ${description}, ${content}, ${referenceLinks},
+         ${coverImagePath}, ${nationality}, ${sts}, ${cts}, ${with_header}, ${with_footer})
+      RETURNING id
+    `;
+  }
 
   await invalidateAnalysisCaches();
 
@@ -444,7 +487,8 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     title, subtitle, lastUpdate, studyPeriod, source, category,
     tag, author, description, content, referenceLinks,
     coverImagePath, filesToDelete,
-    nationality, states, cities, with_header, with_footer
+    nationality, states, cities, with_header, with_footer,
+    entry_type, meta
   } = req.body;
 
   const validationError = validateAnalysisPayload(req.body);
@@ -475,19 +519,36 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
     Promise.all(filesToDeleteFromServer.map(url => deleteFileFromS3(url))).catch(console.error);
   }
 
-  const safeJson = (val) => JSON.stringify(val || []);
+  const cat = category ? JSON.stringify(category) : null;
+  const sts = states   ? JSON.stringify(states)   : null;
+  const cts = cities   ? JSON.stringify(cities)   : null;
 
-  await sql`
-    UPDATE analyses SET
-      title = ${title}, subtitle = ${subtitle}, last_update = ${lastUpdate},
-      study_period = ${studyPeriod}, source = ${source}, category = ${category ? JSON.stringify(category) : null},
-      tag = ${tag}, author = ${author}, description = ${description},
-      content = ${content}, reference_links = ${referenceLinks},
-      cover_image_path = ${coverImagePath},
-      nationality = ${nationality}, states = ${states ? JSON.stringify(states) : null},
-      cities = ${cities ? JSON.stringify(cities) : null}, with_header = ${with_header}, with_footer = ${with_footer}
-    WHERE id = ${id}
-  `;
+  if (await hasContentTypeColumns()) {
+    await sql`
+      UPDATE analyses SET
+        title = ${title}, subtitle = ${subtitle}, last_update = ${lastUpdate},
+        study_period = ${studyPeriod}, source = ${source}, category = ${cat},
+        tag = ${tag}, author = ${author}, description = ${description},
+        content = ${content}, reference_links = ${referenceLinks},
+        cover_image_path = ${coverImagePath},
+        nationality = ${nationality}, states = ${sts},
+        cities = ${cts}, with_header = ${with_header}, with_footer = ${with_footer},
+        entry_type = ${safeEntryType(entry_type)}, meta = ${safeMeta(meta)}
+      WHERE id = ${id}
+    `;
+  } else {
+    await sql`
+      UPDATE analyses SET
+        title = ${title}, subtitle = ${subtitle}, last_update = ${lastUpdate},
+        study_period = ${studyPeriod}, source = ${source}, category = ${cat},
+        tag = ${tag}, author = ${author}, description = ${description},
+        content = ${content}, reference_links = ${referenceLinks},
+        cover_image_path = ${coverImagePath},
+        nationality = ${nationality}, states = ${sts},
+        cities = ${cts}, with_header = ${with_header}, with_footer = ${with_footer}
+      WHERE id = ${id}
+    `;
+  }
 
   await invalidateAnalysisCaches(id);
 

@@ -108,6 +108,7 @@
       <div v-if="isPreview" class="preview-wrap">
         <div class="preview-inner">
           <img v-if="imagePreviewUrl" :src="imagePreviewUrl" class="preview-cover" alt="Capa" />
+          <div v-else class="preview-cover preview-cover-auto"><AnalysisCover :analysis="form" /></div>
           <div class="preview-header">
             <span class="preview-cat">{{ form.category }}</span>
             <h1 class="preview-title">{{ form.title || 'Título da Análise' }}</h1>
@@ -119,10 +120,10 @@
           </div>
           <p class="preview-desc">{{ form.description }}</p>
           <IsolatedRenderer :content="renderedContent" />
-          <div v-if="form.referenceLinks" class="preview-refs">
+          <div v-if="parseReferenceLinks(form.referenceLinks).length" class="preview-refs">
             <h3>Referências</h3>
             <ul>
-              <li v-for="(l, i) in form.referenceLinks.split('\n').filter(x => x.trim())" :key="i">
+              <li v-for="(l, i) in parseReferenceLinks(form.referenceLinks)" :key="i">
                 <a :href="l.startsWith('http') ? l : `//${l}`" target="_blank">{{ l }}</a>
               </li>
             </ul>
@@ -130,7 +131,7 @@
         </div>
       </div>
 
-      <!-- Edit mode — Monaco container sempre no DOM via v-show -->
+      <!-- Edit mode -->
       <div v-show="!isPreview" class="editor-layout">
         <!-- LEFT: Form fields -->
         <div class="editor-left">
@@ -144,22 +145,30 @@
           </div>
         </div>
 
-        <!-- RIGHT: Monaco editor — div ref sempre presente no DOM -->
+        <!-- RIGHT: editor (Monaco HTML p/ Análise; documento p/ Acadêmica/Dado) -->
         <div class="editor-right">
           <div class="panel editor-panel">
-            <div class="editor-toolbar">
-              <span class="toolbar-label">Conteúdo HTML</span>
-              <div class="toolbar-actions">
-                <button type="button" class="tbr-btn" @click="showResourceMenu = true" title="Adicionar recurso">
-                  <Icon icon="mdi:plus-circle-outline" width="16" /> Recurso
-                </button>
-                <button v-for="fmt in formats" :key="fmt.type" type="button"
-                  class="tbr-btn icon-only" :title="fmt.label" @click="applyFmt(fmt.type)">
-                  <span v-html="fmt.html"></span>
-                </button>
+            <template v-if="!isDoc">
+              <div class="editor-toolbar">
+                <span class="toolbar-label">Conteúdo HTML</span>
+                <div class="toolbar-actions">
+                  <button type="button" class="tbr-btn" @click="showResourceMenu = true" title="Adicionar recurso">
+                    <Icon icon="mdi:plus-circle-outline" width="16" /> Recurso
+                  </button>
+                  <button v-for="fmt in formats" :key="fmt.type" type="button"
+                    class="tbr-btn icon-only" :title="fmt.label" @click="applyFmt(fmt.type)">
+                    <span v-html="fmt.html"></span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <div ref="editorEl" class="monaco-wrap"></div>
+              <div ref="editorEl" class="monaco-wrap"></div>
+            </template>
+            <DocumentEditor
+              v-else
+              ref="docEditor"
+              v-model="form.content"
+              @add-resource="showResourceMenu = true"
+            />
           </div>
         </div>
       </div>
@@ -186,12 +195,14 @@ import axios from 'axios';
 import { marked } from 'marked';
 import * as monaco from 'monaco-editor';
 import { Icon } from '@iconify/vue';
-import { formatText, generateUrlMediaHtml, generateFileMediaHtml } from '@/utils/analysisUtils.js';
+import { formatText, generateUrlMediaHtml, generateFileMediaHtml, parseReferenceLinks, parseMeta } from '@/utils/analysisUtils.js';
 import { cacheInvalidate } from '@/utils/apiCache.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
 import AnalysisMediaModal from '@/components/admin/AnalysisMediaModal.vue';
 import AdminAnalysisSearch from '@/components/admin/AdminAnalysisSearch.vue';
+import AnalysisCover from '@/components/AnalysisCover.vue';
+import DocumentEditor from '@/components/admin/DocumentEditor.vue';
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
 
@@ -210,7 +221,11 @@ const showDeleteConfirm  = ref(false);
 const feedback           = ref({ message: '', type: '' });
 const imagePreviewUrl    = ref('');
 const editorEl           = ref(null);
+const docEditor          = ref(null);
 let   monacoEditor       = null;
+
+// Produção acadêmica e dado primário usam editor de documento (não Monaco/HTML).
+const isDoc = computed(() => !!form.value.entry_type && form.value.entry_type !== 'analysis');
 
 // Media
 const showResourceMenu  = ref(false);
@@ -224,6 +239,7 @@ const getEmpty = () => ({
   studyPeriod: '', source: '', category: '', description: '',
   content: '', referenceLinks: '', with_header: false, with_footer: false,
   states: [], cities: [], coverImage: null,
+  entry_type: 'analysis', meta: {},
   // internal tracking
   originalCoverPath: ''
 });
@@ -303,6 +319,8 @@ const loadAnalysis = async (id) => {
       coverImage:      a.cover_image_path
         ? { serverPath: a.cover_image_path, type: 'existing' }
         : null,
+      entry_type:      safeText(a.entry_type) || 'analysis',
+      meta:            parseMeta(a.meta),
       originalCoverPath: a.cover_image_path || ''
     };
 
@@ -311,14 +329,16 @@ const loadAnalysis = async (id) => {
     // Sync URL query
     router.replace({ query: { id } });
 
-    // Editor já está inicializado desde o onMounted (v-show garante DOM sempre presente)
-    // Apenas atualiza o valor — sem recriar o editor
-    if (monacoEditor) {
+    // Produção acadêmica / dado primário usam o editor de documento — o
+    // v-model="form.content" já reflete o conteúdo carregado; Monaco fica fora.
+    if (isDoc.value) {
+      disposeEditor();
+    } else if (monacoEditor) {
       monacoEditor.setValue(a.content || '');
       monacoEditor.setScrollPosition({ scrollTop: 0 });
       monacoEditor.layout();
     } else {
-      // Fallback: se por algum motivo o editor não existir ainda, cria agora
+      // Cria o Monaco agora (ex.: vindo de uma análise tipo documento)
       await nextTick();
       await nextTick();
       initEditor();
@@ -359,14 +379,20 @@ const onMediaConfirm = async ({ mode, url, files, type }) => {
   showMediaInput.value = false;
   if (mode === 'url') {
     const html = await generateUrlMediaHtml(url, type);
-    insertIntoEditor(html);
+    insertContent(html);
   } else {
     for (const file of files) {
       const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, type);
       contentMediaMap.value.set(placeholderId, { file, blobUrl, type });
-      insertIntoEditor(html);
+      insertContent(html);
     }
   }
+};
+
+// Insere no editor ativo (documento p/ acadêmica/dado; Monaco p/ análise).
+const insertContent = (html) => {
+  if (isDoc.value) { docEditor.value?.insertHtml(html); return; }
+  insertIntoEditor(html);
 };
 
 const insertIntoEditor = (text) => {
@@ -403,9 +429,20 @@ const initEditor = () => {
   monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFmt('italic'));
 };
 
+const disposeEditor = () => { if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; } };
+const ensureEditor = async () => {
+  if (isDoc.value) return;
+  await nextTick();
+  if (editorEl.value) initEditor();
+};
+
 watch(isDark, (v) => { if (monacoEditor) monaco.editor.setTheme(v ? 'vs-dark' : 'vs'); });
 watch(isPreview, async (v) => {
-  if (!v) { await nextTick(); setTimeout(() => monacoEditor?.layout(), 350); }
+  if (!v && !isDoc.value) { await nextTick(); setTimeout(() => monacoEditor?.layout(), 350); }
+});
+watch(isDoc, (doc) => {
+  if (doc) disposeEditor();            // troca p/ editor de documento (Acadêmica/Dado)
+  else ensureEditor();                 // volta p/ Monaco (Análise)
 });
 
 // ── Rendered preview ──────────────────────────────────────────────────
@@ -509,6 +546,8 @@ const save = async () => {
       cities:         form.value.cities,
       with_header:    form.value.with_header,
       with_footer:    form.value.with_footer,
+      entry_type:     form.value.entry_type,
+      meta:           form.value.meta,
     };
 
     const { data } = await axios.put(
@@ -577,11 +616,10 @@ const confirmDelete = async () => {
 
 // ── URL query param: auto-load if ?id= present ────────────────────────
 onMounted(async () => {
-  // Inicializa o editor vazio assim que o componente monta
-  // O editorEl está sempre no DOM (v-show, não v-if)
+  // Inicializa o Monaco vazio ao montar (apenas para o tipo Análise).
   await nextTick();
   await nextTick();
-  initEditor();
+  if (!isDoc.value) initEditor();
 
   // Se há ?id= na URL, carrega a análise automaticamente
   const id = route.query.id;
@@ -640,8 +678,8 @@ onBeforeUnmount(() => {
 .empty-tips { display: flex; flex-direction: column; gap: 6px; margin-top: 0.5rem; }
 .tip { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
 
-/* Editor layout */
-.editor-layout { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2.5rem; row-gap: 2rem; align-items: stretch; }
+/* Editor layout — sempre empilhado (form em cima, editor embaixo) */
+.editor-layout { display: grid; grid-template-columns: 1fr; row-gap: 2rem; align-items: stretch; }
 .editor-left .panel { height: 100%; }
 .editor-left, .editor-right { display: flex; flex-direction: column; }
 .panel {
@@ -671,6 +709,7 @@ onBeforeUnmount(() => {
 .preview-wrap { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
 .preview-inner { max-width: 780px; margin: 0 auto; padding: 3rem 2rem; }
 .preview-cover { width: 100%; height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 2rem; }
+.preview-cover-auto { overflow: hidden; }
 .preview-cat { display: inline-block; background: rgba(47, 84, 235,0.1); color: var(--brand-primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; margin-bottom: 1rem; }
 .preview-title { font-size: 2.5rem; font-weight: 900; color: var(--text-main); line-height: 1.1; margin: 0 0 0.5rem; }
 .preview-subtitle { font-size: 1.25rem; font-weight: 300; color: var(--text-secondary); margin: 0 0 1rem; }

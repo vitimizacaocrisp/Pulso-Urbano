@@ -61,22 +61,30 @@
         </div>
       </div>
 
-      <!-- RIGHT: Monaco editor -->
+      <!-- RIGHT: editor (Monaco HTML p/ Análise; documento p/ Acadêmica/Dado) -->
       <div class="editor-right">
         <div class="panel editor-panel">
-          <div class="editor-toolbar">
-            <span class="toolbar-label">Conteúdo</span>
-            <div class="toolbar-actions">
-              <button type="button" class="tbr-btn" @click="showResourceMenu = true" title="Adicionar recurso">
-                <Icon icon="mdi:plus-circle-outline" width="16" /> Recurso
-              </button>
-              <button v-for="fmt in formats" :key="fmt.type" type="button"
-                class="tbr-btn icon-only" :title="fmt.label" @click="applyFmt(fmt.type)">
-                <span v-html="fmt.html"></span>
-              </button>
+          <template v-if="!isDoc">
+            <div class="editor-toolbar">
+              <span class="toolbar-label">Conteúdo</span>
+              <div class="toolbar-actions">
+                <button type="button" class="tbr-btn" @click="showResourceMenu = true" title="Adicionar recurso">
+                  <Icon icon="mdi:plus-circle-outline" width="16" /> Recurso
+                </button>
+                <button v-for="fmt in formats" :key="fmt.type" type="button"
+                  class="tbr-btn icon-only" :title="fmt.label" @click="applyFmt(fmt.type)">
+                  <span v-html="fmt.html"></span>
+                </button>
+              </div>
             </div>
-          </div>
-          <div ref="editorEl" class="monaco-wrap"></div>
+            <div ref="editorEl" class="monaco-wrap"></div>
+          </template>
+          <DocumentEditor
+            v-else
+            ref="docEditor"
+            v-model="form.content"
+            @add-resource="showResourceMenu = true"
+          />
         </div>
       </div>
 
@@ -86,6 +94,7 @@
     <div v-else class="preview-wrap">
       <div class="preview-inner">
         <img v-if="imagePreviewUrl" :src="imagePreviewUrl" class="preview-cover" alt="Capa" />
+        <div v-else class="preview-cover preview-cover-auto"><AnalysisCover :analysis="form" /></div>
         <div class="preview-header">
           <span class="preview-cat">{{ form.category }}</span>
           <h1 class="preview-title">{{ form.title || 'Título da Análise' }}</h1>
@@ -97,10 +106,10 @@
         </div>
         <p class="preview-desc">{{ form.description }}</p>
         <IsolatedRenderer :content="renderedContent" />
-        <div v-if="form.referenceLinks" class="preview-refs">
+        <div v-if="parseReferenceLinks(form.referenceLinks).length" class="preview-refs">
           <h3>Referências</h3>
           <ul>
-            <li v-for="(l, i) in form.referenceLinks.split('\n').filter(x => x.trim())" :key="i">
+            <li v-for="(l, i) in parseReferenceLinks(form.referenceLinks)" :key="i">
               <a :href="l.startsWith('http') ? l : `//${l}`" target="_blank">{{ l }}</a>
             </li>
           </ul>
@@ -128,10 +137,12 @@ import axios from 'axios';
 import { openDB } from 'idb';
 import * as monaco from 'monaco-editor';
 import { Icon } from '@iconify/vue';
-import { formatText, generateUrlMediaHtml, generateFileMediaHtml } from '@/utils/analysisUtils.js';
+import { formatText, generateUrlMediaHtml, generateFileMediaHtml, parseReferenceLinks } from '@/utils/analysisUtils.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
 import AnalysisMediaModal from '@/components/admin/AnalysisMediaModal.vue';
+import AnalysisCover from '@/components/AnalysisCover.vue';
+import DocumentEditor from '@/components/admin/DocumentEditor.vue';
 import { useTheme } from '@/composables/useTheme';
 const { isDark } = useTheme();
 
@@ -151,12 +162,17 @@ const activeMediaType  = ref('');
 const contentMediaMap  = ref(new Map());
 
 const imagePreviewUrl  = ref('');
+const docEditor        = ref(null);
+
+// Produção acadêmica e dado primário usam editor de documento (não Monaco/HTML).
+const isDoc = computed(() => !!form.value.entry_type && form.value.entry_type !== 'analysis');
 
 const getInitial = () => ({
   title: '', subtitle: '', tag: '', author: '', nationality: '',
   studyPeriod: '', source: '', category: '', description: '', content: '',
   referenceLinks: '', with_header: false, with_footer: false,
-  states: [], cities: [], coverImage: null
+  states: [], cities: [], coverImage: null,
+  entry_type: 'analysis', meta: {}
 });
 
 const form = ref(getInitial());
@@ -170,7 +186,7 @@ const feedbackIcon = computed(() => ({
 const isFormInvalid = computed(() =>
   !form.value.title || !form.value.tag || !form.value.author ||
   !form.value.category || !form.value.description || !form.value.content ||
-  !form.value.nationality || !form.value.coverImage
+  !form.value.nationality
 );
 
 // ── Toolbar formats ───────────────────────────────────────────────────
@@ -195,14 +211,20 @@ const onMediaConfirm = async ({ mode, url, files, type }) => {
   showMediaInput.value = false;
   if (mode === 'url') {
     const html = await generateUrlMediaHtml(url, type);
-    insertIntoEditor(html);
+    insertContent(html);
   } else {
     for (const file of files) {
       const { html, placeholderId, blobUrl } = await generateFileMediaHtml(file, type);
       contentMediaMap.value.set(placeholderId, { file, blobUrl, type });
-      insertIntoEditor(html);
+      insertContent(html);
     }
   }
+};
+
+// Insere no editor ativo (documento p/ acadêmica/dado; Monaco p/ análise).
+const insertContent = (html) => {
+  if (isDoc.value) { docEditor.value?.insertHtml(html); return; }
+  insertIntoEditor(html);
 };
 
 const insertIntoEditor = (text) => {
@@ -243,9 +265,22 @@ const initEditor = () => {
   monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFmt('italic'));
 };
 
+const disposeEditor = () => { if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; } };
+const ensureEditor = async () => {
+  if (isDoc.value || isPreview.value) return;
+  await nextTick();
+  if (editorEl.value && !monacoEditor) initEditor();
+  else setTimeout(() => monacoEditor?.layout(), 50);
+};
+
 watch(isDark, (v) => { if (monacoEditor) monaco.editor.setTheme(v ? 'vs-dark' : 'vs'); });
 watch(isPreview, async (v) => {
-  if (!v) { await nextTick(); setTimeout(() => monacoEditor?.layout(), 350); }
+  if (v) disposeEditor();                 // sai do DOM (v-if) — descarta p/ recriar limpo
+  else ensureEditor();
+});
+watch(isDoc, (doc) => {
+  if (doc) disposeEditor();               // troca p/ editor de documento (Acadêmica/Dado)
+  else ensureEditor();
 });
 
 // ── Rendered preview ──────────────────────────────────────────────────
@@ -397,7 +432,7 @@ const publish = async () => {
 onMounted(async () => {
   await loadDraft();
   await nextTick();
-  initEditor();
+  if (!isDoc.value) initEditor();
 });
 onBeforeUnmount(() => {
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
@@ -447,8 +482,8 @@ onBeforeUnmount(() => {
 .fb-close { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.2rem; line-height: 1; color: inherit; opacity: 0.7; }
 .fb-close:hover { opacity: 1; }
 
-/* Editor layout */
-.editor-layout { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2.5rem; row-gap: 2rem; align-items: stretch; }
+/* Editor layout — sempre empilhado (form em cima, editor embaixo) */
+.editor-layout { display: grid; grid-template-columns: 1fr; row-gap: 2rem; align-items: stretch; }
 .editor-left .panel { height: 100%; }
 .editor-left, .editor-right { display: flex; flex-direction: column; gap: 0; }
 .panel {
@@ -481,6 +516,7 @@ onBeforeUnmount(() => {
 .preview-wrap { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
 .preview-inner { max-width: 780px; margin: 0 auto; padding: 3rem 2rem; }
 .preview-cover { width: 100%; height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 2rem; }
+.preview-cover-auto { overflow: hidden; }
 .preview-cat { display: inline-block; background: rgba(47, 84, 235,0.1); color: var(--brand-primary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; margin-bottom: 1rem; }
 .preview-title { font-size: 2.5rem; font-weight: 900; color: var(--text-main); line-height: 1.1; margin: 0 0 0.5rem; }
 .preview-subtitle { font-size: 1.25rem; font-weight: 300; color: var(--text-secondary); margin: 0 0 1rem; }

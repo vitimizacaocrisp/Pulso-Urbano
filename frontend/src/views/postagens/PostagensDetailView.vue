@@ -69,6 +69,39 @@
 
       <article class="article-body-wrapper" :class="{ 'full-width': analysis.with_header && analysis.with_footer }">
         <div class="content-container" :class="{ 'content-container--full': analysis.with_header && analysis.with_footer }">
+
+          <!-- Produção acadêmica: bloco de citação (formato ABNT) -->
+          <aside v-if="entryType === 'academic'" class="academic-card">
+            <span class="academic-badge">{{ meta.academicType || 'Produção Acadêmica' }}</span>
+            <p v-if="citation" class="academic-citation">{{ citation }}</p>
+            <div class="academic-actions">
+              <a v-if="meta.pdfUrl" :href="meta.pdfUrl" target="_blank" rel="noopener noreferrer" class="academic-btn primary">
+                <Icon icon="mdi:file-pdf-box" /> Baixar documento
+              </a>
+              <a v-if="doiHref" :href="doiHref" target="_blank" rel="noopener noreferrer" class="academic-btn">
+                <Icon icon="mdi:link-variant" /> DOI / Link oficial
+              </a>
+            </div>
+          </aside>
+
+          <!-- Dado primário: ficha técnica + downloads -->
+          <aside v-else-if="entryType === 'dataset'" class="dataset-card">
+            <div class="dataset-title"><Icon icon="mdi:database-outline" /> Ficha Técnica</div>
+            <dl class="dataset-grid">
+              <div v-if="meta.instrument"><dt>Instrumento</dt><dd>{{ meta.instrument }}</dd></div>
+              <div v-if="meta.dataFormat"><dt>Formato</dt><dd>{{ meta.dataFormat }}</dd></div>
+              <div v-if="meta.sampleSize"><dt>Amostra / cobertura</dt><dd>{{ meta.sampleSize }}</dd></div>
+              <div v-if="analysis.source"><dt>Fonte</dt><dd>{{ analysis.source }}</dd></div>
+            </dl>
+            <div v-if="validReferenceLinks.length" class="dataset-downloads">
+              <a v-for="(link, i) in validReferenceLinks" :key="i"
+                :href="link.startsWith('http') ? link : `//${link}`"
+                target="_blank" rel="noopener noreferrer" class="academic-btn primary">
+                <Icon icon="mdi:download" /> Baixar arquivo<span v-if="validReferenceLinks.length > 1"> {{ i + 1 }}</span>
+              </a>
+            </div>
+          </aside>
+
           <div class="preview-content-wrapper">
             <IsolatedRenderer :content="renderedContent" />
           </div>
@@ -105,6 +138,7 @@ import MeuFooter from '@/components/MeuFooter.vue';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 import { coverSvgDataUri } from '@/utils/coverUtils.js';
+import { parseMeta, parseReferenceLinks, buildCitation } from '@/utils/analysisUtils.js';
 
 const route    = useRoute();
 const analysis = ref(null);
@@ -149,19 +183,24 @@ const renderedContent = computed(() => {
   return /^</.test(content) ? content : `<p>${content}</p>`;
 });
 
-// Filtra linhas de referência válidas, descartando lixo cadastrado
-// (ex.: um único ".", traço ou linha em branco). Exige ao menos 2
-// caracteres alfanuméricos para considerar a linha um link/referência real.
-const validReferenceLinks = computed(() => {
-  const raw = analysis.value?.reference_links;
-  if (!raw) return [];
-  return raw
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.replace(/[^a-zA-Z0-9]/g, '').length >= 2);
+// Tipo de conteúdo + metadados (produção acadêmica / dado primário).
+const entryType = computed(() => analysis.value?.entry_type || 'analysis');
+const meta      = computed(() => parseMeta(analysis.value?.meta));
+const citation  = computed(() => buildCitation(analysis.value));
+const doiHref   = computed(() => {
+  const d = meta.value.doi;
+  if (!d) return '';
+  return d.startsWith('http') ? d : `https://doi.org/${d}`;
 });
 
-const hasAttachments = computed(() => validReferenceLinks.value.length > 0);
+// Referências válidas (descarta lixo: ".", traço, linha vazia).
+const validReferenceLinks = computed(() => parseReferenceLinks(analysis.value?.reference_links));
+
+// Anexos só na seção de links quando NÃO for dataset (datasets já listam
+// os downloads na ficha técnica — evita duplicar).
+const hasAttachments = computed(() =>
+  entryType.value !== 'dataset' && validReferenceLinks.value.length > 0
+);
 
 const fetchAnalysis = async (id) => {
   if (!id) { error.value = 'ID da análise não fornecido.'; isLoading.value = false; return; }
@@ -237,6 +276,46 @@ watch(() => route.params.id, (newId, oldId) => {
 .content-container--full { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
 .content-container--full .preview-content-wrapper { margin: 0 !important; }
 .preview-content-wrapper { margin: 2rem 0; }
+
+/* Produção acadêmica — bloco de citação */
+.academic-card {
+  margin: 2rem 0; padding: 1.5rem 1.75rem;
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-left: 4px solid var(--brand-primary); border-radius: 12px;
+}
+.academic-badge {
+  display: inline-block; background: rgba(47, 84, 235, 0.1); color: var(--brand-primary);
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  padding: 0.25rem 0.7rem; border-radius: 4px; margin-bottom: 1rem;
+}
+.academic-citation {
+  font-family: Georgia, 'Times New Roman', serif; font-size: 1rem;
+  line-height: 1.6; color: var(--text-main); margin: 0 0 1.25rem;
+}
+.academic-actions, .dataset-downloads { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.dataset-downloads { margin-top: 1.25rem; }
+.academic-btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.1rem; border-radius: 8px; text-decoration: none;
+  font-size: 0.9rem; font-weight: 600; border: 1px solid var(--brand-primary);
+  color: var(--brand-primary); background: transparent; transition: background 0.2s, color 0.2s;
+}
+.academic-btn:hover { background: var(--brand-primary); color: #fff; }
+.academic-btn.primary { background: var(--brand-primary); color: #fff; }
+.academic-btn.primary:hover { filter: brightness(1.08); }
+
+/* Dado primário — ficha técnica */
+.dataset-card {
+  margin: 2rem 0; padding: 1.5rem 1.75rem;
+  background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px;
+}
+.dataset-title {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.25rem;
+}
+.dataset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 0; }
+.dataset-grid dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 700; margin-bottom: 0.2rem; }
+.dataset-grid dd { margin: 0; font-size: 0.95rem; color: var(--text-main); font-weight: 600; }
 .attachments-section { margin-top: 4rem; background: var(--bg-surface); border-radius: 12px; padding: 2rem; border: 1px solid var(--border-color); }
 .section-heading { font-size: 1.25rem; color: var(--text-main); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color); display: inline-block; }
 .attachments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }

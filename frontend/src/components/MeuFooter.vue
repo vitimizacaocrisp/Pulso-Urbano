@@ -26,7 +26,9 @@
         <h4>Explorar</h4>
         <ul>
             <li><router-link to="/">Início</router-link></li>
-            <li><router-link to="/categoria">Todas as Publicações</router-link></li>
+            <li><router-link to="/catalogo">Todas as Publicações</router-link></li>
+            <li><router-link to="/producoes">Produções Científicas</router-link></li>
+            <li><router-link to="/dados">Repositório de Dados</router-link></li>
             <li><router-link to="/sobre">Metodologia</router-link></li>
             <li><router-link to="/contato">Fale Conosco</router-link></li>
         </ul>

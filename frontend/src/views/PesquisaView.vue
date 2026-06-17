@@ -162,11 +162,10 @@
         <div v-else class="results-grid">
           <article v-for="(analysis, index) in analyses" :key="analysis.id" class="result-card"
             :style="{ animationDelay: `${(index % limit) * 40}ms` }">
-            <router-link :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }" class="card-image-link" v-if="analysis.cover_image_path">
-              <img :src="getFullMediaPath(analysis.cover_image_path)" alt="" loading="lazy" />
+            <router-link :to="{ name: 'AnalysisDetail', params: { id: analysis.id } }" class="card-image-link">
+              <AnalysisCover :analysis="analysis" />
               <div class="card-img-overlay"><Icon icon="mdi:arrow-right" /></div>
             </router-link>
-            <div v-else class="card-no-image"><span>{{ getInitials(analysis.title) }}</span></div>
             <div class="card-body">
               <div class="card-meta-top">
                 <span class="card-category" v-if="analysis.category">{{ analysis.category }}</span>
@@ -210,6 +209,7 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
+import AnalysisCover from '@/components/AnalysisCover.vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 import { useToast } from '@/composables/useToast';
 
@@ -252,12 +252,6 @@ const activeFilterCount = computed(() => {
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0 || searchQuery.value.trim() !== '');
 
-const getFullMediaPath = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
-
 const processTags = (tagString) => {
   if (!tagString) return [];
   // tag pode vir como array (JSONB) — normaliza para texto antes do replace.
@@ -268,11 +262,6 @@ const processTags = (tagString) => {
 const formatDate = (d) => {
   if (!d) return '';
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-const getInitials = (title) => {
-  if (!title) return 'PU';
-  return title.split(' ').filter(w => w.length > 2).slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'PU';
 };
 
 const highlight = (text) => {
@@ -476,8 +465,9 @@ onUnmounted(() => {
 .result-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--brand-primary); }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 .card-image-link { display: block; height: 180px; overflow: hidden; position: relative; }
-.card-image-link img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
-.result-card:hover .card-image-link img { transform: scale(1.04); }
+.card-image-link :deep(img), .card-image-link :deep(.cover-svg) { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.result-card:hover .card-image-link :deep(img),
+.result-card:hover .card-image-link :deep(.cover-svg) { transform: scale(1.04); }
 .card-img-overlay { position: absolute; inset: 0; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.25rem; opacity: 0; transition: opacity 0.25s; backdrop-filter: blur(2px); }
 .result-card:hover .card-img-overlay { opacity: 1; }
 .card-no-image { height: 180px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-card)); display: flex; align-items: center; justify-content: center; }

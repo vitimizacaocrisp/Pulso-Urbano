@@ -26,6 +26,28 @@ const testConnection = async () => {
   }
 };
 
+// Detecta (uma vez, com cache) se a migração 2026_content_types.sql foi
+// aplicada (colunas entry_type + meta). Antes dela, o backend ignora os
+// campos de tipo de conteúdo e funciona exatamente como antes.
+let contentTypeColumns = null;
+const hasContentTypeColumns = async () => {
+  if (contentTypeColumns !== null) return contentTypeColumns;
+  try {
+    const rows = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'analyses' AND column_name = 'entry_type'
+      LIMIT 1
+    `;
+    contentTypeColumns = rows.length > 0;
+    if (!contentTypeColumns) {
+      console.warn('⚠️  Coluna entry_type ausente — tipos de conteúdo desativados. Rode database/migrations/2026_content_types.sql para ativar.');
+    }
+  } catch {
+    contentTypeColumns = false;
+  }
+  return contentTypeColumns;
+};
+
 const requestHandler = async (req, res) => {
   try {
     if (!dbUrl) {
@@ -45,5 +67,6 @@ const requestHandler = async (req, res) => {
 module.exports = {
   sql,
   testConnection,
-  requestHandler
+  requestHandler,
+  hasContentTypeColumns
 };

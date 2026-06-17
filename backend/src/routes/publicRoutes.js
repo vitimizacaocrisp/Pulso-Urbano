@@ -4,9 +4,11 @@ const express = require('express');
 const router  = express.Router();
 const { asyncHandler } = require('../middleware/middlewares');
 const { loginRateLimiter } = require('../middleware/rateLimiter');
-const { testConnection }     = require('../db/dbConnect');
+const { testConnection, hasContentTypeColumns } = require('../db/dbConnect');
 const { testConnectionData } = require('../services/storage');
 const { sql } = require('../db/dbConnect');
+
+const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 
@@ -106,14 +108,23 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
-  const results = await sql`
-    SELECT id, title, subtitle, last_update, study_period, source, category,
-           tag, author, description, content, reference_links,
-           cover_image_path, nationality, states, cities, with_header, with_footer,
-           created_at
-    FROM analyses 
-    WHERE id = ${id}
-  `;
+  const results = (await hasContentTypeColumns())
+    ? await sql`
+        SELECT id, title, subtitle, last_update, study_period, source, category,
+               tag, author, description, content, reference_links,
+               cover_image_path, nationality, states, cities, with_header, with_footer,
+               created_at, entry_type, meta
+        FROM analyses
+        WHERE id = ${id}
+      `
+    : await sql`
+        SELECT id, title, subtitle, last_update, study_period, source, category,
+               tag, author, description, content, reference_links,
+               cover_image_path, nationality, states, cities, with_header, with_footer,
+               created_at
+        FROM analyses
+        WHERE id = ${id}
+      `;
 
   if (results.length === 0) {
     return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
@@ -129,14 +140,19 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
 // (usada pelo RecentPosts e CardAnalisesCatalogo)
 // ─────────────────────────────────────────────────────────────────────
 router.get('/api/analyses-list', asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, category, sort = 'date_desc' } = req.query;
+  const { page = 1, limit = 10, category, entry_type, sort = 'date_desc' } = req.query;
   const cacheKey = `public:list:${JSON.stringify(req.query)}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
+  const ctColumns = await hasContentTypeColumns();
+
   const whereClauses = [];
   if (category) {
     whereClauses.push(sql`category ILIKE ${category}`);
+  }
+  if (entry_type && ctColumns && ALLOWED_ENTRY_TYPES.includes(entry_type)) {
+    whereClauses.push(sql`entry_type = ${entry_type}`);
   }
   const whereCondition = whereClauses.length > 0
     ? sql`WHERE ${whereClauses.reduce((acc, cur) => sql`${acc} AND ${cur}`)}`
@@ -150,10 +166,15 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
   const parsedPage   = parseInt(page, 10) || 1;
   const offset       = (parsedPage - 1) * parsedLimit;
 
+  const listFields = ctColumns
+    ? sql`id, title, author, tag, description, cover_image_path,
+          created_at, category, source, study_period, entry_type, meta`
+    : sql`id, title, author, tag, description, cover_image_path,
+          created_at, category, source, study_period`;
+
   const [analyses, totalResult] = await Promise.all([
     sql`
-      SELECT id, title, author, tag, description, cover_image_path,
-             created_at, category, source, study_period
+      SELECT ${listFields}
       FROM analyses
       ${whereCondition}
       ${orderClause}

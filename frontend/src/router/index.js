@@ -54,6 +54,32 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: "/producoes",
+    name: "Producoes",
+    component: () => import("../views/AcervoView.vue"),
+    meta: { requiresAuth: true },
+    props: {
+      entryType: 'academic',
+      eyebrow: 'Produções Científicas',
+      icon: 'mdi:school-outline',
+      pageTitle: 'Produções Científicas',
+      pageSubtitle: 'Teses, dissertações, artigos e relatórios técnicos produzidos no âmbito do projeto.'
+    }
+  },
+  {
+    path: "/dados",
+    name: "Dados",
+    component: () => import("../views/AcervoView.vue"),
+    meta: { requiresAuth: true },
+    props: {
+      entryType: 'dataset',
+      eyebrow: 'Repositório de Dados',
+      icon: 'mdi:database-outline',
+      pageTitle: 'Repositório de Dados Primários',
+      pageSubtitle: 'Questionários, microdados, livros de códigos e fichas técnicas das pesquisas de vitimização.'
+    }
+  },
+  {
     path: '/postagem/:id',
     name: 'AnalysisDetail',
     component: () => import("../views/postagens/PostagensDetailView.vue"),
