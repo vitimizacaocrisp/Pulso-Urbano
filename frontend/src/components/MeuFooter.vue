@@ -6,7 +6,8 @@
         <h3 class="footer-logo">Pulso<span class="highlight">Urbano</span></h3>
         <p class="about-text">
             Um observatório digital dedicado a analisar os ritmos da segurança pública e justiça no Brasil.
-            Projeto em parceria com o <a href="https://www.crisp.ufmg.br" target="_blank" class="crisp-link">CRISP/UFMG</a>.
+            Projeto em parceria com o <a href="https://www.crisp.ufmg.br" target="_blank" class="crisp-link">CRISP/UFMG</a>,
+            financiado pela <a href="https://fapemig.br" target="_blank" class="crisp-link">FAPEMIG</a>.
         </p>
         <div class="contact-block">
             <div class="contact-item">
@@ -61,8 +62,11 @@
     <!-- Barra Inferior -->
     <div class="footer-bottom">
       <div class="bottom-content">
-          <p class="copyright">&copy; {{ new Date().getFullYear() }} Pulso Urbano. Todos os direitos reservados.</p>
-          
+          <div class="copyright-block">
+            <p class="copyright">&copy; {{ new Date().getFullYear() }} Pulso Urbano · CRISP/UFMG. Todos os direitos reservados.</p>
+            <p class="funding">Financiado pela FAPEMIG — Edital 001/2023, Demanda Universal · Processo APQ-02456-23.</p>
+          </div>
+
           <div class="social-actions">
             <div class="social-icons">
               <a href="#" aria-label="Facebook"><Icon icon="mdi:facebook" width="18" /></a>
@@ -223,7 +227,9 @@ h4 {
     justify-content: space-between;
     align-items: center;
 }
-.copyright { font-size: 0.85rem; opacity: 0.6; color: var(--text-light); }
+.copyright-block { display: flex; flex-direction: column; gap: 0.25rem; }
+.copyright { font-size: 0.85rem; opacity: 0.6; color: var(--text-light); margin: 0; }
+.funding { font-size: 0.78rem; opacity: 0.45; color: var(--text-light); margin: 0; }
 
 .social-actions { display: flex; align-items: center; gap: 1.5rem; }
 .social-icons { display: flex; gap: 1rem; }

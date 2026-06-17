@@ -1,125 +1,187 @@
-# 📊 Pulso Urbano — Dados que Revelam a Cidade
+# 📊 Pulso Urbano — Observatório de Segurança Pública
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6/deploy-status)](https://app.netlify.com/sites/pulso-urbano/deploys)
+**Pulso Urbano** é uma plataforma de dados e análises sobre segurança pública, criminalidade e vitimização no Brasil, desenvolvida em parceria com o [CRISP/UFMG](https://www.crisp.ufmg.br) e financiada pela **FAPEMIG** (Edital 001/2023 — Demanda Universal, processo APQ-02456-23).
 
-**Pulso Urbano** é uma plataforma digital de dados e análises desenvolvida em parceria com o [CRISP/UFMG](https://www.crisp.ufmg.br). O objetivo é tornar acessível o conhecimento produzido em pesquisas acadêmicas sobre segurança pública, criminalidade e vitimização no Brasil.
-
----
-
-## 🚀 Links do Projeto
-
-* **Frontend:** [https://pulso-urbano.netlify.app/](https://pulso-urbano.netlify.app/)
-* **Backend:** [https://pulso-urbano-backend.onrender.com/](https://pulso-urbano-backend.onrender.com/)
-* **Repositório GitHub:** [https://github.com/vitimizacaocrisp/Pulso-Urbano](https://github.com/vitimizacaocrisp/Pulso-Urbano)
+O acervo reúne análises curadas (panoramas nacionais e estaduais, indicadores do Anuário FBSP, Atlas da Violência, pesquisas de vitimização do CRISP, etc.), cada uma com dados em destaque, conteúdo aprofundado, referências e anexos para download.
 
 ---
 
-## 🎯 Objetivo
+## 🚀 Links
 
-O projeto visa facilitar o acesso público aos dados e estudos produzidos pelo CRISP, utilizando ferramentas de código aberto para criar dashboards interativos e análises aprofundadas. O objetivo final é subsidiar debates públicos, projetos sociais e políticas públicas com informações claras e transparentes.
-
----
-
-## ✨ Funcionalidades
-
-* **Visualização de Análises:** Listagem dinâmica de todas as publicações, com paginação e busca em tempo real.
-* **Páginas por Categoria:** Navegação por categorias específicas (Educação, Saúde, etc.), com títulos e conteúdo filtrados dinamicamente.
-* **Painel Administrativo:** Área de gerenciamento de conteúdo (CRUD) para criar, editar e excluir análises.
-* **Autenticação Segura:** Login para administradores com tokens JWT para proteger as rotas de gerenciamento.
-* **Upload de Arquivos na Nuvem:** Suporte para upload de imagens de capa, documentos e outros anexos, com armazenamento no Backblaze B2.
-* **Interface Responsiva:** Layout moderno e adaptável para desktops, tablets e celulares.
+| Ambiente | URL |
+|---|---|
+| Frontend | https://pulso-urbano.netlify.app |
+| Backend (API) | Hospedado na Vercel (definir em `VITE_API_URL`) |
+| Repositório | https://github.com/vitimizacaocrisp/Pulso-Urbano |
 
 ---
 
-## 🧱 Tecnologias Utilizadas
+## 🧱 Stack
 
-O projeto é um monorepo com duas aplicações principais:
+Monorepo com duas aplicações (`frontend/` e `backend/`).
 
-### **Frontend (Vue.js)**
-
-* **Framework:** Vue 3 (com Composition API e `<script setup>`).
-* **Roteamento:** Vue Router.
-* **Requisições HTTP:** Axios.
-* **Renderização de Markdown:** Marked.
-* **Ícones:** Iconify.
-* **Estilização:** CSS3 com variáveis e Less.
+### Frontend
+* **Vue 3** (Composition API `<script setup>` + Options API) com **Vite** (migrado do Vue CLI).
+* **Vue Router 4** — SPA com guarda de rota global.
+* **Axios** com interceptor que injeta o JWT no header `Authorization`.
+* **Chart.js** — gráficos do dashboard e dentro das análises.
+* **Iconify** (`@iconify/vue`, conjunto `mdi`) — ícones (substituiu o FontAwesome).
+* **EmailJS** (`@emailjs/browser`) — formulário de contato (sem backend de e-mail).
+* **CSS puro** com variáveis e 3 temas (claro / escuro puro / conforto sépia). Sem Less/Sass.
 * **Hospedagem:** Netlify.
 
-### **Backend (Node.js)**
+### Backend
+* **Express 5** (Node.js ≥ 20).
+* **PostgreSQL** na **Neon** via `@neondatabase/serverless` (driver HTTP, ideal para serverless).
+* **JWT** (`jsonwebtoken`) + **bcryptjs**; auth stateless via header `Authorization`.
+* **AWS SDK v3 (S3)** apontando para o **Cloudflare R2** (storage S3-compatível) com URLs pré-assinadas.
+* **Upstash Redis** — rate limiting e cache distribuído, com *fallback* automático para memória.
+* **Multer** — recebe uploads em memória antes de enviar ao R2.
+* **Hospedagem:** Vercel (serverless functions).
 
-* **Framework:** Express.js.
-* **Banco de Dados:** PostgreSQL, hospedado na NeonDB.
-* **Autenticação:** JSON Web Token (jsonwebtoken) e bcryptjs para hashing de senhas.
-* **Upload de Arquivos:** Multer para manipulação e AWS-SDK v3 para upload em S3-compatível.
-* **ORM/Query Builder:** `postgres.js` (`@neondatabase/serverless`).
-* **Hospedagem:** Render.
+### Infraestrutura
+| Serviço | Uso |
+|---|---|
+| **Neon** | Banco PostgreSQL |
+| **Cloudflare R2** | Armazenamento de arquivos (imagens, PDFs, dados, scripts) |
+| **Upstash Redis** | Rate limit + cache (opcional; degrada para memória) |
+| **Netlify** | Build e hospedagem do frontend |
+| **Vercel** | Hospedagem da API |
 
-### **Infraestrutura**
-
-* **Banco de Dados:** NeonDB
-* **Armazenamento de Arquivos:** Backblaze B2
+> **Nota:** o storage migrou do **Backblaze B2** para o **Cloudflare R2**. Não há mais nenhuma dependência do B2 no código — apenas as variáveis `STORAGE_*` (ver abaixo) são usadas.
 
 ---
 
-## 🚀 Como Executar Localmente
+## ⚙️ Como funciona (detalhes técnicos)
 
-Siga os passos abaixo para configurar e rodar o projeto no seu ambiente de desenvolvimento.
+### Autenticação (stateless, cross-domain)
+Frontend (Netlify) e backend (Vercel) ficam em domínios distintos, então a auth **não usa cookie** (cookie cross-site é bloqueado por vários navegadores). Fluxo:
 
-### **Pré-requisitos**
+1. `POST /admin-auth` valida e-mail/senha (bcrypt) contra a tabela `admins` e devolve um **JWT no corpo**.
+2. O frontend guarda o token em `localStorage`.
+3. Um **interceptor do Axios** (`frontend/src/main.js`) injeta `Authorization: Bearer <token>` em toda requisição.
+4. O middleware `verifyToken` (backend) valida o header nas rotas protegidas.
+5. "Lembrar-me" controla apenas a validade do JWT (12h vs 168h). Logout = descartar o token local.
 
-* Node.js (versão 20 ou superior)
-* NPM ou Yarn
+> Contas de administrador **só** são criadas direto no banco (ver `database/schema.sql`) — não há rota pública de cadastro.
 
-### **1. Backend**
+### Busca (full-text + fallback)
+`/api/admin/search` usa **PostgreSQL Full-Text Search** (`tsvector` + índice GIN + `unaccent`/`websearch_to_tsquery`) quando a migração de FTS foi aplicada, com **detecção de capacidade** (`isFtsAvailable()`). Se a coluna/índice não existir, cai para `ILIKE` por substring — a busca nunca quebra. A busca do header filtra em tempo real no cliente; a página `/pesquisa` usa *debounce* de 400 ms.
 
+### Cache e rate limiting
+`backend/src/cache/serverCache.js` abstrai um cache que usa **Upstash Redis** se as variáveis estiverem presentes, ou **memória** caso contrário. Mutações de análise invalidam as chaves públicas e de admin. O rate limiter protege o login contra força bruta (também com fallback para memória).
+
+### Storage (Cloudflare R2)
+`backend/src/services/storage.js` valida as variáveis `STORAGE_*` no boot (*fail-fast*), gera **URLs pré-assinadas** para upload e converte URLs públicas em *keys* para deleção. Há uma *allowlist* de tipos de arquivo.
+
+### Capas das análises (geração automática)
+`frontend/src/utils/coverUtils.js` + `components/AnalysisCover.vue` resolvem a capa de cada análise em 3 níveis:
+1. `cover_image_path` real (upload/og:image) → `<img>`.
+2. Sem imagem, mas categoria/tags casam com um tema → **SVG temático gerado** (gradiente + ícone + título), determinístico e sem rede.
+3. Nada casa → **foto de API externa** (loremflickr) com indicativo da análise; se a foto falhar, cai para o SVG.
+
+### Experiência de carregamento
+* **Splash** em tela cheia só na **primeira** navegação (verificação inicial). Navegações seguintes usam uma **barra de progresso** fina no topo (`TopProgressBar.vue`), sem esconder o conteúdo.
+* **Aviso de cookies** (`CookieConsent.vue`) no rodapé, exibido uma única vez (`localStorage.cookie-consent`).
+
+### Cold start / keep-alive
+A API tem um endpoint leve `GET /health` (não toca DB/R2). O workflow `.github/workflows/keep-alive.yml` o pinga a cada ~10 min (defina a variável `BACKEND_URL` no GitHub) para mitigar hibernação em planos gratuitos.
+
+### Renderização de conteúdo
+O conteúdo HTML de cada análise é renderizado num **iframe isolado** (`IsolatedRenderer.vue`, `sandbox`) que se ajusta à altura via `postMessage` e herda a cor do tema ativo. Links internos recebem destaque (sublinhado + cor da marca).
+
+---
+
+## 📁 Estrutura
+
+```
+Pulso-Urbano/
+├── frontend/
+│   ├── src/
+│   │   ├── components/        # Header, Footer, AnalysisCover, IsolatedRenderer, cookie/progresso…
+│   │   ├── views/             # Home, Catálogo, Pesquisa, Contato, Sobre, postagens/, admin/
+│   │   ├── router/            # rotas + guarda de auth (token no localStorage)
+│   │   ├── composables/       # useTheme, useToast
+│   │   ├── utils/             # coverUtils, apiCache, analysisUtils
+│   │   └── assets/css/        # variables.css (3 temas) + style.css
+│   ├── public/_redirects      # fallback SPA do Netlify
+│   └── vite.config.js         # proxy dev /api e /admin-auth → localhost:3000
+├── backend/
+│   ├── index.js               # Express, CORS, rotas
+│   ├── src/
+│   │   ├── routes/            # publicRoutes, adminRoutes
+│   │   ├── middleware/        # verifyToken, rateLimiter, asyncHandler
+│   │   ├── services/storage.js# Cloudflare R2 (S3 SDK v3)
+│   │   ├── cache/             # cache Redis/memória
+│   │   └── db/                # conexão Neon
+├── database/                  # schema.sql + migrations (FTS)
+└── .github/workflows/         # keep-alive
+```
+
+---
+
+## 🛠️ Rodando localmente
+
+**Pré-requisitos:** Node.js ≥ 20, npm.
+
+### 1. Backend
 ```bash
-# Navegue até a pasta do backend
 cd backend
-
-# Instale as dependências
 npm install
-
-# Crie um arquivo .env na raiz da pasta /backend e adicione as seguintes variáveis:
-DATABASE_URL="<Sua_String_de_Conexão_PostgreSQL_do_NeonDB>"
-B2_ENDPOINT="<Seu_Endpoint_do_Backblaze_B2>"
-B2_KEY_ID="<Sua_Key_ID_do_Backblaze>"
-B2_APPLICATION_KEY="<Sua_Application_Key_do_Backblaze>"
-B2_BUCKET_NAME="<Nome_do_seu_Bucket_no_Backblaze>"
-ADMIN_EMAIL="<Email_do_Administrador>"
-ADMIN_PASSWORD_HASH="<Hash_bcrypt_da_Senha_do_Administrador>"
-JWT_SECRET="<Uma_Chave_Secreta_Forte_para_JWT>"
-
-# Inicie o servidor de desenvolvimento
-npm run dev
+# crie backend/.env (ver variáveis abaixo)
+npm start            # http://localhost:3000
 ```
-O backend estará rodando em http://localhost:3000.
 
-### **2. Frontend**
-
+### 2. Frontend
 ```bash
-# Navegue até a pasta do frontend (em outro terminal)
 cd frontend
-
-# Instale as dependências
 npm install
-
-# Crie um arquivo .env na raiz da pasta /frontend e adicione a seguinte variável:
-VUE_APP_API_URL="http://localhost:3000"
-
-# Inicie o servidor de desenvolvimento do Vue
-npm run serve
+# deixe VITE_API_URL VAZIO em dev (o proxy do Vite encaminha p/ localhost:3000)
+npm run dev          # http://localhost:5173
 ```
-O frontend estará acessível em http://localhost:8080.
+
+### Variáveis de ambiente
+
+**backend/.env**
+```bash
+DATABASE_URL="<conexão PostgreSQL da Neon>"
+JWT_SECRET="<chave forte para assinar o JWT>"
+# Cloudflare R2 (S3-compatível)
+STORAGE_ENDPOINT="<https://<account>.r2.cloudflarestorage.com>"
+STORAGE_BUCKET_NAME="<nome do bucket>"
+STORAGE_ASSESS_KEY_ID="<access key id do R2>"
+STORAGE_SECRET_ACCESS_KEY="<secret access key do R2>"
+STORAGE_PUBLIC_URL="<https://pub-xxxx.r2.dev>"
+# CORS em produção
+ALLOWED_ORIGIN="<https://seu-site.netlify.app>"
+ALLOWED_ORIGIN_LOCALHOST="http://localhost:5173"
+# Opcionais (degradam para memória se ausentes)
+UPSTASH_REDIS_REST_URL="<...>"
+UPSTASH_REDIS_REST_TOKEN="<...>"
+```
+
+**frontend/.env.local** (dev) — em produção, defina no painel do Netlify:
+```bash
+VITE_API_URL=                         # vazio em dev (usa o proxy do Vite)
+VITE_EMAILJS_SERVICE_ID="<...>"
+VITE_EMAILJS_TEMPLATE_ID="<...>"
+VITE_EMAILJS_PUBLIC_KEY="<...>"
+```
+
+### Deploy (produção)
+| Onde | Variável | Valor |
+|---|---|---|
+| Netlify | `VITE_API_URL` | URL da API na Vercel |
+| Vercel | `ALLOWED_ORIGIN` | URL do site no Netlify |
+| GitHub (Actions) | `BACKEND_URL` | URL da API (keep-alive) |
 
 ---
 
-## 🗓️ Cronograma
-
-O projeto foi planejado com atividades distribuídas entre Setembro de 2025 e Janeiro de 2026, incluindo levantamento de dados, desenvolvimento da plataforma e publicação final. 
+## 🗄️ Banco de dados
+* `database/schema.sql` — tabelas `analyses` e `admins` (admin criado só via SQL).
+* `database/migrations/2026_full_text_search.sql` — `unaccent`, coluna `search_vector` gerada e índice GIN para a busca.
 
 ---
 
 ## 📬 Contato
-
-Para dúvidas, sugestões ou interesse em contribuir, entre em contato pelo e-mail:
 vitimizacaocrisp1@gmail.com

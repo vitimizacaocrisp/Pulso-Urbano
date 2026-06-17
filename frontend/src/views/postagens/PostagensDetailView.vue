@@ -18,7 +18,7 @@
 
       <!-- Cabeçalho hero — apenas quando with_header for false -->
       <header v-if="!analysis.with_header" class="article-hero">
-        <div class="hero-bg" :style="analysis.cover_image_path ? `background-image: url(${getFullMediaPath(analysis.cover_image_path)})` : ''"></div>
+        <div class="hero-bg" :style="heroBgStyle"></div>
         <div class="hero-overlay"></div>
         <div class="hero-container">
           <button class="back-link" @click="$router.back()">
@@ -73,7 +73,7 @@
             <IsolatedRenderer :content="renderedContent" />
           </div>
 
-          <section v-if="!analysis.with_footer && hasAttachments" class="attachments-section">
+          <section v-if="hasAttachments" class="attachments-section">
             <h3 class="section-heading"><Icon icon="mdi:paperclip" /> Referências e Anexos</h3>
             <div class="attachments-grid">
               <div v-if="validReferenceLinks.length" class="attach-card links">
@@ -104,6 +104,7 @@ import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { coverSvgDataUri } from '@/utils/coverUtils.js';
 
 const route    = useRoute();
 const analysis = ref(null);
@@ -117,6 +118,14 @@ const getFullMediaPath = (path) => {
   if (path.startsWith('http')) return path;
   return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
+
+// Fundo do hero: capa real se houver, senão SVG temático gerado (sem placeholder vazio).
+const heroBgStyle = computed(() => {
+  const a = analysis.value;
+  if (!a) return '';
+  const src = a.cover_image_path ? getFullMediaPath(a.cover_image_path) : coverSvgDataUri(a);
+  return `background-image: url("${src}")`;
+});
 
 const renderedContent = computed(() => {
   if (!analysis.value?.content) return '<p><em>Conteúdo não disponível.</em></p>';
@@ -232,9 +241,10 @@ watch(() => route.params.id, (newId, oldId) => {
 .section-heading { font-size: 1.25rem; color: var(--text-main); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color); display: inline-block; }
 .attachments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
 .attach-card h4 { font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 1rem; font-weight: 700; }
-.link-list     { list-style: none; padding: 0; }
-.link-list li  { margin-bottom: 0.75rem; }
-.link-list a   { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--text-secondary); font-size: 0.95rem; padding: 0.5rem; border-radius: 6px; transition: background 0.2s; }
-.link-list a:hover { background: var(--bg-hover); color: var(--brand-primary); }
+.link-list     { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.link-list li  { margin: 0; }
+.link-list a   { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--brand-primary); font-weight: 600; font-size: 0.95rem; padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 7%, transparent); word-break: break-all; transition: background 0.2s, color 0.2s; }
+.link-list a:hover { background: var(--brand-primary); color: #fff; }
+.link-list a :deep(svg) { flex-shrink: 0; }
 @media (max-width: 768px) { .hero-title { font-size: 2.5rem; } .hero-container { padding: 3rem 1rem; } .content-container { padding: 2rem 1rem; } }
 </style>

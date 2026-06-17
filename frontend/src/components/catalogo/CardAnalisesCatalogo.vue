@@ -3,6 +3,7 @@
     <!-- Skeleton enquanto carrega -->
     <template v-if="isLoading && posts.length === 0">
       <div v-for="n in 6" :key="'sk' + n" class="analysis-card skeleton-card">
+        <div class="sk-shimmer sk-cover"></div>
         <div class="card-border-top sk-shimmer"></div>
         <div class="card-body">
           <div class="sk-row"><span class="sk-shimmer sk-badge"></span><span class="sk-shimmer sk-badge"></span></div>
@@ -23,6 +24,9 @@
       :key="post.id"
       class="analysis-card scroll-reveal"
     >
+      <router-link :to="{ name: 'AnalysisDetail', params: { id: post.id } }" class="card-cover-link">
+        <AnalysisCover :analysis="post" />
+      </router-link>
       <div class="card-border-top" :style="{ backgroundColor: getBorderColor(post.category) }"></div>
       <div class="card-body">
         <div class="card-header">
@@ -58,12 +62,14 @@
 <script>
 import axios from 'axios';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import AnalysisCover from '@/components/AnalysisCover.vue';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const PAGE_SIZE = 24; // cards por página — razoável para um grid visual
 
 export default {
   name: 'CardAnalisesCatalogo',
+  components: { AnalysisCover },
   props: {
     category: { type: String, default: null }
   },
@@ -192,6 +198,9 @@ export default {
 .analysis-card.is-visible { opacity: 1; transform: translateY(0); transition: opacity 0.5s ease, transform 0.5s ease; }
 .analysis-card { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
 .analysis-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: var(--brand-primary); }
+.card-cover-link { display: block; width: 100%; height: 168px; overflow: hidden; }
+.card-cover-link :deep(img) { transition: transform 0.4s ease; }
+.analysis-card:hover .card-cover-link :deep(img) { transform: scale(1.05); }
 .card-border-top { height: 6px; width: 100%; }
 .card-body { padding: 24px; display: flex; flex-direction: column; flex-grow: 1; }
 .card-header { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -232,4 +241,5 @@ export default {
 .sk-src { width: 90px; height: 12px; }
 .sk-btn { width: 92px; height: 32px; border-radius: 8px; }
 .card-border-top.sk-shimmer { height: 6px; border-radius: 0; }
+.sk-cover { height: 168px; border-radius: 0; }
 </style>

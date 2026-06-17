@@ -33,11 +33,10 @@
         :style="{ transitionDelay: `${index * 100}ms` }"
       >
         <div class="card-image-wrapper">
-          <router-link :to="{ name: 'AnalysisDetail', params: { id: post.id } }" class="img-link" v-if="post.cover_image_path">
-            <img :src="getFullMediaPath(post.cover_image_path)" :alt="post.title" loading="lazy">
+          <router-link :to="{ name: 'AnalysisDetail', params: { id: post.id } }" class="img-link">
+            <AnalysisCover :analysis="post" />
             <div class="card-overlay"><span class="read-more">Ler Artigo</span></div>
           </router-link>
-          <div v-else class="no-image-placeholder">PU</div>
         </div>
         <div class="card-content">
           <div class="meta-info">
@@ -63,12 +62,13 @@
 import axios from 'axios';
 import { Icon } from '@iconify/vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import AnalysisCover from '@/components/AnalysisCover.vue';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export default {
   name: 'RecentPosts',
-  components: { Icon },
+  components: { Icon, AnalysisCover },
   props: {
     postCount: { type: Number, required: true, default: 6 },
     category:  { type: String, default: null }

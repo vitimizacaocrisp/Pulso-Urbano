@@ -85,7 +85,15 @@ html, body {
   line-height: 1.6;
   color: ${textColor};
 }
-a { color: ${linkColor}; }
+a {
+  color: ${linkColor};
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: ${linkColor}80;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+a:hover { text-decoration-color: ${linkColor}; }
 img, canvas, svg {
   max-width: 100%;
   height: auto;
