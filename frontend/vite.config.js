@@ -12,6 +12,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'monaco-editor': ['monaco-editor'],
+          'chart': ['chart.js', 'vue-chartjs'],
+          'xlsx': ['xlsx'],
+        }
+      }
+    }
+  },
   server: {
     proxy: {
       '/api': {

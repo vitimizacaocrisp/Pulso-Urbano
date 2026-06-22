@@ -18,17 +18,18 @@ const ALLOWED_ORIGINS = [
 // --- 2. CORS GLOBAL (Essencial: Deve vir antes das rotas) ---
 app.use(cors({
   origin: function (origin, callback) {
-    // Em desenvolvimento, libera qualquer localhost:porta (Vite pode subir em
-    // 5173, 5174, 5180... dependendo do que estiver livre).
-    const isDevLocalhost = origin
-      && /^http:\/\/localhost:\d+$/.test(origin)
-      && process.env.NODE_ENV !== 'production';
-    // Permite requisições sem 'origin' (Postman/mobile) ou na lista branca.
-    if (!origin || ALLOWED_ORIGINS.includes(origin) || isDevLocalhost) {
-      callback(null, true);
-    } else {
-      callback(new Error('Bloqueado pela política de CORS (Origem não permitida)'));
-    }
+    // Sem origin: Postman, mobile, same-origin — libera.
+    if (!origin) return callback(null, true);
+    // Origens na lista branca (env vars).
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // Vercel preview deploys (*.vercel.app).
+    if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+    // Netlify (manter compatibilidade).
+    if (/\.netlify\.app$/.test(origin)) return callback(null, true);
+    // Dev localhost.
+    if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+
+    callback(new Error('Bloqueado pela política de CORS (Origem não permitida)'));
   },
   credentials: false, // Auth via header Authorization (sem cookie)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Garante que UPDATE e DELETE funcionem
