@@ -10,14 +10,13 @@ export const isRouteLoading = ref(false);
 export const appBooted = ref(false);
 
 const checkAuthStatus = async () => {
-  // Sem token salvo: nem chega a bater no backend.
-  if (!localStorage.getItem('authToken')) return false;
-  // O interceptor do axios (main.js) injeta o header Authorization.
+  // Auth via cookie httpOnly: JS não consegue lê-lo, então não dá pra checar
+  // localmente. Perguntamos ao backend (o cookie vai junto via withCredentials).
   try {
     await axios.get(API_BASE_URL + '/api/admin/verify-token');
-    return true; // Token válido.
+    return true; // Cookie válido.
   } catch (error) {
-    return false; // Token inválido ou expirado.
+    return false; // Sem cookie, inválido ou expirado.
   }
 };
 

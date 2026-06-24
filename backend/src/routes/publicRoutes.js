@@ -9,6 +9,10 @@ const { testConnectionData } = require('../services/storage');
 const { sql } = require('../db/dbConnect');
 
 const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+
+// Escapa metacaracteres do LIKE/ILIKE (%, _, \) para tratá-los como literais.
+const escapeLike = (s) => String(s).replace(/[\\%_]/g, (c) => '\\' + c);
+
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 
@@ -24,11 +28,15 @@ const TTL_LONG  = 5 * 60_000;  // 5 min — análise individual
 // ─────────────────────────────────────────────────────────────────────
 // Status da API
 // ─────────────────────────────────────────────────────────────────────
-router.get('/', async (req, res) => {
-  await testConnection();
-  await testConnectionData();
+router.get('/', asyncHandler(async (req, res) => {
+  // Resposta leve por padrão. As sondagens de DB/R2 (caras) só rodam sob
+  // demanda com ?check=1 — antes rodavam em TODA visita à raiz.
+  if (req.query.check === '1') {
+    const [db, storage] = await Promise.all([testConnection(), testConnectionData()]);
+    return res.json({ success: true, message: 'Pulso Urbano API', db, storage });
+  }
   res.json({ success: true, message: 'Bem-vindo ao Pulso Urbano API!' });
-});
+}));
 
 // Health check leve (sem tocar DB/R2) — ideal para keep-alive/monitoramento.
 // Mantém o backend "quente" e reduz o cold start sem custo de round-trips.
@@ -149,7 +157,9 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
 
   const whereClauses = [];
   if (category) {
-    whereClauses.push(sql`category ILIKE ${category}`);
+    // category é jsonb: precisa de ::text (o jsonb fica com aspas, ex. "Crime"),
+    // por isso o ILIKE usa %termo%. Sem o ::text, "jsonb ILIKE text" dá erro.
+    whereClauses.push(sql`category::text ILIKE ${'%' + escapeLike(category) + '%'}`);
   }
   if (entry_type && ctColumns && ALLOWED_ENTRY_TYPES.includes(entry_type)) {
     whereClauses.push(sql`entry_type = ${entry_type}`);
@@ -220,15 +230,25 @@ router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
   }
 
+  const maxAgeMs = remember ? 168 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
   const token = jwt.sign(
     { id: admin.id, email: admin.email },
     process.env.JWT_SECRET,
     { expiresIn: remember ? '168h' : '12h' }
   );
 
-  // Token devolvido no corpo. O frontend guarda no localStorage e o envia no
-  // header Authorization — funciona cross-domain (Netlify <-> Vercel), sem
-  // depender de cookie/proxy. A validade do JWT já respeita o "lembrar-me".
+  // Auth primária: cookie httpOnly (imune a XSS — JS não lê). secure só em
+  // produção (localhost dev é HTTP). sameSite 'lax' cobre o uso same-origin.
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: maxAgeMs,
+    path: '/',
+  });
+
+  // Token também no corpo: compat com clientes não-browser. O frontend NÃO o
+  // guarda mais em localStorage — usa o cookie automaticamente.
   res.json({ success: true, message: 'Login bem-sucedido!', token });
 }));
 

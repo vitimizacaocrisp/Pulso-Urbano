@@ -118,15 +118,16 @@ export default {
       this.errorMessage = null;
 
       try {
-        // O backend devolve o token no corpo; guardamos no localStorage e o
-        // interceptor do axios (main.js) o envia no header de cada requisição.
-        const { data } = await axios.post(API_URL+'/admin-auth', {
+        // O backend seta um cookie httpOnly com o JWT. Não guardamos token em
+        // localStorage (imune a XSS). Limpa qualquer token legado que tenha
+        // sobrado de versões antigas.
+        await axios.post(API_URL+'/admin-auth', {
           email: this.email,
           password: this.password,
           rememberMe: this.rememberMe,
         });
 
-        localStorage.setItem('authToken', data.token);
+        localStorage.removeItem('authToken');
         this.$router.push('/admin');
 
       } catch (error) {

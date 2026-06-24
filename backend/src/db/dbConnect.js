@@ -21,8 +21,10 @@ const testConnection = async () => {
     if (!dbUrl) throw new Error("DATABASE_URL está vazia.");
     await sql`SELECT 1;`;
     console.log('✅ Conexão com Neon PostgreSQL bem-sucedida!');
+    return true;
   } catch (error) {
     console.error('❌ Falha na conexão:', error.message);
+    return false;
   }
 };
 

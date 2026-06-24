@@ -5,6 +5,11 @@ const { sql, hasContentTypeColumns } = require('../db/dbConnect');
 
 // Tipos de conteúdo aceitos (ver migração 2026_content_types.sql).
 const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+
+// Escapa metacaracteres do LIKE/ILIKE (%, _, \) para que sejam tratados como
+// literais. Sem isto, buscar "50%" ou "a_b" vira coringa e retorna lixo.
+// Postgres usa \ como escape por padrão (standard_conforming_strings on).
+const escapeLike = (s) => String(s).replace(/[\\%_]/g, (c) => '\\' + c);
 const safeEntryType = (v) => (ALLOWED_ENTRY_TYPES.includes(v) ? v : 'analysis');
 const safeMeta = (v) => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
@@ -65,9 +70,15 @@ router.get('/verify-token', verifyToken, (req, res) => {
   res.status(200).json({ success: true, message: 'Token é válido.', userId: req.user.id });
 });
 
-// Logout — limpa o cookie. Sem verifyToken: funciona mesmo com sessão expirada.
+// Logout — limpa o cookie httpOnly. Sem verifyToken: funciona mesmo com sessão
+// expirada. clearCookie precisa dos mesmos atributos usados ao setar.
 router.post('/logout', (req, res) => {
-  // Sem estado no servidor: o frontend só descarta o token do localStorage.
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
   res.json({ success: true, message: 'Logout realizado.' });
 });
 
@@ -177,10 +188,12 @@ router.get('/autocomplete', verifyToken, asyncHandler(async (req, res) => {
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
+  // Teto: autocomplete não precisa da tabela inteira; 2000 cobre de sobra.
   const analyses = await sql`
     SELECT id, title, author, tag, category
     FROM analyses
     ORDER BY created_at DESC
+    LIMIT 2000
   `;
 
   const payload = { success: true, data: { analyses } };
@@ -221,7 +234,7 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   // se o FTS estiver disponível, soma o match por relevância (stemming + acentos).
   const fts = search ? await isFtsAvailable() : false;
   if (search) {
-    const like = '%' + search + '%';
+    const like = '%' + escapeLike(search) + '%';
     const ilike = sql`(
       title          ILIKE ${like} OR
       author         ILIKE ${like} OR
@@ -241,38 +254,36 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     }
   }
 
-  // Categoria pode ser múltipla (csv: "Crimes,Drogas")
+  // Categoria pode ser múltipla (csv: "Crimes,Drogas").
+  // category é jsonb: o ::text vem com aspas ("Crime"), então `= ANY(array)`
+  // nunca casava. Usamos ILIKE por termo e juntamos com OR — funciona para 1 ou N.
   if (category) {
-  const cats = category.split(',').map(c => c.trim()).filter(Boolean);
-  if (cats.length === 1) {
-    // Adicionado ::text para permitir o ILIKE no jsonb
-    whereClauses.push(sql`category::text ILIKE ${'%' + cats[0] + '%'}`);
-  } else {
-    // Adicionado ::text para comparar com o array de strings
-    whereClauses.push(sql`category::text = ANY(${cats})`);
+    const cats = category.split(',').map(c => c.trim()).filter(Boolean);
+    if (cats.length) {
+      const conds = cats.map(c => sql`category::text ILIKE ${'%' + escapeLike(c) + '%'}`);
+      // Parênteses obrigatórios: sem eles, "AND a OR b" vira "(AND a) OR b" por
+      // precedência e contamina o resto do WHERE.
+      whereClauses.push(sql`(${conds.reduce((acc, cur) => sql`${acc} OR ${cur}`)})`);
+    }
   }
-}
 
-  // Fonte pode ser múltipla
+  // Fonte pode ser múltipla — mesma lógica da categoria.
   if (source) {
-  const srcs = source.split(',').map(s => s.trim()).filter(Boolean);
-  if (srcs.length === 1) {
-    // Adicionado ::text para permitir o ILIKE no jsonb
-    whereClauses.push(sql`source::text ILIKE ${'%' + srcs[0] + '%'}`);
-  } else {
-    // Adicionado ::text para comparar com o array de strings
-    whereClauses.push(sql`source::text = ANY(${srcs})`);
+    const srcs = source.split(',').map(s => s.trim()).filter(Boolean);
+    if (srcs.length) {
+      const conds = srcs.map(s => sql`source::text ILIKE ${'%' + escapeLike(s) + '%'}`);
+      whereClauses.push(sql`(${conds.reduce((acc, cur) => sql`${acc} OR ${cur}`)})`);
+    }
   }
-}
 
-  // Tags: filtra linhas cujo campo tag contém o termo (ILIKE)
+  // Tags: filtra linhas cujo campo tag contém o termo (ILIKE).
   if (tag) {
     const tags = tag.split(',').map(t => t.trim()).filter(Boolean);
-    // Adicione ::text após a coluna tag
-    const tagConditions = tags.map(t => sql`tag::text ILIKE ${'%' + t + '%'}`); 
-    whereClauses.push(
-      tagConditions.reduce((acc, cur) => sql`${acc} OR ${cur}`)
-    );
+    if (tags.length) {
+      const conds = tags.map(t => sql`tag::text ILIKE ${'%' + escapeLike(t) + '%'}`);
+      // Parênteses: ver nota no filtro de categoria.
+      whereClauses.push(sql`(${conds.reduce((acc, cur) => sql`${acc} OR ${cur}`)})`);
+    }
   }
 
   // Tipo de conteúdo (analysis | academic | dataset) — usado por /producoes e /dados
@@ -317,22 +328,28 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
         description, cover_image_path, nationality, states, cities, created_at
       `;
 
-  let analyses;
+  // Teto de segurança para limit=all: evita varrer a tabela inteira sem limite
+  // conforme ela cresce. Acima disso, o cliente precisa paginar.
+  const MAX_ALL = 2000;
 
-  if (limit === 'all') {
-    analyses = await sql`
-      SELECT ${selectedFields} FROM analyses ${whereCondition} ${orderClause}
-    `;
-  } else {
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    analyses = await sql`
-      SELECT ${selectedFields}
-      FROM analyses ${whereCondition} ${orderClause}
-      LIMIT ${parseInt(limit, 10)} OFFSET ${offset}
-    `;
-  }
+  const listQuery = (limit === 'all')
+    ? sql`SELECT ${selectedFields} FROM analyses ${whereCondition} ${orderClause} LIMIT ${MAX_ALL}`
+    : (() => {
+        const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+        const offset = (Math.max(parseInt(page, 10) || 1, 1) - 1) * safeLimit;
+        return sql`
+          SELECT ${selectedFields}
+          FROM analyses ${whereCondition} ${orderClause}
+          LIMIT ${safeLimit} OFFSET ${offset}
+        `;
+      })();
 
-  const totalResult = await sql`SELECT COUNT(*) FROM analyses ${whereCondition}`;
+  // Lista + COUNT em paralelo (antes rodavam em série, dobrando o round-trip).
+  const [analyses, totalResult] = await Promise.all([
+    listQuery,
+    sql`SELECT COUNT(*) FROM analyses ${whereCondition}`,
+  ]);
+
   const payload = {
     success: true,
     data: { analyses, total: parseInt(totalResult[0].count, 10) }
@@ -357,7 +374,23 @@ router.get('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
-  const results = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  // Colunas explícitas: SELECT * vazava search_vector (binário) e qualquer
+  // coluna futura indesejada no JSON.
+  const results = (await hasContentTypeColumns())
+    ? await sql`
+        SELECT id, title, subtitle, last_update, study_period, source, category,
+               tag, author, description, content, reference_links,
+               cover_image_path, nationality, states, cities, with_header, with_footer,
+               created_at, entry_type, meta
+        FROM analyses WHERE id = ${id}
+      `
+    : await sql`
+        SELECT id, title, subtitle, last_update, study_period, source, category,
+               tag, author, description, content, reference_links,
+               cover_image_path, nationality, states, cities, with_header, with_footer,
+               created_at
+        FROM analyses WHERE id = ${id}
+      `;
   if (results.length === 0) {
     return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
   }
@@ -560,7 +593,8 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
 // ─────────────────────────────────────────────────────────────────────
 router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const analysisResult = await sql`SELECT * FROM analyses WHERE id = ${id}`;
+  // Só precisamos da capa e do conteúdo para localizar os arquivos no R2.
+  const analysisResult = await sql`SELECT cover_image_path, content FROM analyses WHERE id = ${id}`;
   if (analysisResult.length === 0) {
     return res.status(404).json({ success: false, message: 'Análise não encontrada.' });
   }
@@ -568,7 +602,7 @@ router.delete('/analyses/:id', verifyToken, asyncHandler(async (req, res) => {
   const filesToDelete = [];
   if (analysis.cover_image_path?.includes('r2.dev')) filesToDelete.push(analysis.cover_image_path);
   const r2UrlRegex = /https?:\/\/[^\s"']+\.r2\.dev[^\s"']*/gi;
-  (analysis.content.match(r2UrlRegex) || []).forEach(url => {
+  ((analysis.content || '').match(r2UrlRegex) || []).forEach(url => {
     if (!filesToDelete.includes(url)) filesToDelete.push(url);
   });
   if (filesToDelete.length > 0) {

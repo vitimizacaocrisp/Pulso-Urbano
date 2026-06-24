@@ -1,10 +1,6 @@
 // --- Carrega variáveis de ambiente ---
 require('dotenv').config();
-const multer = require('multer');
-const path = require('path');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const express = require('express');
 
 // --- Middleware para tratar async/await sem repetir try/catch ---
 const asyncHandler = fn => (req, res, next) =>
@@ -12,15 +8,18 @@ const asyncHandler = fn => (req, res, next) =>
 
 // --- Middleware de autenticação ---
 const verifyToken = (req, res, next) => {
-    // Token vem no header Authorization ("Bearer <token>"). Ignora valores
-    // literais 'null'/'undefined' que o frontend possa enviar sem token.
+    // Fonte primária: cookie httpOnly `auth_token` (não acessível a JS → imune a
+    // exfiltração por XSS). Fallback: header Authorization "Bearer <token>"
+    // (compat com clientes não-browser e transição). Ignora 'null'/'undefined'.
+    const cookieToken = req.cookies?.auth_token;
     const headerToken = req.headers['authorization']?.split(' ')[1];
-    const token = (headerToken && headerToken !== 'null' && headerToken !== 'undefined')
-        ? headerToken
-        : null;
+    const raw = cookieToken || headerToken;
+    const token = (raw && raw !== 'null' && raw !== 'undefined') ? raw : null;
 
+    // 401 = não autenticado (sem credencial). 403 = autenticado mas sem permissão.
+    // Ausência de token é 401, não 403.
     if (!token) {
-        return res.status(403).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });
+        return res.status(401).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
@@ -32,27 +31,9 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-// --- Configuração da Multer para guardar os ficheiros ---
-// Define onde os ficheiros serão guardados e como serão nomeados
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Define pastas diferentes para cada tipo de ficheiro
-    if (file.fieldname === 'coverImage') {
-      cb(null, 'src/uploads/images/');
-    } else if (file.fieldname === 'documentFile') {
-      cb(null, 'src/uploads/documents/');
-    } else {
-      cb(null, 'src/uploads/data/');
-    }
-  },
-  filename: function (req, file, cb) {
-    // Cria um nome de ficheiro único para evitar sobreposições
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage });
+// NOTA: a Multer (diskStorage) foi removida — era código morto. Uploads são
+// feitos via URLs pré-assinadas do R2 (ver services/storage.js), e gravar em
+// disco quebraria de qualquer forma no filesystem read-only da Vercel.
 
 module.exports = {
     asyncHandler,
