@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, asyncHandler } = require('../middleware/middlewares');
-const { sql, hasContentTypeColumns } = require('../db/dbConnect');
+const { sql, hasContentTypeColumns, hasCrispColumn } = require('../db/dbConnect');
+
+// Deriva is_crisp da fonte/autor: CRISP/UFMG ou "Centro de Estudos de
+// Criminalidade e Segurança Pública". Usado ao criar/editar para manter a flag
+// coerente sem intervenção manual.
+const isCrispEntry = (source, author) => {
+  const hay = `${JSON.stringify(source ?? '')} ${author ?? ''}`.toLowerCase();
+  return /crisp|centro de estudos de criminalidade e seguran[çc]a/.test(hay);
+};
 
 // Tipos de conteúdo aceitos (ver migração 2026_content_types.sql).
 const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
@@ -73,7 +81,7 @@ router.get('/verify-token', verifyToken, (req, res) => {
 // Logout — limpa o cookie httpOnly. Sem verifyToken: funciona mesmo com sessão
 // expirada. clearCookie precisa dos mesmos atributos usados ao setar.
 router.post('/logout', (req, res) => {
-  res.clearCookie('auth_token', {
+  res.clearCookie('authToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -215,10 +223,12 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     year_from,
     year_to,
     entry_type,
+    crisp,
     sort = 'date_desc'  // date_desc | date_asc | title_asc
   } = req.query;
 
   const ctColumns = await hasContentTypeColumns();
+  const crispCol  = await hasCrispColumn();
 
   // ── Cache key (apenas para buscas paginadas, não limit=all) ──
   if (limit !== 'all') {
@@ -291,6 +301,11 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
     whereClauses.push(sql`entry_type = ${entry_type}`);
   }
 
+  // Recorte CRISP (cross-cutting: independe do entry_type)
+  if ((crisp === 'true' || crisp === '1' || crisp === true) && crispCol) {
+    whereClauses.push(sql`is_crisp = TRUE`);
+  }
+
   // Período de estudo (year_from / year_to) — filtra pelo campo study_period (texto)
   if (year_from) {
     whereClauses.push(sql`study_period IS NOT NULL AND CAST(SUBSTRING(study_period FROM '\\d{4}') AS INT) >= ${parseInt(year_from, 10)}`);
@@ -317,15 +332,16 @@ router.get('/analyses-list', verifyToken, asyncHandler(async (req, res) => {
   }
 
   // ── SELECT ──
+  const crispField = crispCol ? sql`, is_crisp` : sql``;
   const selectedFields = ctColumns
     ? sql`
         id, title, author, source, tag, category, study_period,
         description, cover_image_path, nationality, states, cities, created_at,
-        entry_type, meta
+        entry_type, meta${crispField}
       `
     : sql`
         id, title, author, source, tag, category, study_period,
-        description, cover_image_path, nationality, states, cities, created_at
+        description, cover_image_path, nationality, states, cities, created_at${crispField}
       `;
 
   // Teto de segurança para limit=all: evita varrer a tabela inteira sem limite
@@ -506,9 +522,15 @@ router.post('/analyses', verifyToken, express.json(), asyncHandler(async (req, r
     `;
   }
 
+  // Deriva is_crisp da fonte/autor (coluna opcional).
+  const newId = result[0]?.id;
+  if (newId && await hasCrispColumn()) {
+    await sql`UPDATE analyses SET is_crisp = ${isCrispEntry(source, author)} WHERE id = ${newId}`;
+  }
+
   await invalidateAnalysisCaches();
 
-  res.status(201).json({ success: true, message: 'Análise publicada com sucesso!', analysisId: result[0]?.id });
+  res.status(201).json({ success: true, message: 'Análise publicada com sucesso!', analysisId: newId });
 }));
 
 // ─────────────────────────────────────────────────────────────────────
@@ -581,6 +603,11 @@ router.put('/analyses/:id', verifyToken, express.json(), asyncHandler(async (req
         cities = ${cts}, with_header = ${with_header}, with_footer = ${with_footer}
       WHERE id = ${id}
     `;
+  }
+
+  // Reavalia is_crisp após editar fonte/autor (coluna opcional).
+  if (await hasCrispColumn()) {
+    await sql`UPDATE analyses SET is_crisp = ${isCrispEntry(source, author)} WHERE id = ${id}`;
   }
 
   await invalidateAnalysisCaches(id);

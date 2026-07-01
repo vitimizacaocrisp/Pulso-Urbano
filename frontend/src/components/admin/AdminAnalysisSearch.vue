@@ -95,15 +95,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { Icon } from '@iconify/vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 
 const props = defineProps({
   modelValue: { type: Object, default: null }
 });
 const emit = defineEmits(['update:modelValue', 'select']);
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const query           = ref('');
 const allAnalyses     = ref([]);
@@ -118,11 +116,10 @@ const loadAll = async () => {
   if (allAnalyses.value.length > 0) return;
   isLoading.value = true;
   try {
-    const token   = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    // Auth via cookie httpOnly (cliente central já envia credenciais).
     const data = await fetchWithCache(
       CacheKeys.autocomplete,
-      () => axios.get(`${API_BASE_URL}/api/admin/autocomplete`, { headers })
+      () => api.get('/api/admin/autocomplete')
               .then(r => r.data?.data?.analyses || []),
       TTL.META
     );

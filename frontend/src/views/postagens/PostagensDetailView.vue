@@ -132,7 +132,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useRoute } from 'vue-router';
-import axios from 'axios';
+import api, { API_BASE_URL, mediaUrl } from '@/services/api';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
@@ -145,13 +145,7 @@ const analysis = ref(null);
 const isLoading = ref(true);
 const error    = ref(null);
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-
-const getFullMediaPath = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+const getFullMediaPath = (path) => mediaUrl(path);
 
 // Fundo do hero: capa real se houver, senão SVG temático gerado (sem placeholder vazio).
 const heroBgStyle = computed(() => {
@@ -213,8 +207,8 @@ const fetchAnalysis = async (id) => {
     // para páginas acessíveis publicamente.
     const data = await fetchWithCache(
       CacheKeys.analysis(id),
-      () => axios
-        .get(`${API_BASE_URL}/api/analyses/${id}`)
+      () => api
+        .get(`/api/analyses/${id}`)
         .then(r => r.data?.data),
       TTL.LONG // 5 min
     );

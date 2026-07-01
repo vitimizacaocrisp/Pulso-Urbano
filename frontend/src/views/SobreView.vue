@@ -61,6 +61,28 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Seção Financiamento (FAPEMIG) -->
+                <section class="card-modern funding-card scroll-reveal delay-4">
+                    <div class="card-icon funding-icon">
+                        <Icon icon="mdi:hand-coin-outline" width="22" />
+                    </div>
+                    <div class="card-content">
+                        <h3>Financiamento</h3>
+                        <p>
+                            Este projeto é financiado pela <strong>FAPEMIG — Fundação de Amparo à
+                            Pesquisa do Estado de Minas Gerais</strong>, no âmbito do
+                            <strong>Edital 001/2023 — Demanda Universal</strong>.
+                        </p>
+                        <p class="funding-process">
+                            <Icon icon="mdi:file-document-outline" width="16" />
+                            Processo <strong>APQ-02456-23</strong>
+                        </p>
+                        <a href="https://fapemig.br" target="_blank" rel="noopener" class="funding-link">
+                            fapemig.br <Icon icon="mdi:open-in-new" width="14" />
+                        </a>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
@@ -236,6 +258,21 @@ onMounted(() => {
     margin-top: 0.5rem;
     text-transform: uppercase;
 }
+
+/* Card de Financiamento (FAPEMIG) */
+.funding-card { align-items: flex-start; }
+.funding-icon { background-color: rgba(40, 167, 69, 0.12); color: var(--sys-success); }
+.funding-process {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: var(--bg-hover); color: var(--text-main);
+    padding: 0.4rem 0.8rem; border-radius: var(--radius-md);
+    font-size: 0.95rem; font-family: var(--font-mono, monospace); margin-bottom: 1rem;
+}
+.funding-link {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    color: var(--brand-primary); text-decoration: none; font-weight: 600; font-size: 0.95rem;
+}
+.funding-link:hover { text-decoration: underline; }
 
 /* SCROLL REVEAL ANIMATIONS */
 .scroll-reveal {

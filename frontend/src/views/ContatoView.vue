@@ -241,6 +241,11 @@ const handleSubmit = async () => {
     max-width: var(--container-width);
     margin: 0 auto;
     padding: 0 1.5rem 4rem;
+    /* Eleva os cards acima do banner: o header usa margin-bottom negativo para
+       criar o efeito de "cards flutuando sobre o banner"; sem z-index o banner
+       pintava por cima dos títulos dos cards. */
+    position: relative;
+    z-index: 1;
 }
 
 .contact-grid {

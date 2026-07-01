@@ -88,10 +88,8 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '@/services/api';
 import { Icon } from '@iconify/vue';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default {
   name: 'AdminLoginView',
@@ -121,7 +119,7 @@ export default {
         // O backend seta um cookie httpOnly com o JWT. Não guardamos token em
         // localStorage (imune a XSS). Limpa qualquer token legado que tenha
         // sobrado de versões antigas.
-        await axios.post(API_URL+'/admin-auth', {
+        await api.post('/admin-auth', {
           email: this.email,
           password: this.password,
           rememberMe: this.rememberMe,

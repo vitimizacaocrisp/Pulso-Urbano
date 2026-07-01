@@ -16,15 +16,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
-
-const props = defineProps({
-  apiBaseUrl: {
-    type: String,
-    default: () => import.meta.env.VITE_API_URL || ''
-  }
-});
 
 const emit = defineEmits(['select']);
 const router = useRouter();
@@ -40,11 +33,11 @@ const fetchAllData = async () => {
   if (allAnalyses.value.length > 0) return;
   isLoading.value = true;
   try {
-    // Auth via header Authorization (interceptor do axios em main.js).
+    // Auth via cookie httpOnly (cliente central já envia credenciais).
     const data = await fetchWithCache(
       CacheKeys.autocomplete,
-      () => axios
-        .get(`${props.apiBaseUrl}/api/admin/autocomplete`)
+      () => api
+        .get('/api/admin/autocomplete')
         .then(r => r.data?.data?.analyses || []),
       TTL.META // 10 min
     );

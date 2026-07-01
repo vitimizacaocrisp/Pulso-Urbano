@@ -121,10 +121,9 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import axios from 'axios';
+import api from '@/services/api';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
 const router = useRouter();
 const sidebarCollapsed = ref(false);
 const mobileDrawerOpen = ref(false);
@@ -132,7 +131,7 @@ const mobileDrawerOpen = ref(false);
 const logout = async () => {
   // Pede ao backend para limpar o cookie httpOnly. Mesmo se a chamada falhar,
   // redirecionamos para o login. Limpa também qualquer token legado.
-  try { await axios.post(API_URL + '/api/admin/logout'); } catch { /* ignora */ }
+  try { await api.post('/api/admin/logout'); } catch { /* ignora */ }
   localStorage.removeItem('authToken');
   router.push({ name: 'AdminLogin' });
 };

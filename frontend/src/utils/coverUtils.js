@@ -7,7 +7,7 @@
 // O SVG é autocontido (gradiente + ícone + título), determinístico e sem rede.
 // Mantém o visual consistente mesmo sem imagem real (relatório, item 5.3).
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+import { mediaUrl } from '@/services/api';
 
 // Paths de ícone (mdi, viewBox 24x24) por tema. Apache-2.0.
 const ICONS = {
@@ -43,11 +43,7 @@ const esc = (s) => String(s || '').replace(/[&<>"']/g, m => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
 ));
 
-const fullMediaPath = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+const fullMediaPath = (path) => mediaUrl(path);
 
 const haystack = (a) => `${a?.category || ''} ${a?.tag || ''} ${a?.title || ''}`;
 

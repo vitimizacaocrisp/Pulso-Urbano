@@ -206,7 +206,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Icon } from '@iconify/vue';
 import { useRoute } from 'vue-router';
-import axios from 'axios';
+import api from '@/services/api';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import AnalysisCover from '@/components/AnalysisCover.vue';
@@ -215,7 +215,6 @@ import { useToast } from '@/composables/useToast';
 
 const toast  = useToast();
 const route  = useRoute();
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const analyses      = ref([]);
 const totalAnalyses = ref(0);
@@ -283,7 +282,7 @@ const loadFilterMeta = async () => {
   try {
     const meta = await fetchWithCache(
       CacheKeys.filterMeta,
-      () => axios.get(`${API_BASE_URL}/api/admin/filter-meta`).then(r => r.data?.data),
+      () => api.get('/api/admin/filter-meta').then(r => r.data?.data),
       TTL.META
     );
     if (meta) {
@@ -327,7 +326,7 @@ const fetchAnalyses = async (isNewSearch = false) => {
 
     const result = await fetchWithCache(
       cacheKey,
-      () => axios.get(`${API_BASE_URL}/api/admin/analyses-list`, { params }).then(r => r.data?.data),
+      () => api.get('/api/admin/analyses-list', { params }).then(r => r.data?.data),
       TTL.DEFAULT
     );
 

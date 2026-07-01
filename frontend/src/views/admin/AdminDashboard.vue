@@ -144,10 +144,9 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import axios from 'axios';
+import api from '@/services/api';
 import Chart from 'chart.js/auto';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
 const router  = useRouter();
 
 const isLoading      = ref(true);
@@ -186,7 +185,7 @@ const fetchData = async () => {
 
   try {
     // Auth via header Authorization (interceptor do axios em main.js).
-    const { data } = await axios.get(`${API_URL}/api/admin/dashboard-data`, { timeout: 15000 });
+    const { data } = await api.get('/api/admin/dashboard-data', { timeout: 15000 });
     const d = data.data;
     stats.value          = d.stats;
     recentAnalyses.value = d.recentAnalyses;

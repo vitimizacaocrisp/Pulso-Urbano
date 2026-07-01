@@ -133,29 +133,24 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { marked } from 'marked';
-import axios from 'axios';
-import { openDB } from 'idb';
-import * as monaco from 'monaco-editor';
+import api, { API_BASE_URL } from '@/services/api';
 import { Icon } from '@iconify/vue';
 import { generateUrlMediaHtml, generateFileMediaHtml, parseReferenceLinks } from '@/utils/analysisUtils.js';
-import { formatText } from '@/utils/editorUtils.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
 import AnalysisMediaModal from '@/components/admin/AnalysisMediaModal.vue';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 import DocumentEditor from '@/components/admin/DocumentEditor.vue';
 import { useTheme } from '@/composables/useTheme';
+import { useMediaUpload } from '@/composables/useMediaUpload';
+import { useMonacoMarkdown } from '@/composables/useMonacoMarkdown';
+import { useAnalysisDraft } from '@/composables/useAnalysisDraft';
 const { isDark } = useTheme();
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ── State ──────────────────────────────────────────────────────────────
 const isPreview  = ref(false);
 const isLoading  = ref(false);
-const lastSaved  = ref('');
 const feedback   = ref({ message: '', type: '' });
-const editorEl   = ref(null);
-let   monacoEditor = null;
 
 const showResourceMenu = ref(false);
 const showMediaInput   = ref(false);
@@ -190,6 +185,21 @@ const isFormInvalid = computed(() =>
   !form.value.nationality
 );
 
+// ── Composables (upload, editor Monaco, rascunho) ─────────────────────
+const { uploadFiles } = useMediaUpload();
+const editor = useMonacoMarkdown({
+  isDark,
+  getContent: () => form.value.content,
+  onChange: (v) => { form.value.content = v; },
+});
+const editorEl = editor.editorEl; // ref do template (<div ref="editorEl">)
+
+const draft = useAnalysisDraft({
+  form, contentMediaMap, imagePreviewUrl,
+  onContentLoaded: (html) => editor.setValue(html),
+});
+const lastSaved = draft.lastSaved;
+
 // ── Toolbar formats ───────────────────────────────────────────────────
 const formats = [
   { type: 'bold',   label: 'Negrito',  html: '<strong>B</strong>' },
@@ -199,7 +209,7 @@ const formats = [
   { type: 'code',   label: 'Código',   html: '&lt;/&gt;' },
   { type: 'quote',  label: 'Citação',  html: '"' },
 ];
-const applyFmt = (type) => { if (monacoEditor) formatText(monacoEditor, type); };
+const applyFmt = (type) => editor.applyFormat(type);
 
 // ── Media modal handlers ──────────────────────────────────────────────
 const onSelectType = (type) => {
@@ -225,17 +235,8 @@ const onMediaConfirm = async ({ mode, url, files, type }) => {
 // Insere no editor ativo (documento p/ acadêmica/dado; Monaco p/ análise).
 const insertContent = (html) => {
   if (isDoc.value) { docEditor.value?.insertHtml(html); return; }
-  insertIntoEditor(html);
-};
-
-const insertIntoEditor = (text) => {
-  if (!monacoEditor) { form.value.content += '\n' + text; return; }
-  const pos = monacoEditor.getPosition();
-  monacoEditor.executeEdits('', [{
-    range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
-    text: '\n' + text + '\n', forceMoveMarkers: true
-  }]);
-  monacoEditor.focus();
+  // insertText devolve false se o Monaco ainda não montou → fallback no texto.
+  if (!editor.insertText(html)) form.value.content += '\n' + html;
 };
 
 // ── Cover image ───────────────────────────────────────────────────────
@@ -247,42 +248,12 @@ const handleCoverChange = (e) => {
   imagePreviewUrl.value = URL.createObjectURL(f);
 };
 
-// ── Monaco ────────────────────────────────────────────────────────────
-const initEditor = () => {
-  if (!editorEl.value || monacoEditor) return;
-  monacoEditor = monaco.editor.create(editorEl.value, {
-    value: form.value.content,
-    language: 'markdown',
-    theme: isDark.value ? 'vs-dark' : 'vs',
-    fontSize: 14, lineNumbers: 'on', wordWrap: 'on',
-    minimap: { enabled: false }, scrollBeyondLastLine: false,
-    automaticLayout: true, tabSize: 2, insertSpaces: true,
-    renderLineHighlight: 'line',
-  });
-  monacoEditor.onDidChangeModelContent(() => {
-    form.value.content = monacoEditor.getValue();
-  });
-  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFmt('bold'));
-  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFmt('italic'));
-};
-
-const disposeEditor = () => { if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; } };
-const ensureEditor = async () => {
-  if (isDoc.value || isPreview.value) return;
-  await nextTick();
-  if (editorEl.value && !monacoEditor) initEditor();
-  else setTimeout(() => monacoEditor?.layout(), 50);
-};
-
-watch(isDark, (v) => { if (monacoEditor) monaco.editor.setTheme(v ? 'vs-dark' : 'vs'); });
-watch(isPreview, async (v) => {
-  if (v) disposeEditor();                 // sai do DOM (v-if) — descarta p/ recriar limpo
-  else ensureEditor();
-});
-watch(isDoc, (doc) => {
-  if (doc) disposeEditor();               // troca p/ editor de documento (Acadêmica/Dado)
-  else ensureEditor();
-});
+// ── Monaco (ciclo de vida via composable) ─────────────────────────────
+// O editor só deve existir no tipo "análise" e fora do modo preview.
+const editorShouldExist = () => !isDoc.value && !isPreview.value;
+watch(isDark, (v) => editor.setTheme(v));
+watch(isPreview, (v) => { if (v) editor.dispose(); else editor.ensure(editorShouldExist()); });
+watch(isDoc,    (doc) => { if (doc) editor.dispose(); else editor.ensure(editorShouldExist()); });
 
 // ── Rendered preview ──────────────────────────────────────────────────
 const renderedContent = computed(() => {
@@ -296,73 +267,18 @@ const renderedContent = computed(() => {
   return /^</.test(c) ? c : marked.parse(c, { headerIds: false, mangle: false });
 });
 
-// ── Draft (IndexedDB + localStorage) ──────────────────────────────────
-const DB_NAME = 'pu-draft-db', STORE = 'files', DRAFT_KEY = 'pu-new-draft';
-let dbPromise = null;
-const getDb = () => {
-  if (!dbPromise) dbPromise = openDB(DB_NAME, 1, { upgrade(db) { db.createObjectStore(STORE); } });
-  return dbPromise;
-};
-const dbPut = async (k, v) => { const db = await getDb(); await db.put(STORE, v, k); };
-const dbGet = async (k) => { const db = await getDb(); return db.get(STORE, k); };
-const dbClear = async () => { const db = await getDb(); await db.clear(STORE); };
-
-const saveDraft = async () => {
-  const d = JSON.parse(JSON.stringify({ ...form.value, coverImage: null }));
-  if (form.value.coverImage instanceof File) {
-    const k = `draft_cover_${Date.now()}`;
-    await dbPut(k, form.value.coverImage);
-    d.coverImage = { key: k, name: form.value.coverImage.name };
-  }
-  d.mediaMap = {};
-  for (const [id, { file, type }] of contentMediaMap.value.entries()) {
-    if (file instanceof File) {
-      const k = `draft_media_${id}`;
-      await dbPut(k, file);
-      d.mediaMap[id] = { key: k, type };
-    }
-  }
-  localStorage.setItem(DRAFT_KEY, JSON.stringify({ d, exp: Date.now() + 3600_000 }));
-  lastSaved.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-};
-
-const loadDraft = async () => {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return;
-  const saved = JSON.parse(raw);
-  if (saved.exp < Date.now()) { await dbClear(); localStorage.removeItem(DRAFT_KEY); return; }
-  const d = saved.d;
-  if (d.coverImage?.key) {
-    const f = await dbGet(d.coverImage.key);
-    if (f) { d.coverImage = f; imagePreviewUrl.value = URL.createObjectURL(f); }
-    else d.coverImage = null;
-  }
-  if (d.mediaMap) {
-    for (const [id, { key, type }] of Object.entries(d.mediaMap)) {
-      const f = await dbGet(key);
-      if (f) contentMediaMap.value.set(id, { file: f, blobUrl: URL.createObjectURL(f), type });
-    }
-    delete d.mediaMap;
-  }
-  Object.assign(form.value, d);
-  if (monacoEditor && d.content) monacoEditor.setValue(d.content);
-};
-
-let draftTimer = null;
-watch(form, () => {
-  clearTimeout(draftTimer);
-  draftTimer = setTimeout(saveDraft, 2000);
-}, { deep: true });
+// ── Draft (autosave com debounce via composable) ──────────────────────
+watch(form, () => draft.scheduleSave(), { deep: true });
 
 // ── Reset ─────────────────────────────────────────────────────────────
 const reset = async () => {
-  await dbClear(); localStorage.removeItem(DRAFT_KEY);
+  await draft.clearDraft();
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
   for (const { blobUrl } of contentMediaMap.value.values()) URL.revokeObjectURL(blobUrl);
   contentMediaMap.value.clear();
   imagePreviewUrl.value = '';
   form.value = getInitial();
-  if (monacoEditor) monacoEditor.setValue('');
+  editor.setValue('');
 };
 
 const confirmClear = async () => {
@@ -380,7 +296,6 @@ const publish = async () => {
   }
   isLoading.value = true;
   feedback.value = { message: 'Preparando arquivos...', type: 'info' };
-  const token = localStorage.getItem('authToken');
 
   try {
     const filesToUpload = [];
@@ -389,20 +304,10 @@ const publish = async () => {
       if (file instanceof File) filesToUpload.push({ file, category: type || 'image', tempId: id });
     }
 
-    const uploaded = {};
     if (filesToUpload.length > 0) {
       feedback.value = { message: `Enviando ${filesToUpload.length} arquivo(s)...`, type: 'info' };
-      const { data: urlRes } = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`,
-        { files: filesToUpload.map(f => ({ fileName: f.file.name, fileType: f.file.type, fileSize: f.file.size, category: f.category, tempId: f.tempId })) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      await Promise.all(urlRes.data.map(async (plan) => {
-        const fo = filesToUpload.find(f => f.tempId === plan.tempId);
-        if (!fo) return;
-        await axios.put(plan.uploadUrl, fo.file, { headers: { 'Content-Type': fo.file.type } });
-        uploaded[plan.tempId] = plan.publicUrl;
-      }));
     }
+    const uploaded = await uploadFiles(filesToUpload);
 
     let finalContent = form.value.content;
     for (const [id, url] of Object.entries(uploaded)) {
@@ -415,9 +320,7 @@ const publish = async () => {
     };
     delete payload.coverImage;
 
-    const { data } = await axios.post(`${API_BASE_URL}/api/admin/analyses`, payload, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    });
+    const { data } = await api.post('/api/admin/analyses', payload);
 
     feedback.value = { message: data.message || 'Análise publicada com sucesso!', type: 'success' };
     await reset(); isPreview.value = false;
@@ -431,15 +334,14 @@ const publish = async () => {
 
 // ── Lifecycle ─────────────────────────────────────────────────────────
 onMounted(async () => {
-  await loadDraft();
+  await draft.loadDraft();
   await nextTick();
-  if (!isDoc.value) initEditor();
+  if (!isDoc.value) editor.ensure(true);
 });
 onBeforeUnmount(() => {
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
   for (const { blobUrl } of contentMediaMap.value.values()) URL.revokeObjectURL(blobUrl);
-  if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; }
-  clearTimeout(draftTimer);
+  editor.dispose();
 });
 </script>
 

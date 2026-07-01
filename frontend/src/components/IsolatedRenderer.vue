@@ -2,6 +2,7 @@
   <iframe
     ref="frame"
     class="isolated-frame"
+    title="Conteúdo da análise"
     sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
     :srcdoc="compiledHtml"
     @load="onIframeLoad"

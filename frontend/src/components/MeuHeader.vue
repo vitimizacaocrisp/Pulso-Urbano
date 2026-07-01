@@ -42,9 +42,22 @@
 
         <nav class="desktop-nav">
              <ul>
-                <li><router-link to="/catalogo" class="nav-link">Catálogo</router-link></li>
-                <li><router-link to="/producoes" class="nav-link">Produções</router-link></li>
-                <li><router-link to="/dados" class="nav-link">Dados</router-link></li>
+                <li class="nav-dropdown">
+                  <span class="nav-link nav-drop-trigger" :class="{ 'router-link-active': isAcervoRoute }">
+                    Catálogo <Icon icon="mdi:chevron-down" width="16" class="chev" />
+                  </span>
+                  <div class="dropdown-menu">
+                    <router-link
+                      v-for="v in acervoViews"
+                      :key="v.key"
+                      :to="v.route"
+                      class="dropdown-link"
+                    >
+                      <Icon :icon="v.icon" width="17" />
+                      <span>{{ v.label }}</span>
+                    </router-link>
+                  </div>
+                </li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:lock" width="14" /></router-link></li>
@@ -90,9 +103,14 @@
             <li><router-link to="/" @click="toggleMenu">Início</router-link></li>
 
             <li class="divider"></li>
-            <li><router-link to="/catalogo" @click="toggleMenu">Catálogo</router-link></li>
-            <li><router-link to="/producoes" @click="toggleMenu">Produções Científicas</router-link></li>
-            <li><router-link to="/dados" @click="toggleMenu">Repositório de Dados</router-link></li>
+            <li class="mobile-group-label">Acervo</li>
+            <li v-for="v in acervoViews" :key="v.key" class="mobile-sub-item">
+              <router-link :to="v.route" @click="toggleMenu">
+                <Icon :icon="v.icon" width="16" /> {{ v.label }}
+              </router-link>
+            </li>
+
+            <li class="divider"></li>
             <li><router-link to="/sobre" @click="toggleMenu">Sobre</router-link></li>
             <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
             <li><router-link to="/admin" @click="toggleMenu">Administração</router-link></li>
@@ -106,13 +124,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import ThemeToggle from './ThemeToggle.vue';
 import BaseSearch from './BaseSearch.vue';
+import { ACERVO_ORDER, ACERVO_VIEWS } from '@/config/acervoTypes.js';
 
 const menuOpen = ref(false);
 const isScrolled = ref(false);
+
+// Itens do dropdown "Catálogo" (Todas / Análises / Produções / Dados).
+const acervoViews = ACERVO_ORDER.map((k) => ACERVO_VIEWS[k]);
+const route = useRoute();
+const isAcervoRoute = computed(() => acervoViews.some((v) => v.route === route.path));
 
 const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 
@@ -266,6 +291,64 @@ const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
     align-items: center;
     margin-left: 0.5rem;
 }
+
+/* Dropdown "Catálogo" (desktop, hover) */
+.nav-dropdown { position: relative; }
+.nav-drop-trigger { user-select: none; }
+.nav-dropdown .chev { transition: transform 0.2s ease; opacity: 0.7; }
+.nav-dropdown:hover .chev { transform: rotate(180deg); }
+/* ponte invisível: evita fechar o menu ao mover o mouse até ele */
+.nav-dropdown::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 12px; }
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    min-width: 210px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 0.4rem;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.nav-dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+.dropdown-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+}
+.dropdown-link:hover, .dropdown-link.router-link-active {
+    background: var(--bg-hover);
+    color: var(--brand-primary);
+}
+
+/* Grupo "Acervo" no drawer mobile */
+.mobile-group-label {
+    margin: 0.25rem 0 0.4rem 0.75rem;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted); font-weight: 700;
+}
+.mobile-sub-item a { display: flex; align-items: center; gap: 0.5rem; }
 
 /* Popover de Categorias */
 .category-popover {

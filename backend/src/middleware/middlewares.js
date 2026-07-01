@@ -8,18 +8,18 @@ const asyncHandler = fn => (req, res, next) =>
 
 // --- Middleware de autenticação ---
 const verifyToken = (req, res, next) => {
-    // Fonte primária: cookie httpOnly `auth_token` (não acessível a JS → imune a
+    // Fonte primária: cookie httpOnly `authToken` (não acessível a JS → imune a
     // exfiltração por XSS). Fallback: header Authorization "Bearer <token>"
     // (compat com clientes não-browser e transição). Ignora 'null'/'undefined'.
-    const cookieToken = req.cookies?.auth_token;
+    const cookieToken = req.cookies?.authToken;
     const headerToken = req.headers['authorization']?.split(' ')[1];
     const raw = cookieToken || headerToken;
     const token = (raw && raw !== 'null' && raw !== 'undefined') ? raw : null;
 
-    // 401 = não autenticado (sem credencial). 403 = autenticado mas sem permissão.
-    // Ausência de token é 401, não 403.
+    // Convenção do projeto: 403 = nenhuma credencial apresentada; 401 = token
+    // apresentado mas inválido/expirado (ver auth.test.js).
     if (!token) {
-        return res.status(401).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });
+        return res.status(403).json({ success: false, message: 'Acesso negado. Nenhum token fornecido.' });
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {

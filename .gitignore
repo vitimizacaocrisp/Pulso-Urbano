@@ -20,8 +20,6 @@
 
 skills-lock.json
 
-.github/
-
 graphify-out/
 .agents/
 *graphify-out/

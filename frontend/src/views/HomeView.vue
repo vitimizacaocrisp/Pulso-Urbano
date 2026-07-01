@@ -79,14 +79,12 @@
 
 <script setup>
 import { reactive, onMounted, onUnmounted, ref, nextTick } from 'vue';
-import axios from 'axios';
+import api, { mediaUrl } from '@/services/api';
 import { Icon } from '@iconify/vue';
 import RecentPosts from '@/components/RecentPosts.vue';
 import MeuHeader   from '@/components/MeuHeader.vue';
 import MeuFooter   from '@/components/MeuFooter.vue';
 import { fetchWithCache, TTL } from '@/utils/apiCache.js';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ─── Scroll reveal ────────────────────────────────────────────────────
 const setupScrollAnimations = () => {
@@ -209,11 +207,7 @@ const initCanvas = () => {
 // ─── Estado ───────────────────────────────────────────────────────────
 const dailyHighlight = reactive({ isLoading: true, error: null, data: null });
 
-const getFullMediaPath = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+const getFullMediaPath = (path) => mediaUrl(path);
 
 // ─── Destaque do dia — rota dedicada /api/highlight ───────────────────
 const fetchHighlight = async () => {
@@ -221,7 +215,7 @@ const fetchHighlight = async () => {
   try {
     const data = await fetchWithCache(
       'highlight:day',
-      () => axios.get(`${API_BASE_URL}/api/highlight`).then(r => r.data?.data),
+      () => api.get('/api/highlight').then(r => r.data?.data),
       TTL.DEFAULT // 30 s
     );
     dailyHighlight.data  = data;

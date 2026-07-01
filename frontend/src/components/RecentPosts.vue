@@ -59,12 +59,10 @@
 </template>
 
 <script>
-import axios from 'axios';
 import { Icon } from '@iconify/vue';
+import api, { mediaUrl } from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 import AnalysisCover from '@/components/AnalysisCover.vue';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export default {
   name: 'RecentPosts',
@@ -90,8 +88,8 @@ export default {
 
         const result = await fetchWithCache(
           cacheKey,
-          () => axios
-            .get(`${API_BASE_URL}/api/analyses-list`, { params, timeout: 15000 })
+          () => api
+            .get('/api/analyses-list', { params, timeout: 15000 })
             .then(r => r.data?.data),
           TTL.DEFAULT // 30 s
         );
@@ -106,9 +104,7 @@ export default {
       }
     },
     getFullMediaPath(path) {
-      if (!path) return '';
-      if (path.startsWith('http')) return path;
-      return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+      return mediaUrl(path);
     },
     processTags(tagString) {
       if (!tagString) return [];

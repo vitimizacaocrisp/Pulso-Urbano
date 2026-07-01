@@ -20,7 +20,7 @@
     <div v-else-if="error" class="error-message">{{ error }}</div>
 
     <div
-      v-for="(post, index) in posts"
+      v-for="post in posts"
       :key="post.id"
       class="analysis-card scroll-reveal"
     >
@@ -60,11 +60,10 @@
 </template>
 
 <script>
-import axios from 'axios';
+import api from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const PAGE_SIZE = 24; // cards por página — razoável para um grid visual
 
 export default {
@@ -72,8 +71,10 @@ export default {
   components: { AnalysisCover },
   props: {
     category: { type: String, default: null },
-    entryType: { type: String, default: null }
+    entryType: { type: String, default: null },
+    crisp: { type: Boolean, default: false }
   },
+  emits: ['total'],
   data() {
     return {
       posts: [],
@@ -104,20 +105,22 @@ export default {
         const params = { page: this.currentPage, limit: PAGE_SIZE, sort: 'date_desc' };
         if (this.category) params.category = this.category;
         if (this.entryType) params.entry_type = this.entryType;
+        if (this.crisp) params.crisp = 'true';
 
         // Usa rota pública — sem token, sem sobrecarregar o admin endpoint
         const cacheKey = CacheKeys.analysesList(params);
 
         const result = await fetchWithCache(
           cacheKey,
-          () => axios
-            .get(`${API_BASE_URL}/api/analyses-list`, { params, timeout: 15000 })
+          () => api
+            .get('/api/analyses-list', { params, timeout: 15000 })
             .then(r => r.data?.data),
           TTL.DEFAULT // 30 s
         );
 
         const fresh = result?.analyses || [];
         this.total  = result?.total   || 0;
+        this.$emit('total', this.total); // hero mostra a contagem do recorte
 
         this.posts = isNewFetch ? fresh : [...this.posts, ...fresh];
       } catch (err) {

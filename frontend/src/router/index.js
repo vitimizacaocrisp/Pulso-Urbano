@@ -1,8 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ref } from 'vue';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+import api from '@/services/api';
 
 export const isRouteLoading = ref(false);
 // Vira true após a 1ª navegação resolver. Enquanto false, App.vue mostra a
@@ -13,7 +11,7 @@ const checkAuthStatus = async () => {
   // Auth via cookie httpOnly: JS não consegue lê-lo, então não dá pra checar
   // localmente. Perguntamos ao backend (o cookie vai junto via withCredentials).
   try {
-    await axios.get(API_BASE_URL + '/api/admin/verify-token');
+    await api.get('/api/admin/verify-token');
     return true; // Cookie válido.
   } catch (error) {
     return false; // Sem cookie, inválido ou expirado.
@@ -40,43 +38,47 @@ const routes = [
     component: () => import("../views/ContatoView.vue"),
     meta: { requiresAuth: true }
   },
+  // Acervo unificado — um só componente (AcervoView) muda o recorte via viewKey.
   {
     path: "/catalogo",
     name: "Catalogo",
-    component: () => import("../views/CatalogoView.vue"),
-    meta: { requiresAuth: true }
+    component: () => import("../views/AcervoView.vue"),
+    meta: { requiresAuth: true },
+    props: { viewKey: 'all' }
   },
   {
-    path: "/sobre",
-    name: "Sobre",
-    component: () => import("../views/SobreView.vue"),
-    meta: { requiresAuth: true }
+    path: "/analises",
+    name: "Analises",
+    component: () => import("../views/AcervoView.vue"),
+    meta: { requiresAuth: true },
+    props: { viewKey: 'analysis' }
   },
   {
     path: "/producoes",
     name: "Producoes",
     component: () => import("../views/AcervoView.vue"),
     meta: { requiresAuth: true },
-    props: {
-      entryType: 'academic',
-      eyebrow: 'Produções Científicas',
-      icon: 'mdi:school-outline',
-      pageTitle: 'Produções Científicas',
-      pageSubtitle: 'Teses, dissertações, artigos e relatórios técnicos produzidos no âmbito do projeto.'
-    }
+    props: { viewKey: 'academic' }
   },
   {
     path: "/dados",
     name: "Dados",
     component: () => import("../views/AcervoView.vue"),
     meta: { requiresAuth: true },
-    props: {
-      entryType: 'dataset',
-      eyebrow: 'Repositório de Dados',
-      icon: 'mdi:database-outline',
-      pageTitle: 'Repositório de Dados Primários',
-      pageSubtitle: 'Questionários, microdados, livros de códigos e fichas técnicas das pesquisas de vitimização.'
-    }
+    props: { viewKey: 'dataset' }
+  },
+  {
+    path: "/crisp",
+    name: "Crisp",
+    component: () => import("../views/AcervoView.vue"),
+    meta: { requiresAuth: true },
+    props: { viewKey: 'crisp' }
+  },
+  {
+    path: "/sobre",
+    name: "Sobre",
+    component: () => import("../views/SobreView.vue"),
+    meta: { requiresAuth: true }
   },
   {
     path: '/postagem/:id',

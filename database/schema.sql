@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS analyses (
   cities            JSONB,
   with_header       BOOLEAN DEFAULT TRUE,
   with_footer       BOOLEAN DEFAULT TRUE,
+  entry_type        VARCHAR(20) NOT NULL DEFAULT 'analysis',
+  meta              JSONB,
+  is_crisp          BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -66,5 +69,6 @@ ON CONFLICT (email) DO NOTHING;
 -- Após criar as tabelas, rode também as migrações:
 --   database/migrations/2026_full_text_search.sql  (busca por relevância)
 --   database/migrations/2026_content_types.sql     (produções acadêmicas e dados primários)
+--   database/migrations/2026_is_crisp.sql          (flag CRISP/UFMG + página /crisp)
 -- O backend degrada graciosamente se elas não tiverem sido aplicadas.
 -- -------------------------------------------------------------

@@ -23,21 +23,22 @@ Monorepo com duas aplicações (`frontend/` e `backend/`).
 ### Frontend
 * **Vue 3** (Composition API `<script setup>` + Options API) com **Vite** (migrado do Vue CLI).
 * **Vue Router 4** — SPA com guarda de rota global.
-* **Axios** com interceptor que injeta o JWT no header `Authorization`.
+* **Axios** — cliente único em `src/services/api.js` (`baseURL`, `withCredentials`, interceptors). A auth viaja por cookie httpOnly; o header `Authorization` permanece como fallback de compat.
 * **Chart.js** — gráficos do dashboard e dentro das análises.
 * **Iconify** (`@iconify/vue`, conjunto `mdi`) — ícones (substituiu o FontAwesome).
 * **EmailJS** (`@emailjs/browser`) — formulário de contato (sem backend de e-mail).
 * **CSS puro** com variáveis e 3 temas (claro / escuro puro / conforto sépia). Sem Less/Sass.
-* **Hospedagem:** Netlify.
+* **Composables** — `useMediaUpload`, `useMonacoMarkdown`, `useAnalysisDraft` extraídos para enxugar as telas de admin.
+* **Hospedagem:** Vercel (frontend estático + API serverless no mesmo domínio).
 
 ### Backend
-* **Express 5** (Node.js ≥ 20).
+* **Express 5** (Node.js ≥ 20) com **helmet** (security headers) e handler de erro global.
 * **PostgreSQL** na **Neon** via `@neondatabase/serverless` (driver HTTP, ideal para serverless).
-* **JWT** (`jsonwebtoken`) + **bcryptjs**; auth stateless via header `Authorization`.
-* **AWS SDK v3 (S3)** apontando para o **Cloudflare R2** (storage S3-compatível) com URLs pré-assinadas.
+* **JWT** (`jsonwebtoken`) + **bcryptjs**; token entregue em **cookie httpOnly** (`sameSite=lax`, `secure` em produção). Header `Authorization` aceito como fallback.
+* **Zod** — validação de payloads (análise, login) e sanitização de query params.
+* **AWS SDK v3 (S3)** apontando para o **Cloudflare R2** (storage S3-compatível). Uploads vão **direto do navegador para o R2** via URLs pré-assinadas (o servidor nunca recebe o arquivo).
 * **Upstash Redis** — rate limiting e cache distribuído, com *fallback* automático para memória.
-* **Multer** — recebe uploads em memória antes de enviar ao R2.
-* **Hospedagem:** Vercel (serverless functions).
+* **Hospedagem:** Vercel (serverless functions, mesmo projeto do frontend).
 
 ### Infraestrutura
 | Serviço | Uso |
@@ -54,14 +55,16 @@ Monorepo com duas aplicações (`frontend/` e `backend/`).
 
 ## ⚙️ Como funciona (detalhes técnicos)
 
-### Autenticação (stateless, cross-domain)
-Frontend (Netlify) e backend (Vercel) ficam em domínios distintos, então a auth **não usa cookie** (cookie cross-site é bloqueado por vários navegadores). Fluxo:
+### Autenticação (cookie httpOnly)
+Frontend e API ficam no mesmo domínio (Vercel), então a auth usa um **cookie httpOnly** — imune a exfiltração por XSS, já que o JavaScript não consegue lê-lo. Fluxo:
 
-1. `POST /admin-auth` valida e-mail/senha (bcrypt) contra a tabela `admins` e devolve um **JWT no corpo**.
-2. O frontend guarda o token em `localStorage`.
-3. Um **interceptor do Axios** (`frontend/src/main.js`) injeta `Authorization: Bearer <token>` em toda requisição.
-4. O middleware `verifyToken` (backend) valida o header nas rotas protegidas.
-5. "Lembrar-me" controla apenas a validade do JWT (12h vs 168h). Logout = descartar o token local.
+1. `POST /admin-auth` valida e-mail/senha (bcrypt, payload checado por Zod) contra a tabela `admins`.
+2. O backend responde com `Set-Cookie: authToken=<JWT>` (`httpOnly`, `sameSite=lax`, `secure` em produção, `maxAge` conforme "lembrar-me").
+3. O cliente axios (`frontend/src/services/api.js`) usa `withCredentials: true` — o cookie viaja automaticamente.
+4. O middleware `verifyToken` lê o cookie `authToken` (header `Authorization` ainda aceito como fallback).
+5. "Lembrar-me" controla a validade do JWT/cookie (12h vs 168h). `POST /api/admin/logout` limpa o cookie.
+
+> **Convenção de status:** sem credencial → **403**; token apresentado mas inválido/expirado → **401** (ver `backend/test/auth.test.js`).
 
 > Contas de administrador **só** são criadas direto no banco (ver `database/schema.sql`) — não há rota pública de cadastro.
 

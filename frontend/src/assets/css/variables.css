@@ -50,12 +50,20 @@
   --brand-secondary: var(--brand-yellow);
 
   /* --- CORES NEUTRAS (Default / Light Mode) --- */
-  --bg-body: var(--slate-50);            
-  --bg-surface: #ffffff;         
-  --bg-hero: #e9ecef;            
+  --bg-body: var(--slate-50);
+  --bg-surface: #ffffff;
+  --bg-hero: #e9ecef;
   --bg-dashboard: #f0f2f5;
   --bg-input: #ffffff;
   --bg-danger-light: #fff8f8;
+
+  /* Faltavam no claro (só existiam em dark/comfort) — sem fallback, background:
+     var(--bg-card) virava transparente e deixava fundos/heros vazarem por trás
+     de cards (ex.: ContatoView). Mesmo padrão do dark/comfort: card e
+     input-form == surface; hover um degrau mais escuro que o body. */
+  --bg-card: var(--bg-surface);
+  --bg-input-form: var(--bg-surface);
+  --bg-hover: var(--slate-100);
   
   /* Fundos Específicos */
   --bg-notebook: #fffbf0;

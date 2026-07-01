@@ -4,9 +4,10 @@ const express = require('express');
 const router  = express.Router();
 const { asyncHandler } = require('../middleware/middlewares');
 const { loginRateLimiter } = require('../middleware/rateLimiter');
-const { testConnection, hasContentTypeColumns } = require('../db/dbConnect');
+const { testConnection, hasContentTypeColumns, hasCrispColumn } = require('../db/dbConnect');
 const { testConnectionData } = require('../services/storage');
 const { sql } = require('../db/dbConnect');
+const { validateLogin, parseListQuery } = require('../validators/schemas');
 
 const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
 
@@ -116,12 +117,13 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
+  const crispField = (await hasCrispColumn()) ? sql`, is_crisp` : sql``;
   const results = (await hasContentTypeColumns())
     ? await sql`
         SELECT id, title, subtitle, last_update, study_period, source, category,
                tag, author, description, content, reference_links,
                cover_image_path, nationality, states, cities, with_header, with_footer,
-               created_at, entry_type, meta
+               created_at, entry_type, meta${crispField}
         FROM analyses
         WHERE id = ${id}
       `
@@ -129,7 +131,7 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
         SELECT id, title, subtitle, last_update, study_period, source, category,
                tag, author, description, content, reference_links,
                cover_image_path, nationality, states, cities, with_header, with_footer,
-               created_at
+               created_at${crispField}
         FROM analyses
         WHERE id = ${id}
       `;
@@ -148,12 +150,14 @@ router.get('/api/analyses/:id', asyncHandler(async (req, res) => {
 // (usada pelo RecentPosts e CardAnalisesCatalogo)
 // ─────────────────────────────────────────────────────────────────────
 router.get('/api/analyses-list', asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, category, entry_type, sort = 'date_desc' } = req.query;
-  const cacheKey = `public:list:${JSON.stringify(req.query)}`;
+  // Zod coage/sanitiza (page, limit, sort, entry_type, crisp) com defaults — nunca lança.
+  const { page, limit, category, entry_type, sort, crisp } = parseListQuery(req.query);
+  const cacheKey = `public:list:${JSON.stringify({ page, limit, category, entry_type, sort, crisp })}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return res.json(cached);
 
   const ctColumns = await hasContentTypeColumns();
+  const crispCol  = await hasCrispColumn();
 
   const whereClauses = [];
   if (category) {
@@ -163,6 +167,9 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
   }
   if (entry_type && ctColumns && ALLOWED_ENTRY_TYPES.includes(entry_type)) {
     whereClauses.push(sql`entry_type = ${entry_type}`);
+  }
+  if (crisp && crispCol) {
+    whereClauses.push(sql`is_crisp = TRUE`);
   }
   const whereCondition = whereClauses.length > 0
     ? sql`WHERE ${whereClauses.reduce((acc, cur) => sql`${acc} AND ${cur}`)}`
@@ -176,11 +183,12 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
   const parsedPage   = parseInt(page, 10) || 1;
   const offset       = (parsedPage - 1) * parsedLimit;
 
+  const crispField = crispCol ? sql`, is_crisp` : sql``;
   const listFields = ctColumns
     ? sql`id, title, author, tag, description, cover_image_path,
-          created_at, category, source, study_period, entry_type, meta`
+          created_at, category, source, study_period, entry_type, meta${crispField}`
     : sql`id, title, author, tag, description, cover_image_path,
-          created_at, category, source, study_period`;
+          created_at, category, source, study_period${crispField}`;
 
   const [analyses, totalResult] = await Promise.all([
     sql`
@@ -205,12 +213,12 @@ router.get('/api/analyses-list', asyncHandler(async (req, res) => {
 // Autenticação Admin — credenciais validadas contra a tabela `admins`
 // ─────────────────────────────────────────────────────────────────────
 router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
-  const { email, password, rememberMe } = req.body;
-  const remember = rememberMe !== false; // default true se omitido
-
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios.' });
+  const parsed = validateLogin(req.body);
+  if (!parsed.ok) {
+    return res.status(400).json({ success: false, message: parsed.message });
   }
+  const { email, password, rememberMe } = parsed.data;
+  const remember = rememberMe !== false; // default true se omitido
 
   const rows = await sql`
     SELECT id, email, password_hash
@@ -239,7 +247,7 @@ router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
 
   // Auth primária: cookie httpOnly (imune a XSS — JS não lê). secure só em
   // produção (localhost dev é HTTP). sameSite 'lax' cobre o uso same-origin.
-  res.cookie('auth_token', token, {
+  res.cookie('authToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

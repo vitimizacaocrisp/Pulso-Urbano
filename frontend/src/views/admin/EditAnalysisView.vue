@@ -191,12 +191,10 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import api, { API_BASE_URL } from '@/services/api';
 import { marked } from 'marked';
-import * as monaco from 'monaco-editor';
 import { Icon } from '@iconify/vue';
 import { generateUrlMediaHtml, generateFileMediaHtml, parseReferenceLinks, parseMeta } from '@/utils/analysisUtils.js';
-import { formatText } from '@/utils/editorUtils.js';
 import { cacheInvalidate } from '@/utils/apiCache.js';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
 import AnalysisFormFields from '@/components/admin/AnalysisFormFields.vue';
@@ -205,11 +203,12 @@ import AdminAnalysisSearch from '@/components/admin/AdminAnalysisSearch.vue';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 import DocumentEditor from '@/components/admin/DocumentEditor.vue';
 import { useTheme } from '@/composables/useTheme';
+import { useMediaUpload } from '@/composables/useMediaUpload';
+import { useMonacoMarkdown } from '@/composables/useMonacoMarkdown';
 const { isDark } = useTheme();
 
 const route  = useRoute();
 const router = useRouter();
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // ── Core state ─────────────────────────────────────────────────────────
 const selectedAnalysis   = ref(null);
@@ -221,12 +220,20 @@ const isPreview          = ref(false);
 const showDeleteConfirm  = ref(false);
 const feedback           = ref({ message: '', type: '' });
 const imagePreviewUrl    = ref('');
-const editorEl           = ref(null);
 const docEditor          = ref(null);
-let   monacoEditor       = null;
 
 // Produção acadêmica e dado primário usam editor de documento (não Monaco/HTML).
 const isDoc = computed(() => !!form.value.entry_type && form.value.entry_type !== 'analysis');
+
+// ── Composables (upload + editor Monaco em HTML) ──────────────────────
+const { uploadFiles } = useMediaUpload();
+const editor = useMonacoMarkdown({
+  isDark,
+  language: 'html',
+  getContent: () => form.value.content,
+  onChange: (v) => { form.value.content = v; },
+});
+const editorEl = editor.editorEl; // ref do template (<div ref="editorEl">)
 
 // Media
 const showResourceMenu  = ref(false);
@@ -269,7 +276,7 @@ const formats = [
   { type: 'code',   label: 'Código',  html: '&lt;/&gt;' },
   { type: 'quote',  label: 'Citação', html: '"' },
 ];
-const applyFmt = (type) => { if (monacoEditor) formatText(monacoEditor, type); };
+const applyFmt = (type) => editor.applyFormat(type);
 
 // ── On analysis selected via search ───────────────────────────────────
 const onAnalysisSelect = async (item) => {
@@ -284,10 +291,7 @@ const loadAnalysis = async (id) => {
   feedback.value = { message: '', type: '' };
 
   try {
-    const token = localStorage.getItem('authToken');
-    const { data } = await axios.get(`${API_BASE_URL}/api/admin/analyses/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const { data } = await api.get(`/api/admin/analyses/${id}`);
 
     const a = data.data;
     activeAnalysisId.value = a.id;
@@ -333,16 +337,13 @@ const loadAnalysis = async (id) => {
     // Produção acadêmica / dado primário usam o editor de documento — o
     // v-model="form.content" já reflete o conteúdo carregado; Monaco fica fora.
     if (isDoc.value) {
-      disposeEditor();
-    } else if (monacoEditor) {
-      monacoEditor.setValue(a.content || '');
-      monacoEditor.setScrollPosition({ scrollTop: 0 });
-      monacoEditor.layout();
+      editor.dispose();
+    } else if (editor.hasInstance()) {
+      editor.setValue(a.content || ''); // já reseta scroll + layout
     } else {
       // Cria o Monaco agora (ex.: vindo de uma análise tipo documento)
       await nextTick();
-      await nextTick();
-      initEditor();
+      await editor.ensure(true);
     }
 
     feedback.value = { message: `Análise "${a.title}" carregada.`, type: 'success' };
@@ -393,57 +394,17 @@ const onMediaConfirm = async ({ mode, url, files, type }) => {
 // Insere no editor ativo (documento p/ acadêmica/dado; Monaco p/ análise).
 const insertContent = (html) => {
   if (isDoc.value) { docEditor.value?.insertHtml(html); return; }
-  insertIntoEditor(html);
+  if (!editor.insertText(html)) form.value.content += '\n' + html;
 };
 
-const insertIntoEditor = (text) => {
-  if (!monacoEditor) { form.value.content += '\n' + text; return; }
-  const pos = monacoEditor.getPosition();
-  monacoEditor.executeEdits('', [{
-    range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
-    text: '\n' + text + '\n', forceMoveMarkers: true
-  }]);
-  monacoEditor.focus();
-};
-
-// ── Monaco editor ─────────────────────────────────────────────────────
-const initEditor = () => {
-  if (!editorEl.value) return;
-  // Destroi instância anterior se existir (ao trocar análise via reinit)
-  if (monacoEditor) {
-    monacoEditor.dispose();
-    monacoEditor = null;
-  }
-  monacoEditor = monaco.editor.create(editorEl.value, {
-    value: form.value.content || '',
-    language: 'html',
-    theme: isDark.value ? 'vs-dark' : 'vs',
-    fontSize: 14, lineNumbers: 'on', wordWrap: 'on',
-    minimap: { enabled: false }, scrollBeyondLastLine: false,
-    automaticLayout: true, tabSize: 2, insertSpaces: true,
-    renderLineHighlight: 'line',
-  });
-  monacoEditor.onDidChangeModelContent(() => {
-    form.value.content = monacoEditor.getValue();
-  });
-  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyFmt('bold'));
-  monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyFmt('italic'));
-};
-
-const disposeEditor = () => { if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; } };
-const ensureEditor = async () => {
-  if (isDoc.value) return;
-  await nextTick();
-  if (editorEl.value) initEditor();
-};
-
-watch(isDark, (v) => { if (monacoEditor) monaco.editor.setTheme(v ? 'vs-dark' : 'vs'); });
+// ── Monaco editor (ciclo de vida via composable) ──────────────────────
+watch(isDark, (v) => editor.setTheme(v));
 watch(isPreview, async (v) => {
-  if (!v && !isDoc.value) { await nextTick(); setTimeout(() => monacoEditor?.layout(), 350); }
+  if (!v && !isDoc.value) { await editor.ensure(true); }
 });
 watch(isDoc, (doc) => {
-  if (doc) disposeEditor();            // troca p/ editor de documento (Acadêmica/Dado)
-  else ensureEditor();                 // volta p/ Monaco (Análise)
+  if (doc) editor.dispose();           // troca p/ editor de documento (Acadêmica/Dado)
+  else editor.ensure(true);            // volta p/ Monaco (Análise)
 });
 
 // ── Rendered preview ──────────────────────────────────────────────────
@@ -463,7 +424,6 @@ const save = async () => {
   if (!activeAnalysisId.value || isFormInvalid.value) return;
   isSaving.value = true;
   feedback.value = { message: 'Salvando...', type: 'info' };
-  const token = localStorage.getItem('authToken');
 
   try {
     const filesToUpload = [];
@@ -475,49 +435,12 @@ const save = async () => {
       if (file instanceof File) filesToUpload.push({ file, category: type || 'image', tempId: id });
     }
 
-    const uploaded = {};
-
     if (filesToUpload.length > 0) {
       feedback.value = { message: `Enviando ${filesToUpload.length} arquivo(s)...`, type: 'info' };
-
-      // 1. Preparamos os metadados garantindo que nenhum campo seja enviado como string vazia
-      const metaData = filesToUpload.map(f => ({
-        fileName: f.file.name,
-        // Se o navegador não detectar o tipo, enviamos um tipo binário genérico
-        fileType: f.file.type || 'application/octet-stream',
-        fileSize: f.file.size,
-        // Garante que a categoria não vá vazia (usa 'image' como padrão se f.category falhar)
-        category: f.category || 'image',
-        tempId: f.tempId
-      }));
-
-      try {
-        // 2. Solicitamos as URLs assinadas
-        const response = await axios.post(`${API_BASE_URL}/api/admin/generate-upload-urls`,
-          { files: metaData },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        // O backend retorna { success: true, data: [...] }, então usamos response.data.data
-        const uploadPlans = response.data.data;
-
-        // 3. Executamos os uploads simultâneos para o R2/S3
-        await Promise.all(uploadPlans.map(async (plan) => {
-          const fo = filesToUpload.find(f => f.tempId === plan.tempId);
-          if (!fo) return;
-
-          await axios.put(plan.uploadUrl, fo.file, { 
-            headers: { 'Content-Type': fo.file.type || 'application/octet-stream' } 
-          });
-
-          uploaded[plan.tempId] = plan.publicUrl;
-        }));
-        
-      } catch (err) {
-        console.error("Erro no processo de upload:", err);
-        throw err; // Repassa para o catch principal da função updateAnalysis
-      }
     }
+    // Upload via composable (gera URLs assinadas + PUT no R2). Lança em falha,
+    // caindo no catch principal da função.
+    const uploaded = await uploadFiles(filesToUpload);
 
     let finalContent = form.value.content;
     for (const [id, url] of Object.entries(uploaded)) {
@@ -551,10 +474,9 @@ const save = async () => {
       meta:           form.value.meta,
     };
 
-    const { data } = await axios.put(
-      `${API_BASE_URL}/api/admin/analyses/${activeAnalysisId.value}`,
-      payload,
-      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    const { data } = await api.put(
+      `/api/admin/analyses/${activeAnalysisId.value}`,
+      payload
     );
 
     // Invalida caches relevantes
@@ -584,11 +506,8 @@ const save = async () => {
 const confirmDelete = async () => {
   if (!activeAnalysisId.value) return;
   isDeleting.value = true;
-  const token = localStorage.getItem('authToken');
   try {
-    await axios.delete(`${API_BASE_URL}/api/admin/analyses/${activeAnalysisId.value}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await api.delete(`/api/admin/analyses/${activeAnalysisId.value}`);
 
     cacheInvalidate(`analysis:${activeAnalysisId.value}`);
     cacheInvalidate('analyses:list');
@@ -600,7 +519,7 @@ const confirmDelete = async () => {
     selectedAnalysis.value  = null;
     form.value = getEmpty();
     imagePreviewUrl.value = '';
-    if (monacoEditor) monacoEditor.setValue('');
+    editor.setValue('');
     router.replace({ query: {} });
 
     feedback.value = { message: 'Análise deletada com sucesso.', type: 'success' };
@@ -619,8 +538,7 @@ const confirmDelete = async () => {
 onMounted(async () => {
   // Inicializa o Monaco vazio ao montar (apenas para o tipo Análise).
   await nextTick();
-  await nextTick();
-  if (!isDoc.value) initEditor();
+  if (!isDoc.value) await editor.ensure(true);
 
   // Se há ?id= na URL, carrega a análise automaticamente
   const id = route.query.id;
@@ -632,7 +550,7 @@ onBeforeUnmount(() => {
     URL.revokeObjectURL(imagePreviewUrl.value);
   for (const { blobUrl } of contentMediaMap.value.values())
     if (blobUrl) URL.revokeObjectURL(blobUrl);
-  if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; }
+  editor.dispose();
 });
 </script>
 

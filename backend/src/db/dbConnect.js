@@ -50,6 +50,24 @@ const hasContentTypeColumns = async () => {
   return contentTypeColumns;
 };
 
+// Detecta (uma vez, com cache) se a coluna is_crisp existe. Enquanto a migração
+// não roda, o filtro "CRISP" é ignorado e o site funciona normalmente.
+let crispColumn = null;
+const hasCrispColumn = async () => {
+  if (crispColumn !== null) return crispColumn;
+  try {
+    const rows = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'analyses' AND column_name = 'is_crisp'
+      LIMIT 1
+    `;
+    crispColumn = rows.length > 0;
+  } catch {
+    crispColumn = false;
+  }
+  return crispColumn;
+};
+
 const requestHandler = async (req, res) => {
   try {
     if (!dbUrl) {
@@ -70,5 +88,6 @@ module.exports = {
   sql,
   testConnection,
   requestHandler,
-  hasContentTypeColumns
+  hasContentTypeColumns,
+  hasCrispColumn
 };
