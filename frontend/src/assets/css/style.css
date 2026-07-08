@@ -1,0 +1,98 @@
+/* Importa as variáveis globais */
+@import url('variables.css');
+
+/* ==========================================================================
+   1. Reset e Fundação Responsiva Global
+   --------------------------------------------------------------------------
+   Apenas estilos VERDADEIRAMENTE globais ficam aqui. Todo o resto vive em
+   <style scoped> dentro de cada componente — isso evita colisões de classes
+   entre o CSS global e os componentes (que antes vazavam: .card, .hero,
+   .page-header, .btn-primary, .form-group, .sidebar-*, etc.).
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    /* Suaviza scroll de âncoras */
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-body);
+    line-height: 1.6;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    /* Impede scroll horizontal acidental em qualquer tela (preserva sticky) */
+    overflow-x: clip;
+}
+
+/* Títulos principais usam a serifada editorial (Fraunces);
+   demais títulos (h3–h6) e UI seguem a grotesca do corpo. */
+h1, h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+}
+
+/* O logotipo permanece na grotesca, mesmo sendo um <h1>. */
+.logo, .logo a, .mobile-brand {
+    font-family: var(--font-body);
+}
+
+/* Mídia nunca estoura o container (essencial em telas pequenas) */
+img, svg, video, canvas, iframe {
+    max-width: 100%;
+}
+
+/* Quebra de palavras longas evita overflow horizontal em mobile */
+h1, h2, h3, h4, p, a, span, li {
+    overflow-wrap: break-word;
+}
+
+/* ==========================================================================
+   2. Botão "Voltar ao Topo"
+   --------------------------------------------------------------------------
+   O elemento #back-to-top-btn está em index.html e é controlado por
+   assets/js/script.js (mostra/oculta ao rolar). Por ser um nó fora do app
+   Vue, o estilo precisa ser global.
+   ========================================================================== */
+#back-to-top-btn {
+    display: none; /* Oculto por padrão; script.js alterna para block */
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    outline: none;
+    background-color: var(--brand-primary);
+    color: #ffffff;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 44px;      /* centra a seta verticalmente (altura - borda) */
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    transition: transform 0.2s ease, background-color 0.2s ease, opacity 0.3s ease;
+}
+
+#back-to-top-btn:hover {
+    background-color: var(--brand-primary-hover);
+    transform: translateY(-3px);
+}
+
+@media (max-width: 768px) {
+    #back-to-top-btn {
+        width: 42px;
+        height: 42px;
+        line-height: 40px;
+        font-size: 18px;
+        bottom: 16px;
+        right: 16px;
+    }
+}

@@ -1,0 +1,555 @@
+<template>
+  <header class="header" :class="{ 'scrolled': isScrolled }">
+    <div class="header-inner">
+      <div class="header-bar">
+        <h1 class="logo">
+            <router-link to="/">Pulso<span class="highlight">Urbano</span></router-link>
+        </h1>
+
+        <div class="search-wrapper desktop-only">
+          <BaseSearch @select="menuOpen = false" v-slot="{ query, updateQuery, results, isLoading, isOpen, handleFocus, handleEnter, selectItem }">
+            <div class="search-input-group">
+                <Icon icon="mdi:magnify" class="search-icon" />
+                <input 
+                  type="text" 
+                  :value="query"
+                  @input="updateQuery($event.target.value)"
+                  placeholder="Pesquisar análises..."
+                  @focus="handleFocus"
+                  class="search-input"
+                  @keyup.enter="handleEnter"
+                >
+                <div v-if="isLoading" class="search-spinner"></div>
+            </div>
+            
+            <transition name="fade">
+              <div v-if="isOpen && (results.length > 0 || (query && !isLoading))" class="search-dropdown">
+                <ul v-if="results.length > 0">
+                  <li v-for="analysis in results" :key="analysis.id" @mousedown.prevent="selectItem(analysis)">
+                    <div class="dropdown-item">
+                        <strong>{{ analysis.title }}</strong>
+                        <small>{{ analysis.author }} • {{ analysis.category || 'Geral' }}</small>
+                    </div>
+                  </li>
+                </ul>
+                <div v-else-if="query && !isLoading" class="no-results">
+                  Nenhum resultado encontrado.
+                </div>
+              </div>
+            </transition>
+          </BaseSearch>
+        </div>
+
+        <nav class="desktop-nav">
+             <ul>
+                <li class="nav-dropdown">
+                  <span class="nav-link nav-drop-trigger" :class="{ 'router-link-active': isAcervoRoute }">
+                    Catálogo <Icon icon="mdi:chevron-down" width="16" class="chev" />
+                  </span>
+                  <div class="dropdown-menu">
+                    <router-link
+                      v-for="v in acervoViews"
+                      :key="v.key"
+                      :to="v.route"
+                      class="dropdown-link"
+                    >
+                      <Icon :icon="v.icon" width="17" />
+                      <span>{{ v.label }}</span>
+                    </router-link>
+                  </div>
+                </li>
+                <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
+                <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
+                <li v-if="isLogado"><router-link to="/conta" class="nav-link conta-link"><Icon icon="mdi:account-circle-outline" width="18" /> Conta</router-link></li>
+                <li v-else><router-link to="/entrar" class="nav-link">Entrar</router-link></li>
+                <li v-if="isAdmin"><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:cog-outline" width="16" /> Admin</router-link></li>
+                <li class="nav-item-toggle"><ThemeToggle /></li>
+             </ul>
+        </nav>
+
+        <button class="menu-btn" @click="toggleMenu" aria-label="Abrir menu">
+          <Icon icon="mdi:menu" width="24" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Teleportado para o body: tira o drawer do stacking context do header
+         (que é position:sticky; z-index:1000), garantindo que fique acima do conteúdo. -->
+    <Teleport to="body">
+    <transition name="slide">
+      <nav v-if="menuOpen" class="drawer">
+        <div class="drawer-header">
+          <h2>Menu</h2>
+          <div class="drawer-actions">
+            <ThemeToggle />
+            <button @click="toggleMenu" class="close-btn" aria-label="Fechar menu">
+                <Icon icon="mdi:close" width="22" />
+            </button>
+          </div>
+        </div>
+
+        <BaseSearch @select="toggleMenu" v-slot="{ query, updateQuery, handleEnter }">
+            <div class="mobile-search">
+                <input 
+                    type="text" 
+                    :value="query"
+                    @input="updateQuery($event.target.value)"
+                    placeholder="Pesquisar..."
+                    @keyup.enter="handleEnter"
+                >
+                <button @click="handleEnter"><Icon icon="mdi:magnify" width="18" /></button>
+            </div>
+        </BaseSearch>
+
+        <ul class="mobile-menu-list">
+            <li><router-link to="/" @click="toggleMenu">Início</router-link></li>
+
+            <li class="divider"></li>
+            <li class="mobile-group-label">Acervo</li>
+            <li v-for="v in acervoViews" :key="v.key" class="mobile-sub-item">
+              <router-link :to="v.route" @click="toggleMenu">
+                <Icon :icon="v.icon" width="16" /> {{ v.label }}
+              </router-link>
+            </li>
+
+            <li class="divider"></li>
+            <li><router-link to="/sobre" @click="toggleMenu">Sobre</router-link></li>
+            <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
+            <li class="divider"></li>
+            <li v-if="isLogado"><router-link to="/conta" @click="toggleMenu"><Icon icon="mdi:account-circle-outline" width="16" /> Minha conta</router-link></li>
+            <li v-else><router-link to="/entrar" @click="toggleMenu"><Icon icon="mdi:login" width="16" /> Entrar / Criar conta</router-link></li>
+            <li v-if="isAdmin"><router-link to="/admin" @click="toggleMenu"><Icon icon="mdi:cog-outline" width="16" /> Administração</router-link></li>
+        </ul>
+      </nav>
+    </transition>
+    
+    <div v-if="menuOpen" class="drawer-overlay" @click="toggleMenu"></div>
+    </Teleport>
+  </header>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { Icon } from '@iconify/vue';
+import ThemeToggle from './ThemeToggle.vue';
+import BaseSearch from './BaseSearch.vue';
+import { ACERVO_ORDER, ACERVO_VIEWS } from '@/config/acervoTypes.js';
+import { useAuth } from '@/composables/useAuth';
+
+const auth = useAuth();
+const { isLogado, isAdmin } = auth; // ComputedRefs — auto-unwrap no template
+
+const menuOpen = ref(false);
+const isScrolled = ref(false);
+
+// Itens do dropdown "Catálogo" (Todas / Análises / Produções / Dados).
+const acervoViews = ACERVO_ORDER.map((k) => ACERVO_VIEWS[k]);
+const route = useRoute();
+const isAcervoRoute = computed(() => acervoViews.some((v) => v.route === route.path));
+
+const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
+
+onMounted(() => {
+    window.addEventListener('scroll', handleScroll);
+    // Personaliza o header (Entrar vs. Minha conta). Anônimo → /api/me 401
+    // silencioso (sem_token). Só busca se ainda não sabemos o estado.
+    if (!auth.state.carregado) auth.fetchMe();
+});
+
+onUnmounted(() => window.removeEventListener('scroll', handleScroll));
+
+const toggleMenu = () => { menuOpen.value = !menuOpen.value; };
+</script>
+
+<style scoped>
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    transition: all 0.3s ease;
+    
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-header);
+}
+
+.header.scrolled {
+    background: var(--bg-header-scrolled);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-md);
+}
+
+.header-inner {
+    max-width: var(--container-width);
+    margin: 0 auto;
+}
+
+.header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: var(--header-height);
+    padding: 0 1.5rem;
+}
+
+/* Logo */
+.logo a {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-header-logo);
+    text-decoration: none;
+    letter-spacing: -0.5px;
+}
+.highlight { color: var(--brand-primary); }
+
+/* Search Bar (Desktop) */
+.search-wrapper {
+    position: relative;
+    max-width: 400px;
+    width: 100%;
+    margin: 0 2rem;
+}
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+.search-input {
+    width: 100%;
+    background: var(--bg-input-nav);
+    border: 1px solid var(--border-input-nav);
+    border-radius: var(--radius-full);
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.search-input:focus {
+    outline: none;
+    background: rgba(255,255,255,0.1);
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px rgba(47, 84, 235, 0.2);
+}
+.search-spinner {
+    position: absolute; right: 12px; top: 12px;
+    width: 14px; height: 14px;
+    border: 2px solid var(--text-muted); border-top-color: var(--brand-primary);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+
+/* Dropdown de Busca */
+.search-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0; right: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+    z-index: 1001;
+}
+.search-dropdown ul { list-style: none; padding: 0; margin: 0; }
+.dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+.dropdown-item:hover { background: var(--bg-hover); }
+.dropdown-item strong { display: block; color: var(--text-main); font-size: 0.95rem; }
+.dropdown-item small { color: var(--text-muted); font-size: 0.75rem; }
+
+.no-results { padding: 1rem; color: var(--text-muted); text-align: center; font-size: 0.9rem; }
+
+/* Navegação Desktop */
+.desktop-nav ul {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+    margin: 0; padding: 0;
+    align-items: center;
+}
+.nav-item {
+    position: relative;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+}
+.nav-link {
+    color: var(--text-header-nav);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+}
+.nav-link:hover, .nav-link.router-link-active { color: var(--text-header-hover); }
+.admin-link { opacity: 0.5; transition: opacity 0.2s; }
+.admin-link:hover { opacity: 1; }
+.icon-tiny { font-size: 0.7rem; margin-top: 2px; }
+
+/* Theme Toggle Container */
+.nav-item-toggle {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5rem;
+}
+
+/* Dropdown "Catálogo" (desktop, hover) */
+.nav-dropdown { position: relative; }
+.nav-drop-trigger { user-select: none; }
+.nav-dropdown .chev { transition: transform 0.2s ease; opacity: 0.7; }
+.nav-dropdown:hover .chev { transform: rotate(180deg); }
+/* ponte invisível: evita fechar o menu ao mover o mouse até ele */
+.nav-dropdown::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 12px; }
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    min-width: 210px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 0.4rem;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.nav-dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+.dropdown-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+}
+.dropdown-link:hover, .dropdown-link.router-link-active {
+    background: var(--bg-hover);
+    color: var(--brand-primary);
+}
+
+/* Grupo "Acervo" no drawer mobile */
+.mobile-group-label {
+    margin: 0.25rem 0 0.4rem 0.75rem;
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-muted); font-weight: 700;
+}
+.mobile-sub-item a { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Popover de Categorias */
+.category-popover {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-surface);
+    width: 300px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    padding: 1.5rem;
+    z-index: 1100;
+    cursor: default;
+    border: 1px solid var(--border-color);
+}
+.category-popover::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+}
+
+.popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.popover-header h3 {
+    font-size: 1rem;
+    color: var(--text-main);
+    font-weight: 800;
+    margin: 0;
+}
+.view-all {
+    font-size: 0.75rem;
+    color: var(--brand-primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+.view-all:hover { text-decoration: underline; }
+
+.category-list-popover {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.cat-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+.cat-link:hover {
+    background-color: var(--bg-hover);
+}
+.cat-name {
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+.cat-link:hover .cat-name { color: var(--brand-primary); }
+
+.cat-badge {
+    background-color: var(--bg-body);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--radius-full);
+    min-width: 28px;
+    text-align: center;
+}
+.cat-link:hover .cat-badge {
+    background-color: var(--brand-primary);
+    color: white;
+}
+
+/* Transições Pop-up */
+.pop-up-enter-active, .pop-up-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.pop-up-enter-from, .pop-up-leave-to { opacity: 0; transform: translateX(-50%) translateY(10px); }
+
+/* Mobile Menu */
+.menu-btn {
+    background: none; border: none;
+    color: var(--text-header-nav); font-size: 1.5rem;
+    cursor: pointer; display: none;
+}
+.drawer {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 280px; 
+    background: var(--bg-surface);
+    z-index: 2000; padding: 1.5rem;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+}
+.drawer-overlay {
+    position: fixed; inset: 0;
+    background: var(--overlay-color);
+    backdrop-filter: blur(2px);
+    z-index: 1500;
+}
+.drawer-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 2rem;
+    color: var(--text-main); border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+}
+.drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.close-btn { background: none; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer; }
+
+.mobile-search {
+    display: flex; gap: 0.5rem; margin-bottom: 2rem;
+}
+.mobile-search input {
+    flex: 1; background: var(--bg-input-form); border: 1px solid var(--border-color);
+    padding: 0.75rem; border-radius: var(--radius-md); color: var(--text-main);
+}
+.mobile-search button {
+    background: var(--brand-primary); border: none; color: white;
+    width: 44px; border-radius: var(--radius-md); cursor: pointer;
+}
+
+.mobile-menu-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+.mobile-menu-list li { margin-bottom: 0.5rem; }
+.mobile-menu-list a {
+    display: block; padding: 0.75rem;
+    color: var(--text-secondary); text-decoration: none;
+    border-radius: var(--radius-md); font-weight: 500;
+}
+.mobile-menu-list a:hover, .mobile-menu-list a.router-link-active {
+    background: var(--bg-hover); color: var(--brand-primary);
+}
+.mobile-categories-label {
+    margin: 1.5rem 0 0.5rem 0.75rem;
+    font-size: 0.75rem; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 700;
+}
+.mobile-sub-item a { padding-left: 1.5rem; font-size: 0.9rem; opacity: 0.9; }
+.divider { height: 1px; background: var(--border-color); margin: 1rem 0; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 992px) {
+    .desktop-nav, .desktop-only { display: none; }
+    .menu-btn { display: block; }
+}
+
+/* Tablet em pé e menores: padding reduzido */
+@media (max-width: 768px) {
+    .header-bar { padding: 0 1.25rem; }
+}
+
+/* Celular */
+@media (max-width: 480px) {
+    .header-bar { padding: 0 1rem; height: 64px; }
+    .logo a { font-size: 1.35rem; }
+    .menu-btn { font-size: 1.4rem; }
+    .drawer { width: min(85vw, 320px); }
+}
+
+/* Celular pequeno */
+@media (max-width: 360px) {
+    .header-bar { padding: 0 0.75rem; height: 58px; }
+    .logo a { font-size: 1.15rem; }
+    .drawer { width: 88vw; padding: 1.1rem; }
+    .drawer-header h2 { font-size: 1.2rem; }
+}
+</style>
