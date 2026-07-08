@@ -78,15 +78,15 @@ const routes = [
     component: () => import("../views/postagens/PostagensDetailView.vue")
   },
   {
-    // Login de ADMIN (equipe CRISP). Contas de usuário usam /entrar.
-    path: '/login',
+    // Login de ADMIN (equipe CRISP). Contas de usuário usam /login.
+    path: '/login_admin',
     name: 'AdminLogin',
     component: () => import("@/views/admin/AdminLogin.vue")
   },
 
   // --- Contas de usuário (público, distinto do admin) ---
   {
-    path: '/entrar',
+    path: '/login',
     name: 'Entrar',
     component: () => import("@/views/auth/EntrarView.vue")
   },
@@ -179,7 +179,7 @@ const router = createRouter({
 // Guarda de Rota Global. Auth v2 via cookie httpOnly (o JS não lê o cookie):
 // perguntamos ao backend com /api/me. requiresAdmin exige tipo=admin;
 // requiresAuth aceita qualquer conta (user ou admin). Rotas públicas não
-// disparam checagem. Login de admin = /login; de usuário = /entrar.
+// disparam checagem. Login de admin = /login_admin; de usuário = /login.
 const auth = useAuth();
 
 router.beforeEach(async (to) => {

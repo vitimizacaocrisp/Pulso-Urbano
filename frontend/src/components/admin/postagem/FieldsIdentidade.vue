@@ -9,7 +9,7 @@
     <label class="wz-field"><span>Autores (separados por vírgula)</span>
       <input class="wz-input" :value="lista(form.autores)" @input="form.autores = arr($event.target.value)" placeholder="Fulano, Ciclana" />
     </label>
-    <label class="wz-field"><span>Resumo</span>
+    <label class="wz-field"><span>Resumo *</span>
       <textarea class="wz-input" rows="4" v-model="form.resumo" maxlength="5000" placeholder="Breve resumo (aparece na prévia pública)"></textarea>
     </label>
   </div>

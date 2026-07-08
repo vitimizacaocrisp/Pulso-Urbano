@@ -4,12 +4,12 @@
 
     <template v-else-if="estado === 'ok'">
       <div class="form-ok"><strong>E-mail verificado!</strong> Sua conta está ativa.</div>
-      <div class="form-links"><RouterLink to="/entrar">Entrar</RouterLink></div>
+      <div class="form-links"><RouterLink to="/login">Entrar</RouterLink></div>
     </template>
 
     <template v-else>
       <div class="form-alert"><Icon icon="mdi:alert-circle" /> {{ erro }}</div>
-      <div class="form-links"><RouterLink to="/entrar">Voltar ao login</RouterLink></div>
+      <div class="form-links"><RouterLink to="/login">Voltar ao login</RouterLink></div>
     </template>
   </AuthCard>
 </template>

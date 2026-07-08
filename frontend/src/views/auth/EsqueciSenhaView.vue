@@ -2,7 +2,7 @@
   <AuthCard titulo="Recuperar senha" subtitulo="Enviaremos um link para redefinir sua senha.">
     <div v-if="enviado" class="form-ok">
       {{ mensagem }}
-      <div class="form-links"><RouterLink :to="tipo === 'admin' ? '/login' : '/entrar'">Voltar ao login</RouterLink></div>
+      <div class="form-links"><RouterLink :to="tipo === 'admin' ? '/login_admin' : '/login'">Voltar ao login</RouterLink></div>
     </div>
 
     <form v-else @submit.prevent="enviar">
@@ -14,7 +14,7 @@
         <span v-if="carregando" class="spinner"></span>
         <span v-else>Enviar link</span>
       </button>
-      <div class="form-links"><RouterLink :to="tipo === 'admin' ? '/login' : '/entrar'">Voltar ao login</RouterLink></div>
+      <div class="form-links"><RouterLink :to="tipo === 'admin' ? '/login_admin' : '/login'">Voltar ao login</RouterLink></div>
     </form>
   </AuthCard>
 </template>

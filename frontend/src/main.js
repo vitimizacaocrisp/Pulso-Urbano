@@ -23,7 +23,7 @@ onAuthError(({ code }) => {
     toast.error(code === 'sessao_encerrada'
       ? 'Sua conta foi acessada em outro dispositivo.'
       : 'Sua conta foi desativada.');
-    // Login certo por tipo: admin volta pro painel, usuário pro /entrar.
+    // Login certo por tipo: admin volta pro painel, usuário pro /login.
     const eraAdmin = auth.state.me?.tipo === 'admin'
       || router.currentRoute.value.path.startsWith('/admin');
     auth.limparSessao();

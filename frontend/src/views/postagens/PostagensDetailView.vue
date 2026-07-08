@@ -114,7 +114,7 @@
             <h3 class="section-heading"><Icon icon="mdi:paperclip" /> Arquivos e Anexos</h3>
             <ul class="attach-list">
               <li v-for="ax in post.anexos" :key="ax.id">
-                <template v-if="post.previa || !ax.url">
+                <template v-if="post.previa">
                   <span class="attach-locked"><Icon icon="mdi:lock-outline" /> {{ ax.nome || 'Arquivo' }} — <router-link :to="{ name: 'Entrar', query: { redirect: $route.fullPath } }">entre para baixar</router-link></span>
                 </template>
                 <a v-else href="#" @click.prevent="baixar(ax)" :class="{ baixando: baixandoId === ax.id }">

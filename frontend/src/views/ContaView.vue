@@ -1,6 +1,9 @@
 <template>
   <div class="conta-page">
     <header class="conta-header">
+      <div class="conta-actions">
+        <button class="btn btn-ghost" @click="router.push('/')"><Icon icon="mdi:arrow-left" /> Voltar ao Início</button>
+      </div>
       <h1><Icon icon="mdi:account-circle-outline" /> Minha Conta</h1>
       <p v-if="me">{{ me.email }} · <span class="badge">{{ papelLabel }}</span></p>
     </header>
@@ -233,7 +236,7 @@ async function trocarEmail() {
 }
 async function sairTodos() {
   busy.logoutAll = true;
-  try { await api.post('/api/me/logout-all'); auth.limparSessao(); router.push({ name: 'AdminLogin' }); }
+  try { await api.post('/api/me/logout-all'); auth.limparSessao(); router.push('/'); }
   catch (e) { toast.error(errorMessage(e)); }
   finally { busy.logoutAll = false; }
 }
@@ -251,6 +254,7 @@ async function excluirConta() {
 
 <style scoped>
 .conta-page { max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+.conta-actions { margin-bottom: 1.5rem; }
 .conta-header h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.6rem; font-weight: 800; color: var(--text-main); }
 .conta-header p { color: var(--text-secondary); margin-top: 0.25rem; }
 .badge { background: var(--bg-hover); color: var(--brand-primary); padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }

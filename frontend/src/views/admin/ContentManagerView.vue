@@ -29,7 +29,7 @@
           <Icon :icon="isPreview ? 'mdi:pencil-outline' : 'mdi:eye-outline'" width="17" />
           {{ isPreview ? 'Editar' : 'Prévia' }}
         </button>
-        <button type="button" class="btn-primary" :disabled="isFormInvalid || isLoading" @click="publish">
+        <button type="button" class="btn-primary" :disabled="isLoading" @click="publish">
           <Icon v-if="isLoading" icon="mdi:loading" width="17" class="spin" />
           <Icon v-else icon="mdi:publish" width="17" />
           {{ isLoading ? 'Publicando...' : 'Publicar' }}
@@ -122,7 +122,7 @@
       <button type="button" class="btn-ghost" @click="confirmClear">
         <Icon icon="mdi:delete-outline" width="17" /> Limpar
       </button>
-      <button type="button" class="btn-primary" :disabled="isFormInvalid || isLoading" @click="publish">
+      <button type="button" class="btn-primary" :disabled="isLoading" @click="publish">
         <Icon v-if="isLoading" icon="mdi:loading" width="17" class="spin" />
         {{ isLoading ? 'Publicando...' : 'Publicar Análise' }}
       </button>
@@ -179,11 +179,19 @@ const feedbackIcon = computed(() => ({
   info:    'mdi:information-outline'
 }[feedback.value.type] || 'mdi:information-outline'));
 
-const isFormInvalid = computed(() =>
-  !form.value.title || !form.value.tag || !form.value.author ||
-  !form.value.category || !form.value.description || !form.value.content ||
-  !form.value.nationality
-);
+const missingFields = computed(() => {
+  const missing = [];
+  if (!form.value.title) missing.push('Título');
+  if (!form.value.author) missing.push('Autor(es)');
+  if (!form.value.tag) missing.push('Tag');
+  if (!form.value.category) missing.push('Categoria');
+  if (!form.value.description) missing.push('Descrição Curta');
+  if (!form.value.nationality) missing.push('Nacionalidade');
+  if (!form.value.content) missing.push('Conteúdo');
+  return missing;
+});
+
+const isFormInvalid = computed(() => missingFields.value.length > 0);
 
 // ── Composables (upload, editor Monaco, rascunho) ─────────────────────
 const { uploadFiles } = useMediaUpload();
@@ -292,7 +300,7 @@ const confirmClear = async () => {
 // ── Publish ───────────────────────────────────────────────────────────
 const publish = async () => {
   if (isFormInvalid.value) {
-    feedback.value = { message: 'Preencha todos os campos obrigatórios (*).', type: 'error' }; return;
+    feedback.value = { message: `Preencha os campos obrigatórios: ${missingFields.value.join(', ')}`, type: 'error' }; return;
   }
   isLoading.value = true;
   feedback.value = { message: 'Preparando arquivos...', type: 'info' };

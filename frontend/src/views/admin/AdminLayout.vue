@@ -151,7 +151,8 @@ const logout = async () => {
   // Auth v2: encerra sessão no backend (limpa cookie + zera session_id).
   await auth.logout();
   localStorage.removeItem('authToken'); // limpa token legado, se houver
-  router.push({ name: 'AdminLogin' });
+  // Volta pra HOME (não pra /login — o login de admin é rota não-listada).
+  router.push('/');
 };
 </script>
 

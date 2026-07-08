@@ -7,7 +7,12 @@
         <input v-model="email" type="email" autocomplete="email" required :disabled="carregando" placeholder="voce@email.com" />
       </label>
       <label class="field"><span>Senha</span>
-        <input v-model="senha" type="password" autocomplete="current-password" required :disabled="carregando" placeholder="••••••••" />
+        <div class="input-with-icon">
+          <input v-model="senha" :type="senhaVisible ? 'text' : 'password'" autocomplete="current-password" required :disabled="carregando" placeholder="••••••••" />
+          <button type="button" class="eye-btn" @click="senhaVisible = !senhaVisible" tabindex="-1">
+            <Icon :icon="senhaVisible ? 'mdi:eye-off-outline' : 'mdi:eye-outline'" width="20" />
+          </button>
+        </div>
       </label>
       <label class="lembrar"><input v-model="lembrar" type="checkbox" /> <span>Manter conectado</span></label>
 
@@ -41,6 +46,7 @@ const senha = ref('');
 const lembrar = ref(true);
 const carregando = ref(false);
 const erro = ref('');
+const senhaVisible = ref(false);
 
 async function entrar() {
   carregando.value = true;
@@ -59,4 +65,8 @@ async function entrar() {
 
 <style scoped>
 .lembrar { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1.1rem; cursor: pointer; }
+.input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
+.input-with-icon input { width: 100%; padding-right: 40px; }
+.eye-btn { position: absolute; right: 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.eye-btn:hover { color: var(--text-main); }
 </style>

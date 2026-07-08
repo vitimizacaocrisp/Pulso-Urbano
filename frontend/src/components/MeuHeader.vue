@@ -61,7 +61,7 @@
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
                 <li v-if="isLogado"><router-link to="/conta" class="nav-link conta-link"><Icon icon="mdi:account-circle-outline" width="18" /> Conta</router-link></li>
-                <li v-else><router-link to="/entrar" class="nav-link">Entrar</router-link></li>
+                <li v-else><router-link to="/login" class="nav-link entrar-link">Entrar</router-link></li>
                 <li v-if="isAdmin"><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:cog-outline" width="16" /> Admin</router-link></li>
                 <li class="nav-item-toggle"><ThemeToggle /></li>
              </ul>
@@ -117,7 +117,7 @@
             <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
             <li class="divider"></li>
             <li v-if="isLogado"><router-link to="/conta" @click="toggleMenu"><Icon icon="mdi:account-circle-outline" width="16" /> Minha conta</router-link></li>
-            <li v-else><router-link to="/entrar" @click="toggleMenu"><Icon icon="mdi:login" width="16" /> Entrar / Criar conta</router-link></li>
+            <li v-else><router-link to="/login" @click="toggleMenu"><Icon icon="mdi:login" width="16" /> Entrar / Criar conta</router-link></li>
             <li v-if="isAdmin"><router-link to="/admin" @click="toggleMenu"><Icon icon="mdi:cog-outline" width="16" /> Administração</router-link></li>
         </ul>
       </nav>

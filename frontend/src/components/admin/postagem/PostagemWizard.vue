@@ -11,11 +11,16 @@
       <StepTipo v-if="step === 0" :criando="saving" @escolher="escolherTipo" />
 
       <template v-else>
+        <header class="painel-head">
+          <span class="tipo-chip">{{ tipoLabel }}</span>
+          <h2>{{ STEPS[step].label }} <small>· passo {{ step }} de {{ STEPS.length - 1 }}</small></h2>
+        </header>
+
         <FieldsIdentidade v-if="atual === 'identidade'" />
         <FieldsEspecifico v-else-if="atual === 'especifico'" :tipo="tipo" />
         <FieldsTaxonomia v-else-if="atual === 'taxonomia'" />
         <div v-else-if="atual === 'conteudo'">
-          <label class="wz-field"><span>{{ isMedia ? 'Descrição / show notes' : 'Conteúdo (HTML)' }}</span>
+          <label class="wz-field"><span>{{ isMedia ? 'Descrição / show notes' : 'Conteúdo (HTML)' }}<em v-if="!isMedia" class="req">*</em></span>
             <textarea class="wz-input mono" rows="14" v-model="form.conteudo" placeholder="Conteúdo da publicação…"></textarea>
           </label>
           <p class="hint">O HTML é sanitizado no servidor ao salvar.</p>
@@ -91,6 +96,8 @@ provide('wizSub', sub);
 
 const atual = computed(() => STEPS[step.value]?.key);
 const isMedia = computed(() => ['podcast', 'video'].includes(tipo.value));
+const LABELS = { analise: 'Análise', academico: 'Produção Científica', dado: 'Dados', podcast: 'Podcast', livro: 'Livro', video: 'Vídeo' };
+const tipoLabel = computed(() => LABELS[tipo.value] || 'Publicação');
 
 async function escolherTipo(t) {
   saving.value = true; erro.value = '';
@@ -127,7 +134,23 @@ async function salvar() {
   finally { saving.value = false; }
 }
 
+// Validação do passo ATUAL antes de avançar (evita postagem vazia).
+function validarAtual() {
+  if (atual.value === 'identidade') {
+    if (!form.titulo || !form.titulo.trim()) return 'Informe o título da publicação.';
+    if (!form.resumo || !form.resumo.trim()) return 'Informe o resumo (aparece na prévia pública).';
+  }
+  if (atual.value === 'conteudo') {
+    const precisaConteudo = ['analise', 'academico', 'livro', 'dado'].includes(tipo.value);
+    if (precisaConteudo && (!form.conteudo || !form.conteudo.trim())) return 'O conteúdo é obrigatório para este tipo.';
+  }
+  return null;
+}
+
 async function proximo() {
+  const falta = validarAtual();
+  if (falta) { erro.value = falta; return; }
+  erro.value = '';
   if (!(await salvar())) return;
   if (atual.value === 'taxonomia') await carregarAnexos(); // pré-carrega p/ o passo Mídia
   step.value = Math.min(step.value + 1, STEPS.length - 1);
@@ -162,6 +185,30 @@ async function subirAnexo({ file, tipo }) {
 }
 
 async function publicar() {
+  const faltam = [];
+  if (!form.titulo || !form.titulo.trim()) faltam.push('Título');
+  if (!form.resumo || !form.resumo.trim()) faltam.push('Resumo');
+
+  const precisaConteudo = ['analise', 'academico', 'livro', 'dado'].includes(tipo.value);
+  if (precisaConteudo && (!form.conteudo || !form.conteudo.trim())) faltam.push('Conteúdo');
+
+  const temMedia = (t) => anexos.value.some(a => a.tipo === t);
+  if (tipo.value === 'podcast' && !sub.embed_url && !temMedia('audio') && !temMedia('video')) {
+    faltam.push('Mídia (URL ou Upload)');
+  }
+  if (tipo.value === 'video' && !sub.embed_url && !temMedia('video')) {
+    faltam.push('Vídeo (URL ou Upload)');
+  }
+
+  if (faltam.length > 0) {
+    erro.value = 'Campos obrigatórios para publicar: ' + faltam.join(', ') + '.';
+    toast.error('Preencha os dados pendentes antes de publicar.');
+    if (!form.titulo || !form.resumo) step.value = STEPS.findIndex(s => s.key === 'identidade');
+    else if (precisaConteudo && !form.conteudo) step.value = STEPS.findIndex(s => s.key === 'conteudo');
+    else step.value = STEPS.findIndex(s => s.key === 'midia');
+    return;
+  }
+
   if (!(await salvar())) return;
   publishing.value = true; erro.value = '';
   try {
@@ -191,7 +238,12 @@ onBeforeUnmount(() => clearTimeout(t));
 .steps li.active { color: var(--brand-primary); font-weight: 700; }
 .steps li.active .num, .steps li.done .num { background: var(--brand-primary); color: #fff; }
 .painel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.75rem; }
+.painel-head { margin: 0 0 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+.painel-head .tipo-chip { display: inline-block; background: rgba(47,84,235,0.12); color: var(--brand-primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 3px 10px; border-radius: 999px; margin-bottom: 0.5rem; }
+.painel-head h2 { font-size: 1.2rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.painel-head h2 small { font-weight: 500; color: var(--text-muted); font-size: 0.8rem; }
 .hint { color: var(--text-muted); font-size: 0.82rem; margin: 0.4rem 0 0; }
+:deep(.req), .req { color: var(--sys-danger); margin-left: 2px; font-style: normal; }
 .wz-erro { color: var(--sys-danger); display: flex; align-items: center; gap: 6px; margin: 1rem 0 0; font-size: 0.9rem; }
 .acoes { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.75rem; }
 .acoes .saved { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); }
