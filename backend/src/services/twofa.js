@@ -1,25 +1,29 @@
 // ─────────────────────────────────────────────────────────────────────
-// 2FA TOTP para admins (doc 07). otplib (RFC 6238) + QR (qrcode).
-// Segredo base32 guardado em admins.totp_secret; códigos de recuperação
-// guardados HASHEADOS (sha256) em admins.totp_recovery.
+// 2FA TOTP para admins (doc 07). speakeasy (RFC 6238, CommonJS puro — otplib
+// foi trocado por causa de um require() de ESM (@scure/base) incompatível
+// com o runtime serverless da Vercel, que derrubava o processo inteiro) + QR
+// (qrcode). Segredo base32 guardado em admins.totp_secret; códigos de
+// recuperação guardados HASHEADOS (sha256) em admins.totp_recovery.
 // ─────────────────────────────────────────────────────────────────────
-const otp = require('otplib');
+const speakeasy = require('speakeasy');
 const crypto = require('crypto');
 const qrcode = require('qrcode');
 
 const ISSUER = 'Pulso Urbano';
 
-async function novoSecret() { return otp.generateSecret(); }
+async function novoSecret() { return speakeasy.generateSecret({ length: 20 }).base32; }
 
-async function uri(secret, label) { return otp.generateURI({ secret, label, issuer: ISSUER }); }
+async function uri(secret, label) {
+  return speakeasy.otpauthURL({ secret, label, issuer: ISSUER, encoding: 'base32' });
+}
 
 async function qrDataUrl(uriStr) { return qrcode.toDataURL(uriStr); }
 
-// Confere um token TOTP (tolera espaços). Retorna boolean.
+// Confere um token TOTP (tolera espaços; window:1 = ±30s de tolerância de relógio).
 async function conferir(secret, token) {
   const t = String(token || '').replace(/\s+/g, '');
   if (!secret || !/^\d{6}$/.test(t)) return false;
-  try { const r = await otp.verify({ token: t, secret }); return !!r.valid; }
+  try { return speakeasy.totp.verify({ secret, encoding: 'base32', token: t, window: 1 }); }
   catch { return false; }
 }
 
