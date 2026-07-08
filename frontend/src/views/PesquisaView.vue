@@ -211,6 +211,7 @@ import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { v2ToCard } from '@/utils/postagemV2.js';
 import { useToast } from '@/composables/useToast';
 
 const toast  = useToast();
@@ -240,6 +241,9 @@ const activeFilters = ref({ categories: [], sources: [], tags: [], yearFrom: nul
 const availableCategories = ref([]);
 const availableSources    = ref([]);
 const availableTags       = ref([]);
+// Mapas nome→slug (a API v2 filtra por slug; a UI mostra o nome).
+const catSlug = ref({});
+const tagSlug = ref({});
 
 const hasMore = computed(() => analyses.value.length < totalAnalyses.value);
 
@@ -281,14 +285,16 @@ const loadFilterMeta = async () => {
   metaLoading.value = true;
   try {
     const meta = await fetchWithCache(
-      CacheKeys.filterMeta,
-      () => api.get('/api/admin/filter-meta').then(r => r.data?.data),
+      'v2:taxonomia',
+      () => api.get('/api/taxonomia').then(r => r.data?.data),
       TTL.META
     );
     if (meta) {
-      availableCategories.value = meta.categories || [];
-      availableSources.value    = meta.sources    || [];
-      availableTags.value       = meta.tags       || [];
+      availableCategories.value = (meta.categorias || []).map((c) => c.nome);
+      availableTags.value       = (meta.tags || []).map((t) => t.nome);
+      availableSources.value    = []; // fontes não expostas na taxonomia pública v2
+      catSlug.value = Object.fromEntries((meta.categorias || []).map((c) => [c.nome, c.slug]));
+      tagSlug.value = Object.fromEntries((meta.tags || []).map((t) => [t.nome, t.slug]));
     }
   } catch (e) {
     console.error('Erro ao carregar filtros:', e);
@@ -307,30 +313,24 @@ const fetchAnalyses = async (isNewSearch = false) => {
   error.value = null;
 
   try {
-    // Auth via header Authorization (interceptor do axios em main.js).
+    // API v2 pública (/api/postagens). Filtra por texto + 1 categoria/tag (slug).
+    // Multi-seleção/fonte/ano ainda não têm suporte no endpoint público v2.
     const params = { page: currentPage.value, limit: limit.value };
-    if (searchQuery.value)                     params.search    = searchQuery.value;
-    if (activeFilters.value.categories.length) params.category  = activeFilters.value.categories.join(',');
-    if (activeFilters.value.sources.length)    params.source    = activeFilters.value.sources.join(',');
-    if (activeFilters.value.tags.length)       params.tag       = activeFilters.value.tags.join(',');
-    if (activeFilters.value.yearFrom)          params.year_from = activeFilters.value.yearFrom;
-    if (activeFilters.value.yearTo)            params.year_to   = activeFilters.value.yearTo;
-    // 'relevance' só faz sentido com busca; aí o backend ranqueia por ts_rank.
-    if (sortBy.value === 'relevance') {
-      if (searchQuery.value.trim()) params.sort = 'relevance';
-    } else {
-      params.sort = sortBy.value;
-    }
+    if (searchQuery.value) params.q = searchQuery.value;
+    const cat0 = activeFilters.value.categories[0];
+    const tag0 = activeFilters.value.tags[0];
+    if (cat0) params.categoria = catSlug.value[cat0] || cat0;
+    if (tag0) params.tag = tagSlug.value[tag0] || tag0;
 
     const cacheKey = CacheKeys.analysesList(params);
 
     const result = await fetchWithCache(
       cacheKey,
-      () => api.get('/api/admin/analyses-list', { params }).then(r => r.data?.data),
+      () => api.get('/api/postagens', { params }).then(r => r.data?.data),
       TTL.DEFAULT
     );
 
-    const fresh = result?.analyses || [];
+    const fresh = (result?.itens || []).map(v2ToCard);
     totalAnalyses.value = result?.total || 0;
 
     // Ranking de relevância agora é feito no servidor (ts_rank).

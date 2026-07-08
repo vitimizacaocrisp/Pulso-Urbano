@@ -85,6 +85,7 @@ import RecentPosts from '@/components/RecentPosts.vue';
 import MeuHeader   from '@/components/MeuHeader.vue';
 import MeuFooter   from '@/components/MeuFooter.vue';
 import { fetchWithCache, TTL } from '@/utils/apiCache.js';
+import { v2ToCard } from '@/utils/postagemV2.js';
 
 // ─── Scroll reveal ────────────────────────────────────────────────────
 const setupScrollAnimations = () => {
@@ -214,8 +215,9 @@ const fetchHighlight = async () => {
   dailyHighlight.isLoading = true;
   try {
     const data = await fetchWithCache(
-      'highlight:day',
-      () => api.get('/api/highlight').then(r => r.data?.data),
+      'highlight:v2',
+      () => api.get('/api/postagens', { params: { limit: 1, page: 1 } })
+        .then(r => (r.data?.data?.itens || []).map(v2ToCard)[0] || null),
       TTL.DEFAULT // 30 s
     );
     dailyHighlight.data  = data;

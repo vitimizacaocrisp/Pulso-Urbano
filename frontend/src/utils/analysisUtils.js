@@ -3,6 +3,7 @@ export const ENTRY_TYPES = [
   { value: 'analysis', label: 'Análise', icon: 'mdi:chart-box-outline' },
   { value: 'academic', label: 'Produção Acadêmica', icon: 'mdi:school-outline' },
   { value: 'dataset',  label: 'Dado Primário',      icon: 'mdi:database-outline' },
+  { value: 'podcast',  label: 'Podcast',            icon: 'mdi:podcast' },
 ];
 export const ACADEMIC_TYPES = [
   'Tese', 'Dissertação', 'Artigo Científico', 'Relatório Técnico',
@@ -12,6 +13,36 @@ export const DATASET_INSTRUMENTS = [
   'Questionário', 'Microdados / Banco de Dados', 'Livro de Códigos',
   'Ficha Técnica de Amostragem', 'Material Complementar de Campo',
 ];
+
+// Converte um link (Spotify/Apple Podcasts/YouTube) numa URL de embed —
+// usado tanto por episódios de podcast quanto pelo vídeo institucional da
+// página Sobre. Sem isso, cada plataforma exige um formato de iframe diferente.
+export const mediaEmbedUrl = (url) => {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('spotify.com')) {
+      // open.spotify.com/episode/ID -> open.spotify.com/embed/episode/ID
+      return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    }
+    if (u.hostname.includes('podcasts.apple.com')) {
+      return url.includes('?') ? `${url}&theme=auto` : `${url}?theme=auto`;
+    }
+    if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+      const id = u.hostname.includes('youtu.be')
+        ? u.pathname.slice(1)
+        : u.searchParams.get('v');
+      return id ? `https://www.youtube.com/embed/${id}` : url;
+    }
+    if (u.hostname.includes('vimeo.com')) {
+      const id = u.pathname.split('/').filter(Boolean).pop();
+      return id ? `https://player.vimeo.com/video/${id}` : url;
+    }
+    return url; // link direto (ex.: RSS/mp3) — sem embed, vira botão "ouvir"
+  } catch {
+    return '';
+  }
+};
 
 // meta (JSONB) pode chegar como objeto (neon) ou string — normaliza.
 export const parseMeta = (meta) => {

@@ -9,7 +9,7 @@ const { testConnectionData } = require('../services/storage');
 const { sql } = require('../db/dbConnect');
 const { validateLogin, parseListQuery } = require('../validators/schemas');
 
-const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset', 'podcast'];
 
 // Escapa metacaracteres do LIKE/ILIKE (%, _, \) para tratá-los como literais.
 const escapeLike = (s) => String(s).replace(/[\\%_]/g, (c) => '\\' + c);

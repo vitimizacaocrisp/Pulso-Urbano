@@ -26,8 +26,8 @@ test('tudo ausente não quebra e retorna false', () => {
   assert.strictEqual(isAllowedFileType(undefined, undefined), false);
 });
 
-test('limite de upload é 50 MB', () => {
-  assert.strictEqual(MAX_UPLOAD_BYTES, 50 * 1024 * 1024);
+test('limite de upload é 2 GB', () => {
+  assert.strictEqual(MAX_UPLOAD_BYTES, 2 * 1024 * 1024 * 1024);
 });
 
 test('allowlist não contém tipos executáveis/markup', () => {

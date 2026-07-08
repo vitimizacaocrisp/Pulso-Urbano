@@ -32,16 +32,6 @@
                 </div>
               </li>
             </ul>
-
-            <div class="social-section">
-              <h4>Siga-nos</h4>
-              <div class="social-icons">
-                <a href="#" aria-label="Facebook"><Icon icon="mdi:facebook" /></a>
-                <a href="#" aria-label="Twitter"><Icon icon="mdi:twitter" /></a>
-                <a href="#" aria-label="Instagram"><Icon icon="mdi:instagram" /></a>
-                <a href="#" aria-label="YouTube"><Icon icon="mdi:youtube" /></a>
-              </div>
-            </div>
           </div>
 
           <div class="card-modern map-card scroll-reveal delay-2">
@@ -313,23 +303,6 @@ const handleSubmit = async () => {
 .info-text .value, .info-text .link { color: var(--text-main); font-weight: 500; font-size: 1rem; }
 .info-text .link { text-decoration: none; transition: color 0.2s; }
 .info-text .link:hover { color: var(--brand-primary); }
-
-.social-section h4 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 1rem; }
-.social-icons { display: flex; gap: 0.75rem; }
-.social-icons a {
-    width: 36px; height: 36px;
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-    text-decoration: none;
-}
-.social-icons a:hover {
-    background: var(--brand-primary);
-    color: white;
-    transform: translateY(-2px);
-}
 
 /* Mapa Ajustado */
 .map-card { 

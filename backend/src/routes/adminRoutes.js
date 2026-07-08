@@ -12,7 +12,7 @@ const isCrispEntry = (source, author) => {
 };
 
 // Tipos de conteúdo aceitos (ver migração 2026_content_types.sql).
-const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+const ALLOWED_ENTRY_TYPES = ['analysis', 'academic', 'dataset', 'podcast'];
 
 // Escapa metacaracteres do LIKE/ILIKE (%, _, \) para que sejam tratados como
 // literais. Sem isto, buscar "50%" ou "a_b" vira coringa e retorna lixo.

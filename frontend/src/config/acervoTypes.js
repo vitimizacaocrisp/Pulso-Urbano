@@ -52,6 +52,18 @@ export const ACERVO_VIEWS = {
     countLabel: 'conjuntos de dados',
     accent: '#0ea5a4',
   },
+  podcast: {
+    key: 'podcast',
+    entryType: 'podcast',
+    route: '/podcast',
+    label: 'Podcast',
+    eyebrow: 'Podcast',
+    icon: 'mdi:podcast',
+    title: 'Podcast Pulso Urbano',
+    subtitle: 'Episódios em linguagem acessível sobre os resultados da pesquisa em segurança pública e vitimização.',
+    countLabel: 'episódios',
+    accent: '#f59f00',
+  },
   // Recorte transversal (não é um entry_type): filtra por is_crisp.
   crisp: {
     key: 'crisp',
@@ -69,6 +81,6 @@ export const ACERVO_VIEWS = {
 };
 
 // Ordem de exibição (dropdown do header e tabs do hero).
-export const ACERVO_ORDER = ['all', 'analysis', 'academic', 'dataset', 'crisp'];
+export const ACERVO_ORDER = ['all', 'analysis', 'academic', 'dataset', 'podcast', 'crisp'];
 
 export const acervoView = (key) => ACERVO_VIEWS[key] || ACERVO_VIEWS.all;

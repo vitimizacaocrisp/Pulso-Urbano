@@ -23,7 +23,7 @@
             <p>Insira as suas credenciais para aceder ao painel administrativo.</p>
           </div>
 
-          <form @submit.prevent="handleLogin">
+          <form v-if="!twofaStep" @submit.prevent="handleLogin">
             <div v-if="errorMessage" class="alert-error fade-in">
               <Icon icon="mdi:alert-circle" /> {{ errorMessage }}
             </div>
@@ -69,13 +69,35 @@
               <label class="remember-me">
                 <input type="checkbox" v-model="rememberMe"> <span>Lembrar-me</span>
               </label>
-              <a href="#" class="forgot-password">Esqueceu a senha?</a>
+              <router-link to="/esqueci-senha?tipo=admin" class="forgot-password">Esqueceu a senha?</router-link>
             </div>
 
             <button type="submit" class="btn-submit" :disabled="isLoading">
               <span v-if="isLoading" class="spinner"></span>
               <span v-else>Aceder ao Painel <Icon icon="mdi:arrow-right" /></span>
             </button>
+          </form>
+
+          <!-- Passo 2FA (admin com verificação em duas etapas) -->
+          <form v-else @submit.prevent="verify2fa">
+            <div v-if="errorMessage" class="alert-error fade-in">
+              <Icon icon="mdi:alert-circle" /> {{ errorMessage }}
+            </div>
+            <p class="twofa-hint"><Icon icon="mdi:shield-key-outline" /> Digite o código do seu app autenticador (ou um código de recuperação).</p>
+            <div class="input-group">
+              <label for="twofa">Código de verificação</label>
+              <div class="input-wrapper" :class="{ 'focused': focusedField === 'twofa' }">
+                <Icon icon="mdi:shield-check" class="input-icon" />
+                <input type="text" id="twofa" v-model="twofaCode" placeholder="123456" autocomplete="one-time-code"
+                  inputmode="text" required :disabled="isLoading" autofocus
+                  @focus="focusedField = 'twofa'" @blur="focusedField = null">
+              </div>
+            </div>
+            <button type="submit" class="btn-submit" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner"></span>
+              <span v-else>Verificar <Icon icon="mdi:arrow-right" /></span>
+            </button>
+            <button type="button" class="btn-voltar" @click="cancelar2fa">Voltar</button>
           </form>
 
           <div class="back-link">
@@ -88,12 +110,14 @@
 </template>
 
 <script>
-import api from '@/services/api';
 import { Icon } from '@iconify/vue';
+import { useAuth } from '@/composables/useAuth';
+import { errorMessage } from '@/services/api';
 
 export default {
   name: 'AdminLoginView',
   components: { Icon },
+  setup() { return { auth: useAuth() }; },
   data() {
     return {
       email: '',
@@ -102,7 +126,10 @@ export default {
       isPasswordVisible: false,
       errorMessage: null,
       isLoading: false,
-      focusedField: null
+      focusedField: null,
+      twofaStep: false,
+      twofaChallenge: '',
+      twofaCode: ''
     };
   },
   computed: {
@@ -116,27 +143,37 @@ export default {
       this.errorMessage = null;
 
       try {
-        // O backend seta um cookie httpOnly com o JWT. Não guardamos token em
-        // localStorage (imune a XSS). Limpa qualquer token legado que tenha
-        // sobrado de versões antigas.
-        await api.post('/admin-auth', {
-          email: this.email,
-          password: this.password,
-          rememberMe: this.rememberMe,
-        });
-
-        localStorage.removeItem('authToken');
+        // Auth v2: cookie httpOnly + sessão única (doc 04). Login de admin.
+        const r = await this.auth.login(this.email, this.password, { tipo: 'admin', rememberMe: this.rememberMe });
+        if (r?.requer2fa) { this.twofaStep = true; this.twofaChallenge = r.challenge; return; }
+        localStorage.removeItem('authToken'); // limpa token legado, se houver
         this.$router.push('/admin');
 
       } catch (error) {
-        if (error.response?.data?.message) {
-          this.errorMessage = error.response.data.message;
+        if (error.response) {
+          this.errorMessage = errorMessage(error);
         } else {
           this.errorMessage = 'Não foi possível conectar ao servidor. Verifique sua conexão.';
         }
       } finally {
         this.isLoading = false;
       }
+    },
+    async verify2fa() {
+      this.isLoading = true;
+      this.errorMessage = null;
+      try {
+        await this.auth.verify2fa(this.twofaChallenge, this.twofaCode);
+        localStorage.removeItem('authToken');
+        this.$router.push('/');
+      } catch (error) {
+        this.errorMessage = error.response ? errorMessage(error) : 'Não foi possível conectar ao servidor.';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    cancelar2fa() {
+      this.twofaStep = false; this.twofaChallenge = ''; this.twofaCode = ''; this.errorMessage = null;
     },
     togglePasswordVisibility() {
       this.isPasswordVisible = !this.isPasswordVisible;
@@ -351,6 +388,17 @@ export default {
 }
 .fade-in { animation: fadeIn 0.3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+.twofa-hint {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 1.5rem;
+}
+.btn-voltar {
+  width: 100%; margin-top: 0.75rem; padding: 0.6rem;
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 0.9rem; cursor: pointer;
+}
+.btn-voltar:hover { color: var(--text-main); }
 
 .back-link {
   margin-top: 2rem;

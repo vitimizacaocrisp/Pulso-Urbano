@@ -62,6 +62,7 @@
 import { Icon } from '@iconify/vue';
 import api, { mediaUrl } from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { v2ToCard } from '@/utils/postagemV2.js';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 
 export default {
@@ -79,22 +80,21 @@ export default {
       this.isLoading = true;
       this.error = null;
       try {
-        // Usa a rota PÚBLICA /api/analyses-list com paginação (limit = postCount)
-        // Sem precisar de token, sem puxar tudo para ordenar no cliente
-        const params = { limit: this.postCount, sort: 'date_desc' };
-        if (this.category) params.category = this.category;
+        // API v2 pública (/api/postagens) — mais recentes primeiro.
+        const params = { limit: this.postCount, page: 1 };
+        if (this.category) params.categoria = this.category;
 
         const cacheKey = CacheKeys.analysesList(params);
 
         const result = await fetchWithCache(
           cacheKey,
           () => api
-            .get('/api/analyses-list', { params, timeout: 15000 })
+            .get('/api/postagens', { params, timeout: 15000 })
             .then(r => r.data?.data),
           TTL.DEFAULT // 30 s
         );
 
-        this.posts = result?.analyses || [];
+        this.posts = (result?.itens || []).map(v2ToCard);
       } catch (err) {
         console.error('Erro ao carregar publicações:', err);
         this.error = 'Não foi possível carregar as publicações recentes.';

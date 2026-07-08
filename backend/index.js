@@ -10,6 +10,10 @@ const mainRoutes = require('./src/routes/routes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Atrás do proxy da Vercel: req.ip passa a refletir o cliente real (o rate
+// limiter usa x-real-ip/req.ip — o primeiro x-forwarded-for é forjável, doc 07).
+app.set('trust proxy', 1);
+
 // --- 0. SECURITY HEADERS (helmet) ---
 // API devolve só JSON, então CSP não se aplica (e atrapalharia). CORP em
 // cross-origin para o frontend (Netlify/Vercel) conseguir ler as respostas;
@@ -31,8 +35,10 @@ const ALLOWED_ORIGINS = [
 function isAllowedOrigin(origin) {
   if (!origin) return true;                                 // Postman, mobile, same-origin
   if (ALLOWED_ORIGINS.includes(origin)) return true;        // lista branca (env vars)
-  if (/\.vercel\.app$/.test(origin)) return true;           // preview deploys
-  if (/\.netlify\.app$/.test(origin)) return true;          // compat Netlify
+  // Preview deploys: só do NOSSO time Vercel (não qualquer *.vercel.app —
+  // com credentials:true, wildcard genérico permitiria CSRF via projeto de
+  // terceiros hospedado em vercel.app; doc 07/P9).
+  if (/\.vitimizacaocrisps-projects\.vercel\.app$/.test(origin)) return true;
   if (/^http:\/\/localhost:\d+$/.test(origin)) return true; // dev local
   return false;
 }

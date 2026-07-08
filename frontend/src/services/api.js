@@ -20,6 +20,31 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Tratamento central de erros de auth (doc 04) ─────────────────────
+// A API v2 responde { success:false, error:{ code, message } }. Um handler é
+// registrado por quem tem contexto de router/toast (main.js) via onAuthError;
+// o interceptor apenas normaliza e delega. 401 → sessão perdida; 403 → sem
+// permissão (não desloga).
+let authErrorHandler = null;
+export const onAuthError = (fn) => { authErrorHandler = fn; };
+
+// Extrai o código de erro v2 (com fallback pro shape legado {message}).
+export const errorCode = (e) => e?.response?.data?.error?.code || null;
+export const errorMessage = (e) =>
+  e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Erro inesperado.';
+
+api.interceptors.response.use(
+  (r) => r,
+  (error) => {
+    const status = error?.response?.status;
+    const code = errorCode(error);
+    if ((status === 401 || status === 403) && authErrorHandler) {
+      authErrorHandler({ status, code, message: errorMessage(error) });
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Constrói URL absoluta para um arquivo de mídia servido pela API/uploads.
 // Centraliza o padrão que estava duplicado em coverUtils, HomeView, etc.
 export const mediaUrl = (path) => {

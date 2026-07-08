@@ -29,6 +29,7 @@
             <li><router-link to="/catalogo">Todas as Publicações</router-link></li>
             <li><router-link to="/producoes">Produções Científicas</router-link></li>
             <li><router-link to="/dados">Repositório de Dados</router-link></li>
+            <li><router-link to="/podcast">Podcast</router-link></li>
             <li><router-link to="/sobre">Metodologia</router-link></li>
             <li><router-link to="/contato">Fale Conosco</router-link></li>
         </ul>
@@ -70,11 +71,6 @@
           </div>
 
           <div class="social-actions">
-            <div class="social-icons">
-              <a href="#" aria-label="Facebook"><Icon icon="mdi:facebook" width="18" /></a>
-              <a href="#" aria-label="Twitter"><Icon icon="mdi:twitter" width="18" /></a>
-              <a href="#" aria-label="Instagram"><Icon icon="mdi:instagram" width="18" /></a>
-            </div>
             <button @click="scrollToTop" class="back-to-top" aria-label="Voltar ao topo">
                 <Icon icon="mdi:arrow-up" width="18" />
             </button>
@@ -234,11 +230,6 @@ h4 {
 .funding { font-size: 0.78rem; opacity: 0.45; color: var(--text-light); margin: 0; }
 
 .social-actions { display: flex; align-items: center; gap: 1.5rem; }
-.social-icons { display: flex; gap: 1rem; }
-.social-icons a {
-    color: var(--text-light); font-size: 1.1rem; transition: all 0.2s;
-}
-.social-icons a:hover { color: var(--text-white); transform: translateY(-2px); }
 
 .back-to-top {
     background: rgba(255, 255, 255, 0.1); 

@@ -18,6 +18,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { v2ToCard } from '@/utils/postagemV2.js';
 
 const emit = defineEmits(['select']);
 const router = useRouter();
@@ -33,12 +34,12 @@ const fetchAllData = async () => {
   if (allAnalyses.value.length > 0) return;
   isLoading.value = true;
   try {
-    // Auth via cookie httpOnly (cliente central já envia credenciais).
+    // API v2 pública: lista enxuta p/ autocomplete client-side (id=slug).
     const data = await fetchWithCache(
       CacheKeys.autocomplete,
       () => api
-        .get('/api/admin/autocomplete')
-        .then(r => r.data?.data?.analyses || []),
+        .get('/api/postagens', { params: { limit: 100, page: 1 } })
+        .then(r => (r.data?.data?.itens || []).map(v2ToCard)),
       TTL.META // 10 min
     );
 

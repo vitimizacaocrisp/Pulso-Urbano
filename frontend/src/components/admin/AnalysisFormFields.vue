@@ -96,6 +96,30 @@
         </span>
       </div>
 
+      <!-- Episódio de podcast -->
+      <div v-else-if="entryType === 'podcast'" class="meta-block">
+        <div class="meta-block-title"><Icon icon="mdi:podcast" width="15" /> Episódio de podcast</div>
+        <div class="field-row two-col">
+          <div class="field-group">
+            <label class="field-label">Número do episódio</label>
+            <input type="text" class="field-input" :value="metaVal('episodeNumber')"
+              @input="updateMeta('episodeNumber', $event.target.value)" placeholder="Ex: 12" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Duração</label>
+            <input type="text" class="field-input" :value="metaVal('duration')"
+              @input="updateMeta('duration', $event.target.value)" placeholder="Ex: 34 min" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Link do episódio (Spotify, Apple Podcasts ou YouTube)</label>
+          <input type="text" class="field-input" :value="metaVal('embedUrl')"
+            @input="updateMeta('embedUrl', $event.target.value)"
+            placeholder="https://open.spotify.com/episode/..." />
+          <span class="field-hint">Cole o link da página do episódio — o player é embutido automaticamente.</span>
+        </div>
+      </div>
+
       <div class="field-row two-col">
         <div class="field-group">
           <label class="field-label">Título <span class="req">*</span></label>

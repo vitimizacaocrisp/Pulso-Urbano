@@ -1,13 +1,15 @@
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
-const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 // --- VALIDAÇÃO DAS VARIÁVEIS DE AMBIENTE DO R2 (fail-fast) ---
+// Bucket PRIVADO (sem domínio público r2.dev). Leituras são feitas por URL
+// pré-assinada (presignGetByKey) — não há mais STORAGE_PUBLIC_URL.
 const REQUIRED_R2_ENV = [
   'STORAGE_ENDPOINT', 'STORAGE_ASSESS_KEY_ID', 'STORAGE_SECRET_ACCESS_KEY',
-  'STORAGE_BUCKET_NAME', 'STORAGE_PUBLIC_URL',
+  'STORAGE_BUCKET_NAME',
 ];
 const missingR2Env = REQUIRED_R2_ENV.filter((k) => !process.env[k]);
 if (missingR2Env.length > 0) {
@@ -58,11 +60,12 @@ const ALLOWED_MIME_TYPES = [
 // Extensões permitidas (Mantido inalterado)
 const ALLOWED_EXTENSIONS = ['.ipynb', '.csv', '.R', '.py', '.sql', '.md'];
 
-// Tamanho máximo de upload (50 MB).
-// NOTA: este limite é validado no momento de gerar a URL assinada (advisory).
-// Não é uma garantia rígida — para impor tamanho no R2 use um Cloudflare Worker
-// na frente do bucket. Ver: backend/docs/r2-hard-size-limit.md
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+// Tamanho máximo de upload (2 GB). Advisory: validado ao gerar a URL assinada.
+// Como o upload vai DIRETO do navegador pro R2 (presigned PUT), o limite de
+// body do backend/Vercel não se aplica — por isso arquivos grandes passam.
+// Garantia rígida de tamanho no R2 exigiria um Cloudflare Worker à frente.
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 // --- MAPEAMENTO DE CATEGORIAS (Mantido inalterado) ---
 const FOLDER_MAP = {
@@ -200,11 +203,90 @@ async function generatePresignedUrls(filesMeta) {
   return urls;
 }
 
+/**
+ * Presign v2 para mídia de POSTAGEM. Layout `postagens/{id}/...` (doc 05).
+ * Diferente do generatePresignedUrls legado (FOLDER_MAP): a linha em `anexos`
+ * é criada pela rota chamadora com a `chave_r2` retornada aqui.
+ */
+async function presignPostagemUpload({ postagemId, fileName, fileType, fileSize }) {
+  if (!postagemId) throw new Error('postagemId obrigatório.');
+  if (!fileName) throw new Error('fileName obrigatório.');
+  if (!isAllowedFileType(fileType, fileName)) {
+    throw new Error(`Tipo de arquivo não permitido: ${fileName} (${fileType || 'sem mime'}).`);
+  }
+  if (fileSize != null) {
+    const size = Number(fileSize);
+    if (!Number.isFinite(size) || size <= 0) throw new Error(`Tamanho inválido: ${fileName}.`);
+    if (size > MAX_UPLOAD_BYTES) throw new Error(`Arquivo excede ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`);
+  }
+  const key = `postagens/${postagemId}/${generateUniqueFilename(fileName)}`;
+  const command = new PutObjectCommand({
+    Bucket: process.env.STORAGE_BUCKET_NAME,
+    Key: key,
+    ContentType: fileType || 'application/octet-stream',
+  });
+  // TTL longo (1h): um upload de 2 GB em conexão lenta pode demorar.
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  return { uploadUrl, key };
+}
+
+/**
+ * Presign de AVATAR (foto de perfil). Só imagens; layout versionado por hash.
+ * Path: `avatares/{tipo}/{id}/{hash}.ext`. A rota chamadora cria a linha em
+ * `anexos` (owner_tipo/owner_id) com a chave retornada.
+ */
+async function presignAvatarUpload({ tipo, id, fileName, fileType, fileSize }) {
+  if (!tipo || !id) throw new Error('dono do avatar obrigatório.');
+  if (!(fileType || '').toLowerCase().startsWith('image/')) throw new Error('O avatar deve ser uma imagem.');
+  if (!isAllowedFileType(fileType, fileName)) throw new Error('Tipo de imagem não permitido.');
+  if (fileSize != null) {
+    const size = Number(fileSize);
+    if (!Number.isFinite(size) || size <= 0) throw new Error('Tamanho inválido.');
+    if (size > MAX_AVATAR_BYTES) throw new Error('A imagem excede 2 MB.');
+  }
+  const key = `avatares/${tipo}/${id}/${generateUniqueFilename(fileName || 'avatar.jpg')}`;
+  const command = new PutObjectCommand({
+    Bucket: process.env.STORAGE_BUCKET_NAME, Key: key, ContentType: fileType,
+  });
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
+  return { uploadUrl, key };
+}
+
+/**
+ * URL pré-assinada de GET (leitura) para uma chave do bucket privado.
+ * TTL curto (default 5 min). Usada para downloads gated e para servir
+ * imagens (capa/avatar) via redirect.
+ */
+async function presignGetByKey(key, ttlSeconds = 300) {
+  if (!key) return null;
+  const command = new GetObjectCommand({ Bucket: process.env.STORAGE_BUCKET_NAME, Key: key });
+  return getSignedUrl(s3Client, command, { expiresIn: ttlSeconds });
+}
+
+/**
+ * Deleta um objeto do R2 pela CHAVE (nunca por URL do cliente). Fonte da
+ * verdade = anexos.chave_r2. Retorna true/false.
+ */
+async function deleteByKey(key) {
+  if (!key) return false;
+  try {
+    await s3Client.send(new DeleteObjectCommand({ Bucket: process.env.STORAGE_BUCKET_NAME, Key: key }));
+    return true;
+  } catch (e) {
+    console.error(`[R2] delete por chave falhou (${key}):`, e.message);
+    return false;
+  }
+}
+
 module.exports = {
   s3Client,
   testConnectionData,
   deleteFileFromS3,
+  deleteByKey,
+  presignGetByKey,
   generatePresignedUrls,
+  presignPostagemUpload,
+  presignAvatarUpload,
   isAllowedFileType,
   MAX_UPLOAD_BYTES,
   ALLOWED_MIME_TYPES

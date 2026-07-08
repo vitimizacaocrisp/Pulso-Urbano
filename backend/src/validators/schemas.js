@@ -26,7 +26,7 @@ function validateLogin(body) {
 // ── Query params de listagem ─────────────────────────────────────────
 // Lenient por design: coage e usa defaults em vez de rejeitar (uma query
 // malformada não deve quebrar a navegação). `.catch()` garante o fallback.
-const ENTRY_TYPES = ['analysis', 'academic', 'dataset'];
+const ENTRY_TYPES = ['analysis', 'academic', 'dataset', 'podcast'];
 const SORTS = ['date_desc', 'date_asc', 'title_asc', 'relevance'];
 
 const listQuerySchema = z.object({

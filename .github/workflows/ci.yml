@@ -13,6 +13,25 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pulso
+          POSTGRES_PASSWORD: pulso_dev
+          POSTGRES_DB: pulso_urbano
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U pulso -d pulso_urbano"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Mesmo alvo do docker-compose local (Postgres em :5433). Faz a suíte v2
+      # rodar de verdade no CI em vez de ser pulada por falta de banco.
+      TEST_DATABASE_URL: postgres://pulso:pulso_dev@localhost:5433/pulso_urbano
+      JWT_SECRET: ci-test-secret-not-for-prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +40,9 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Aplicar schema v2 (via pg, sem depender de psql)
+        run: >-
+          node -e "const fs=require('fs');const{Client}=require('pg');(async()=>{const c=new Client(process.env.TEST_DATABASE_URL);await c.connect();await c.query(fs.readFileSync('../database/migrations/2026_v2_schema.sql','utf8'));await c.end();console.log('schema v2 aplicado');})().catch(e=>{console.error(e.message);process.exit(1)})"
       - run: npm test
 
   frontend:

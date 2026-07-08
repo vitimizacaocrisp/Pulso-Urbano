@@ -27,13 +27,29 @@
 
         <div class="nav-group">
           <span v-if="!sidebarCollapsed" class="nav-group-label">Conteúdo</span>
-          <router-link :to="{ name: 'ContentManager' }" class="nav-link" :title="sidebarCollapsed ? 'Nova Análise' : ''">
+          <router-link :to="{ name: 'CriarPostagem' }" class="nav-link" :title="sidebarCollapsed ? 'Nova publicação' : ''">
             <span class="nav-icon"><Icon icon="mdi:plus-circle-outline" width="20" /></span>
-            <span v-if="!sidebarCollapsed" class="nav-text">Nova Análise</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Nova publicação</span>
           </router-link>
-          <router-link :to="{ name: 'EditAnalysis' }" class="nav-link" :title="sidebarCollapsed ? 'Gerenciar' : ''">
+          <router-link :to="{ name: 'ContentManager' }" class="nav-link" :title="sidebarCollapsed ? 'Nova Análise (legado)' : ''">
+            <span class="nav-icon"><Icon icon="mdi:playlist-plus" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Nova Análise (legado)</span>
+          </router-link>
+          <router-link :to="{ name: 'EditarPostagem' }" class="nav-link" :title="sidebarCollapsed ? 'Editar publicação' : ''">
             <span class="nav-icon"><Icon icon="mdi:file-document-edit-outline" width="20" /></span>
-            <span v-if="!sidebarCollapsed" class="nav-text">Gerenciar</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Editar publicação</span>
+          </router-link>
+          <router-link :to="{ name: 'EditAnalysis' }" class="nav-link" :title="sidebarCollapsed ? 'Gerenciar (legado)' : ''">
+            <span class="nav-icon"><Icon icon="mdi:folder-cog-outline" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Gerenciar (legado)</span>
+          </router-link>
+          <router-link :to="{ name: 'Equipe' }" class="nav-link" :title="sidebarCollapsed ? 'Equipe' : ''">
+            <span class="nav-icon"><Icon icon="mdi:account-group-outline" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Equipe</span>
+          </router-link>
+          <router-link :to="{ name: 'Conta' }" class="nav-link" :title="sidebarCollapsed ? 'Minha Conta' : ''">
+            <span class="nav-icon"><Icon icon="mdi:account-circle-outline" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Minha Conta</span>
           </router-link>
         </div>
 
@@ -118,21 +134,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import api from '@/services/api';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import { useAuth } from '@/composables/useAuth';
 
 const router = useRouter();
+const auth = useAuth();
 const sidebarCollapsed = ref(false);
 const mobileDrawerOpen = ref(false);
 
+onMounted(() => { if (!auth.state.carregado) auth.fetchMe(); });
+
 const logout = async () => {
-  // Pede ao backend para limpar o cookie httpOnly. Mesmo se a chamada falhar,
-  // redirecionamos para o login. Limpa também qualquer token legado.
-  try { await api.post('/api/admin/logout'); } catch { /* ignora */ }
-  localStorage.removeItem('authToken');
+  // Auth v2: encerra sessão no backend (limpa cookie + zera session_id).
+  await auth.logout();
+  localStorage.removeItem('authToken'); // limpa token legado, se houver
   router.push({ name: 'AdminLogin' });
 };
 </script>

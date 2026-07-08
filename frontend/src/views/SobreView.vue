@@ -83,6 +83,19 @@
                         </a>
                     </div>
                 </section>
+
+                <!-- Vídeo institucional (pitch) — só aparece com VITE_PITCH_VIDEO_URL configurado -->
+                <section v-if="pitchVideoEmbed" class="card-modern video-card scroll-reveal delay-4">
+                    <div class="card-content video-content">
+                        <h3>Vídeo de Apresentação</h3>
+                        <p>Objetivos, resultados e impacto da pesquisa em poucos minutos.</p>
+                        <div class="video-frame">
+                            <iframe :src="pitchVideoEmbed" title="Vídeo de apresentação do projeto"
+                                frameborder="0" allow="autoplay; fullscreen; picture-in-picture"
+                                allowfullscreen loading="lazy"></iframe>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
@@ -90,10 +103,15 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { Icon } from '@iconify/vue';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
+import { mediaEmbedUrl } from '@/utils/analysisUtils.js';
+
+// Seção oculta enquanto a env var não for configurada — evita mostrar um
+// placeholder vazio ou vídeo fictício antes da produção real existir.
+const pitchVideoEmbed = computed(() => mediaEmbedUrl(import.meta.env.VITE_PITCH_VIDEO_URL || ''));
 
 // --- Scroll Animation Logic ---
 const setupScrollAnimations = () => {
@@ -273,6 +291,18 @@ onMounted(() => {
     color: var(--brand-primary); text-decoration: none; font-weight: 600; font-size: 0.95rem;
 }
 .funding-link:hover { text-decoration: underline; }
+
+/* Vídeo institucional (pitch) */
+.video-card { flex-direction: column; align-items: stretch; }
+.video-content { width: 100%; }
+.video-frame {
+    position: relative; width: 100%; padding-top: 56.25%; /* 16:9 */
+    border-radius: var(--radius-lg); overflow: hidden; margin-top: 1rem;
+    background: var(--slate-900);
+}
+.video-frame iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+}
 
 /* SCROLL REVEAL ANIMATIONS */
 .scroll-reveal {

@@ -62,6 +62,7 @@
 <script>
 import api from '@/services/api';
 import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache.js';
+import { entryToTipo, v2ToCard } from '@/utils/postagemV2.js';
 import AnalysisCover from '@/components/AnalysisCover.vue';
 
 const PAGE_SIZE = 24; // cards por página — razoável para um grid visual
@@ -102,23 +103,25 @@ export default {
       this.error = null;
 
       try {
-        const params = { page: this.currentPage, limit: PAGE_SIZE, sort: 'date_desc' };
-        if (this.category) params.category = this.category;
-        if (this.entryType) params.entry_type = this.entryType;
+        // API v2 pública (/api/postagens). tipo derivado do entryType legado;
+        // crisp é recorte transversal (is_crisp).
+        const params = { page: this.currentPage, limit: PAGE_SIZE };
+        const tipo = entryToTipo(this.entryType);
+        if (tipo) params.tipo = tipo;
+        if (this.category) params.categoria = this.category;
         if (this.crisp) params.crisp = 'true';
 
-        // Usa rota pública — sem token, sem sobrecarregar o admin endpoint
         const cacheKey = CacheKeys.analysesList(params);
 
         const result = await fetchWithCache(
           cacheKey,
           () => api
-            .get('/api/analyses-list', { params, timeout: 15000 })
+            .get('/api/postagens', { params, timeout: 15000 })
             .then(r => r.data?.data),
           TTL.DEFAULT // 30 s
         );
 
-        const fresh = result?.analyses || [];
+        const fresh = (result?.itens || []).map(v2ToCard);
         this.total  = result?.total   || 0;
         this.$emit('total', this.total); // hero mostra a contagem do recorte
 

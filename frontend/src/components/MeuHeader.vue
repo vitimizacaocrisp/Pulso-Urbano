@@ -60,7 +60,9 @@
                 </li>
                 <li><router-link to="/sobre" class="nav-link">Sobre</router-link></li>
                 <li><router-link to="/contato" class="nav-link">Contato</router-link></li>
-                <li><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:lock" width="14" /></router-link></li>
+                <li v-if="isLogado"><router-link to="/conta" class="nav-link conta-link"><Icon icon="mdi:account-circle-outline" width="18" /> Conta</router-link></li>
+                <li v-else><router-link to="/entrar" class="nav-link">Entrar</router-link></li>
+                <li v-if="isAdmin"><router-link to="/admin" class="nav-link admin-link"><Icon icon="mdi:cog-outline" width="16" /> Admin</router-link></li>
                 <li class="nav-item-toggle"><ThemeToggle /></li>
              </ul>
         </nav>
@@ -113,7 +115,10 @@
             <li class="divider"></li>
             <li><router-link to="/sobre" @click="toggleMenu">Sobre</router-link></li>
             <li><router-link to="/contato" @click="toggleMenu">Contato</router-link></li>
-            <li><router-link to="/admin" @click="toggleMenu">Administração</router-link></li>
+            <li class="divider"></li>
+            <li v-if="isLogado"><router-link to="/conta" @click="toggleMenu"><Icon icon="mdi:account-circle-outline" width="16" /> Minha conta</router-link></li>
+            <li v-else><router-link to="/entrar" @click="toggleMenu"><Icon icon="mdi:login" width="16" /> Entrar / Criar conta</router-link></li>
+            <li v-if="isAdmin"><router-link to="/admin" @click="toggleMenu"><Icon icon="mdi:cog-outline" width="16" /> Administração</router-link></li>
         </ul>
       </nav>
     </transition>
@@ -130,6 +135,10 @@ import { Icon } from '@iconify/vue';
 import ThemeToggle from './ThemeToggle.vue';
 import BaseSearch from './BaseSearch.vue';
 import { ACERVO_ORDER, ACERVO_VIEWS } from '@/config/acervoTypes.js';
+import { useAuth } from '@/composables/useAuth';
+
+const auth = useAuth();
+const { isLogado, isAdmin } = auth; // ComputedRefs — auto-unwrap no template
 
 const menuOpen = ref(false);
 const isScrolled = ref(false);
@@ -143,6 +152,9 @@ const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 
 onMounted(() => {
     window.addEventListener('scroll', handleScroll);
+    // Personaliza o header (Entrar vs. Minha conta). Anônimo → /api/me 401
+    // silencioso (sem_token). Só busca se ainda não sabemos o estado.
+    if (!auth.state.carregado) auth.fetchMe();
 });
 
 onUnmounted(() => window.removeEventListener('scroll', handleScroll));
