@@ -28,17 +28,29 @@ api.interceptors.request.use((config) => {
 let authErrorHandler = null;
 export const onAuthError = (fn) => { authErrorHandler = fn; };
 
+// Guarda anti-enxurrada: quando a sessão morre remotamente (sessão única), há
+// várias requisições em voo/repetidas — cada 401 dispararia um toast. Marcamos
+// o "kick" como tratado e só voltamos a reagir após uma resposta 2xx (ex.: novo
+// login), evitando o loop de dezenas de toasts idênticos.
+let sessionKicked = false;
+export const resetAuthKick = () => { sessionKicked = false; };
+
 // Extrai o código de erro v2 (com fallback pro shape legado {message}).
 export const errorCode = (e) => e?.response?.data?.error?.code || null;
 export const errorMessage = (e) =>
   e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Erro inesperado.';
 
 api.interceptors.response.use(
-  (r) => r,
+  (r) => { sessionKicked = false; return r; }, // resposta ok → re-arma o guard
   (error) => {
     const status = error?.response?.status;
     const code = errorCode(error);
     if ((status === 401 || status === 403) && authErrorHandler) {
+      // Kicks duros (sessão tomada / conta desativada): dispara UMA vez.
+      if (code === 'sessao_encerrada' || code === 'conta_desativada') {
+        if (sessionKicked) return Promise.reject(error);
+        sessionKicked = true;
+      }
       authErrorHandler({ status, code, message: errorMessage(error) });
     }
     return Promise.reject(error);

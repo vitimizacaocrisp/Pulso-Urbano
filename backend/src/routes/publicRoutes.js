@@ -245,12 +245,13 @@ router.post('/admin-auth', loginRateLimiter, asyncHandler(async (req, res) => {
     { expiresIn: remember ? '168h' : '12h' }
   );
 
-  // Auth primária: cookie httpOnly (imune a XSS — JS não lê). secure só em
-  // produção (localhost dev é HTTP). sameSite 'lax' cobre o uso same-origin.
+  // Auth primária: cookie httpOnly (imune a XSS — JS não lê). Cross-site após o
+  // split de projetos (frontend × backend em domínios distintos) → None+Secure
+  // em prod; Lax em dev local (same-origin via proxy do Vite, HTTP).
   res.cookie('authToken', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: maxAgeMs,
     path: '/',
   });

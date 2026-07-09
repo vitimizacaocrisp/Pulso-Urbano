@@ -201,7 +201,18 @@ function buildFiltros({ tipo, categoria, tag, crisp, uf, busca }, startIdx, publ
   if (categoria) { where.push(`EXISTS (SELECT 1 FROM postagem_categorias pc JOIN categorias c ON c.id=pc.categoria_id WHERE pc.postagem_id=p.id AND c.slug = $${i++})`); vals.push(categoria); }
   if (tag)       { where.push(`EXISTS (SELECT 1 FROM postagem_tags ptg JOIN tags t ON t.id=ptg.tag_id WHERE ptg.postagem_id=p.id AND t.slug = $${i++})`); vals.push(slugify(tag)); }
   if (uf)        { where.push(`EXISTS (SELECT 1 FROM postagem_ufs pu JOIN ufs u ON u.id=pu.uf_id WHERE pu.postagem_id=p.id AND u.sigla = UPPER($${i++}))`); vals.push(uf); }
-  if (busca)     { where.push(`p.search_vector @@ websearch_to_tsquery('portuguese', f_unaccent($${i++}))`); vals.push(busca); }
+  if (busca) {
+    // FTS (palavras inteiras, ranqueável) OR ILIKE parcial em título/subtítulo/resumo
+    // (unaccent) — assim "viol" já casa "violência" enquanto o usuário digita.
+    const p = i++;
+    where.push(
+      `(p.search_vector @@ websearch_to_tsquery('portuguese', f_unaccent($${p}))`
+      + ` OR f_unaccent(p.titulo) ILIKE '%' || f_unaccent($${p}) || '%'`
+      + ` OR f_unaccent(coalesce(p.subtitulo,'')) ILIKE '%' || f_unaccent($${p}) || '%'`
+      + ` OR f_unaccent(coalesce(p.resumo,'')) ILIKE '%' || f_unaccent($${p}) || '%')`
+    );
+    vals.push(busca);
+  }
   return { where: where.join(' AND '), vals, next: i };
 }
 

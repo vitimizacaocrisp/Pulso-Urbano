@@ -151,6 +151,11 @@ const routes = [
         component: () => import('@/components/admin/postagem/PostagemEditor.vue'),
       },
       {
+        path: 'rascunhos',
+        name: 'Rascunhos',
+        component: () => import('../views/admin/RascunhosView.vue'),
+      },
+      {
         path: 'equipe',
         name: 'Equipe',
         component: () => import('../views/admin/EquipeView.vue'),

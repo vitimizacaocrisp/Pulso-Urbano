@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="base-search-wrapper" @focusout="handleFocusOut">
     <slot
       :query="query"
@@ -55,12 +55,14 @@ const fetchAllData = async () => {
 // antes de filtrar, evitando TypeError que quebraria a busca ao vivo.
 const norm = (v) => {
   if (v == null) return '';
-  return (Array.isArray(v) ? v.join(' ') : String(v)).toLowerCase();
+  // minúsculas + remove acentos ("violência" → "violencia") p/ casar sem diacríticos.
+  return (Array.isArray(v) ? v.join(' ') : String(v))
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 };
 
 const filteredResults = computed(() => {
   if (!query.value.trim()) return [];
-  const q = query.value.toLowerCase();
+  const q = norm(query.value);
   return allAnalyses.value.filter(a =>
     norm(a.title).includes(q)  ||
     norm(a.tag).includes(q)    ||

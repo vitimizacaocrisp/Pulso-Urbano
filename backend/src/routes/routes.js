@@ -13,6 +13,7 @@ const { userAuth, adminAuth } = require('./v2/auth');
 const v2Conta  = require('./v2/conta');
 const v2Equipe = require('./v2/equipe');
 const v2Twofa  = require('./v2/twofa');
+const v2Cron   = require('./v2/cron');
 
 // Monta rotas públicas e privadas
 router.use('/', publicRoutes);
@@ -20,6 +21,7 @@ router.use('/', v2Public);
 router.use('/api/auth', userAuth);          // cadastro/login/reset de usuário
 router.use('/api/admin/auth', adminAuth);   // login/reset de admin
 router.use('/api/me', v2Conta);             // conta própria (user e admin)
+router.use('/api/cron', v2Cron);            // tarefas agendadas (Vercel Cron)
 router.use('/api/admin/2fa', v2Twofa);      // 2FA TOTP do admin (setup/enable/disable)
 router.use('/api/admin', v2Equipe);         // gestão de contas (/admins, /usuarios, /audit)
 router.use('/api/admin', adminRoutes);

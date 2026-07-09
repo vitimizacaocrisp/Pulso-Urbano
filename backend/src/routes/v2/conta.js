@@ -13,7 +13,7 @@ const acc = require('../../services/accounts');
 const tokens = require('../../services/authTokens');
 const { sendEmail } = require('../../services/email');
 const audit = require('../../services/audit');
-const { presignAvatarUpload, deleteByKey } = require('../../services/storage');
+const { presignAvatarUpload, uploadAvatarObject, deleteByKey } = require('../../services/storage');
 
 const err = (res, s, code, message) => res.status(s).json({ success: false, error: { code, message } });
 const emailSchema = z.string().trim().toLowerCase().email();
@@ -34,7 +34,42 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // ── Avatar (foto de perfil) ──────────────────────────────────────────
-// presign cria a linha em anexos (owner); o cliente sobe no R2; PUT confirma.
+// Upload DIRETO pelo backend (imagem ≤2 MB via base64). Evita o CORS do R2 no
+// navegador (só a mídia grande de postagem vai direto). Cria o anexo, troca o
+// avatar e remove o anterior — tudo numa requisição.
+router.post('/avatar', express.json({ limit: '4mb' }), asyncHandler(async (req, res) => {
+  const { tipo, id } = req.auth;
+  const { fileName, fileType, dataBase64 } = req.body || {};
+  if (!dataBase64 || typeof dataBase64 !== 'string') return err(res, 400, 'validacao_falhou', 'Imagem ausente.');
+  // aceita data URL ("data:image/png;base64,AAAA") ou base64 puro
+  const b64 = dataBase64.includes(',') ? dataBase64.slice(dataBase64.indexOf(',') + 1) : dataBase64;
+  const buffer = Buffer.from(b64, 'base64');
+
+  let up;
+  try { up = await uploadAvatarObject({ tipo, id, fileName, fileType, buffer }); }
+  catch (e) { return err(res, 400, 'validacao_falhou', e.message); }
+
+  const ins = await q(
+    `INSERT INTO anexos (owner_tipo, owner_id, tipo, origem, chave_r2, url_r2, nome_arquivo, mime, tamanho_bytes)
+     VALUES ($1,$2,'avatar','r2',$3,$3,$4,$5,$6) RETURNING id`,
+    [tipo, id, up.key, String(fileName || 'avatar.jpg').slice(0, 255),
+     String(fileType || '').slice(0, 100) || null, up.size]);
+  const anexoId = ins.rows[0].id;
+
+  const prev = await q(`SELECT avatar_anexo_id FROM ${acc.TABLE[tipo]} WHERE id=$1`, [id]);
+  const antigo = prev.rows[0].avatar_anexo_id;
+  await q(`UPDATE ${acc.TABLE[tipo]} SET avatar_anexo_id=$1 WHERE id=$2`, [anexoId, id]);
+  if (antigo && antigo !== anexoId) {
+    const old = await q(`SELECT origem, chave_r2 FROM anexos WHERE id=$1`, [antigo]);
+    await q(`DELETE FROM anexos WHERE id=$1`, [antigo]);
+    if (old.rows[0]?.origem === 'r2' && old.rows[0]?.chave_r2) await deleteByKey(old.rows[0].chave_r2);
+  }
+  await audit.log(req, { atorTipo: tipo, atorId: id, acao: 'avatar_atualizado' });
+  res.json({ success: true, data: { avatar_url: '/api/media/' + anexoId } });
+}));
+
+// (legado) presign p/ upload direto no R2 — mantido por compat; o fluxo novo usa
+// POST /avatar acima. presign cria a linha em anexos (owner); PUT confirma.
 router.post('/avatar/presign', express.json(), asyncHandler(async (req, res) => {
   const { tipo, id } = req.auth;
   const { fileName, fileType, fileSize } = req.body || {};

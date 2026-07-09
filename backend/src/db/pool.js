@@ -11,14 +11,16 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// GUARDA DE FASE: durante as Fases 3/4 a v2 NUNCA cai em produção por
-// omissão. Fallback para DATABASE_URL (Neon) só com V2_USE_PROD=1 (Fase 5).
+// Banco: Docker local (TEST_DATABASE_URL) tem prioridade p/ dev; senão o Neon
+// de produção via NEON_DATABASE_URL (backend dedicado após o split de projetos).
+// DATABASE_URL/V2_USE_PROD ficam como fallback de compat.
 const V2_URL = process.env.V2_DATABASE_URL
   || process.env.TEST_DATABASE_URL
+  || process.env.NEON_DATABASE_URL
   || (process.env.V2_USE_PROD === '1' ? process.env.DATABASE_URL : null);
 
 if (!V2_URL) {
-  console.error('❌ [v2] Sem banco: defina TEST_DATABASE_URL (Docker) ou V2_USE_PROD=1 (Fase 5).');
+  console.error('❌ [v2] Sem banco: defina NEON_DATABASE_URL (prod) ou TEST_DATABASE_URL (Docker).');
 }
 
 // Neon exige TLS; Docker local não tem. Detecta pelo host.

@@ -139,7 +139,6 @@ import { Icon } from '@iconify/vue';
 import api, { errorMessage } from '@/services/api';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
-import { uploadToR2 } from '@/utils/uploadR2.js';
 import UploadProgress from '@/components/UploadProgress.vue';
 
 const auth = useAuth();
@@ -159,16 +158,29 @@ const exclusaoSenha = ref('');
 const subindoAvatar = ref(false);
 const progressoAvatar = ref(0);
 
+// Lê o arquivo como data URL (base64) p/ enviar ao backend, que faz o PUT no R2.
+// Evita o upload direto navegador→R2 (que exigia CORS no bucket).
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+    fr.readAsDataURL(file);
+  });
+}
+
 async function escolherAvatar(e) {
   const file = e.target.files?.[0];
   e.target.value = '';
   if (!file) return;
+  if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem.'); return; }
   if (file.size > 2 * 1024 * 1024) { toast.error('A imagem excede 2 MB.'); return; }
-  subindoAvatar.value = true; progressoAvatar.value = 0;
+  subindoAvatar.value = true; progressoAvatar.value = 30;
   try {
-    const { data } = await api.post('/api/me/avatar/presign', { fileName: file.name, fileType: file.type, fileSize: file.size });
-    await uploadToR2(data.data.uploadUrl, file, { onProgress: (p) => { progressoAvatar.value = p; } });
-    await api.put('/api/me/avatar', { anexoId: data.data.anexoId });
+    const dataBase64 = await fileToDataURL(file);
+    progressoAvatar.value = 60;
+    await api.post('/api/me/avatar', { fileName: file.name, fileType: file.type, dataBase64 });
+    progressoAvatar.value = 100;
     await auth.fetchMe();
     toast.success('Foto atualizada.');
   } catch (err) { toast.error(errorMessage(err)); }

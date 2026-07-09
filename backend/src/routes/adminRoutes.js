@@ -84,7 +84,8 @@ router.post('/logout', (req, res) => {
   res.clearCookie('authToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    // cross-site (frontend/backend em domínios distintos) → None+Secure em prod
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   });
   res.json({ success: true, message: 'Logout realizado.' });

@@ -4,8 +4,10 @@
     <div v-if="!sel" class="picker">
       <h2>Editar publicação</h2>
       <div class="busca-bar">
-        <input class="wz-input" v-model="busca" placeholder="Buscar por título…" @keyup.enter="buscar" />
-        <button class="btn" :disabled="carregando" @click="buscar">Buscar</button>
+        <Icon icon="mdi:magnify" class="busca-icon" />
+        <input class="wz-input busca-input" v-model="busca" placeholder="Buscar por título, resumo…" autofocus />
+        <span v-if="carregando" class="busca-spin"></span>
+        <button v-else-if="busca" class="busca-x" @click="limparBusca" aria-label="Limpar"><Icon icon="mdi:close" /></button>
       </div>
       <ul v-if="resultados.length" class="res">
         <li v-for="r in resultados" :key="r.id" @click="abrir(r.id)">
@@ -14,7 +16,8 @@
           <span class="res-status" :class="r.status">{{ r.status }}</span>
         </li>
       </ul>
-      <p v-else-if="buscou" class="vazio">Nenhuma publicação encontrada.</p>
+      <p v-else-if="buscou && !carregando && busca.trim()" class="vazio">Nenhuma publicação encontrada.</p>
+      <p v-else-if="!busca.trim()" class="vazio dica">Digite para buscar entre as publicações.</p>
     </div>
 
     <!-- Formulário morph -->
@@ -55,8 +58,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, provide } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, provide, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import api, { errorMessage } from '@/services/api';
 import { useToast } from '@/composables/useToast';
@@ -68,6 +71,7 @@ import FieldsMidia from './FieldsMidia.vue';
 import FieldsPublicacao from './FieldsPublicacao.vue';
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
 const ABAS = [
@@ -105,14 +109,35 @@ const sub = reactive({});
 provide('wizForm', form);
 provide('wizSub', sub);
 
+let seq = 0;
 async function buscar() {
+  const meu = ++seq;
+  const termo = busca.value.trim();
   carregando.value = true; buscou.value = true;
   try {
-    const { data } = await api.get('/api/admin/postagens', { params: { q: busca.value, limit: 20 } });
-    resultados.value = data.data.itens;
-  } catch (e) { toast.error(errorMessage(e)); }
-  finally { carregando.value = false; }
+    // termo vazio → lista as mais recentes (útil ao abrir a tela).
+    const params = termo ? { q: termo, limit: 50 } : { limit: 30 };
+    const { data } = await api.get('/api/admin/postagens', { params });
+    if (meu === seq) resultados.value = data.data.itens; // ignora respostas fora de ordem
+  } catch (e) { if (meu === seq) toast.error(errorMessage(e)); }
+  finally { if (meu === seq) carregando.value = false; }
 }
+
+// Busca ao vivo com debounce — sem depender de botão.
+let debounce = null;
+watch(busca, () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(buscar, 250);
+});
+function limparBusca() { busca.value = ''; }
+
+onMounted(() => {
+  // Deep-link vindo da lista de rascunhos (?id=123) → abre direto no editor.
+  const id = parseInt(route.query.id, 10);
+  if (Number.isInteger(id)) abrir(id);
+  else buscar(); // senão, pré-carrega recentes
+});
+onBeforeUnmount(() => clearTimeout(debounce));
 
 const nomes = (arr) => (arr || []).map((x) => x.nome);
 
@@ -199,7 +224,14 @@ async function subirAnexo({ file, tipo: t }) {
 <style scoped>
 .editor { max-width: 760px; margin: 0 auto; padding: 1rem 0.5rem 3rem; }
 .picker h2 { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin: 0 0 1rem; }
-.busca-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.busca-bar { position: relative; display: flex; align-items: center; margin-bottom: 1rem; }
+.busca-icon { position: absolute; left: 0.85rem; color: var(--text-muted); font-size: 1.1rem; pointer-events: none; }
+.busca-input { padding-left: 2.4rem !important; padding-right: 2.4rem !important; }
+.busca-x { position: absolute; right: 0.6rem; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; padding: 4px; }
+.busca-x:hover { color: var(--brand-primary); }
+.busca-spin { position: absolute; right: 0.75rem; width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--brand-primary); border-radius: 50%; animation: bspin 0.7s linear infinite; }
+@keyframes bspin { to { transform: rotate(360deg); } }
+.vazio.dica { font-size: 0.88rem; }
 .res { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 .res li { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); cursor: pointer; }
 .res li:hover { border-color: var(--brand-primary); }
@@ -228,4 +260,19 @@ async function subirAnexo({ file, tipo: t }) {
 :deep(.wz-input) { width: 100%; padding: 0.65rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-form); color: var(--text-main); font-size: 0.95rem; font-family: inherit; }
 :deep(.wz-input:focus) { outline: none; border-color: var(--brand-primary); }
 :deep(.wz-input.mono) { font-family: ui-monospace, monospace; font-size: 0.88rem; }
+
+@media (max-width: 640px) {
+  .editor { padding: 0.75rem 0.75rem 4rem; }
+  .picker h2 { font-size: 1.2rem; }
+  .topo { flex-wrap: wrap; gap: 0.5rem; }
+  .tipo-fixo { font-size: 0.82rem; width: 100%; order: 3; }
+  .topo .saved { margin-left: auto; }
+  .abas { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .abas::-webkit-scrollbar { display: none; }
+  .abas button { flex: 0 0 auto; padding: 0.55rem 0.7rem; font-size: 0.9rem; }
+  .painel { padding: 1.1rem; border-radius: 12px; }
+  .acoes { position: sticky; bottom: 0; background: var(--bg-body); padding: 0.75rem 0; margin-top: 1rem; border-top: 1px solid var(--border-color); }
+  .acoes .btn { flex: 1 1 45%; justify-content: center; }
+  .res-tipo { min-width: 58px; font-size: 0.62rem; }
+}
 </style>

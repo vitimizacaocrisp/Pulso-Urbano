@@ -1,15 +1,15 @@
 require('dotenv').config();
 const { neon } = require('@neondatabase/serverless');
 
-// 1. Captura a variável
-const dbUrl = process.env.DATABASE_URL;
+// 1. Captura a variável (padrão novo: NEON_DATABASE_URL; DATABASE_URL = compat)
+const dbUrl = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
 
 // 2. Verifica se ela existe ANTES de tentar usar
 if (!dbUrl) {
-  console.error("❌ ERRO CRÍTICO: A variável de ambiente 'DATABASE_URL' NÃO foi encontrada.");
+  console.error("❌ ERRO CRÍTICO: 'NEON_DATABASE_URL' NÃO foi encontrada.");
   console.error("   Verifique em Settings > Environment Variables na Vercel.");
 } else {
-  console.log("✅ DATABASE_URL encontrada. Tentando conectar...");
+  console.log("✅ NEON_DATABASE_URL encontrada. Tentando conectar...");
 }
 
 // 3. Inicializa o cliente Neon

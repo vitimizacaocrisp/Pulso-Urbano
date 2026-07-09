@@ -253,6 +253,26 @@ async function presignAvatarUpload({ tipo, id, fileName, fileType, fileSize }) {
 }
 
 /**
+ * Upload de AVATAR pelo SERVIDOR (imagem pequena ≤2 MB). O navegador manda o
+ * arquivo pro backend, que faz o PUT no R2 — assim o upload NÃO precisa de CORS
+ * do bucket no browser (ao contrário da mídia de postagem, que vai direto por
+ * ser grande). Valida imagem/tamanho e devolve a chave.
+ */
+async function uploadAvatarObject({ tipo, id, fileName, fileType, buffer }) {
+  if (!tipo || !id) throw new Error('dono do avatar obrigatório.');
+  if (!(fileType || '').toLowerCase().startsWith('image/')) throw new Error('O avatar deve ser uma imagem.');
+  if (!isAllowedFileType(fileType, fileName)) throw new Error('Tipo de imagem não permitido.');
+  const size = buffer?.length || 0;
+  if (size <= 0) throw new Error('Imagem vazia.');
+  if (size > MAX_AVATAR_BYTES) throw new Error('A imagem excede 2 MB.');
+  const key = `avatares/${tipo}/${id}/${generateUniqueFilename(fileName || 'avatar.jpg')}`;
+  await s3Client.send(new PutObjectCommand({
+    Bucket: process.env.STORAGE_BUCKET_NAME, Key: key, Body: buffer, ContentType: fileType,
+  }));
+  return { key, size };
+}
+
+/**
  * URL pré-assinada de GET (leitura) para uma chave do bucket privado.
  * TTL curto (default 5 min). Usada para downloads gated e para servir
  * imagens (capa/avatar) via redirect.
@@ -287,6 +307,7 @@ module.exports = {
   generatePresignedUrls,
   presignPostagemUpload,
   presignAvatarUpload,
+  uploadAvatarObject,
   isAllowedFileType,
   MAX_UPLOAD_BYTES,
   ALLOWED_MIME_TYPES

@@ -12,10 +12,16 @@ const BCRYPT_COST = 12;
 const DUMMY_HASH = bcrypt.hashSync('conta-inexistente-timing-guard', BCRYPT_COST);
 
 const TABLE = { user: 'users', admin: 'admins' };
+// Frontend e backend agora vivem em domínios diferentes (pulsourbano.vercel.app
+// × pulso-urbano-backend.vercel.app). Como `vercel.app` está na Public Suffix
+// List, são "sites" distintos: o cookie httpOnly de auth SÓ viaja cross-site com
+// SameSite=None + Secure. Em dev (localhost via proxy do Vite = same-origin)
+// mantemos Lax sem Secure (HTTP local).
+const PROD = process.env.NODE_ENV === 'production';
 const cookieOpts = (maxAgeMs) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: PROD,
+  sameSite: PROD ? 'none' : 'lax',
   path: '/',
   ...(maxAgeMs ? { maxAge: maxAgeMs } : {}),
 });

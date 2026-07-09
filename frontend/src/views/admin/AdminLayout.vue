@@ -39,6 +39,10 @@
             <span class="nav-icon"><Icon icon="mdi:file-document-edit-outline" width="20" /></span>
             <span v-if="!sidebarCollapsed" class="nav-text">Editar publicação</span>
           </router-link>
+          <router-link :to="{ name: 'Rascunhos' }" class="nav-link" :title="sidebarCollapsed ? 'Rascunhos' : ''">
+            <span class="nav-icon"><Icon icon="mdi:file-clock-outline" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Rascunhos</span>
+          </router-link>
           <router-link :to="{ name: 'EditAnalysis' }" class="nav-link" :title="sidebarCollapsed ? 'Gerenciar (legado)' : ''">
             <span class="nav-icon"><Icon icon="mdi:folder-cog-outline" width="20" /></span>
             <span v-if="!sidebarCollapsed" class="nav-text">Gerenciar (legado)</span>
@@ -101,14 +105,31 @@
             <button @click="mobileDrawerOpen = false"><Icon icon="mdi:close" width="22" /></button>
           </div>
           <nav class="drawer-nav">
+            <span class="drawer-group-label">Geral</span>
             <router-link :to="{ name: 'AdminDashboard' }" class="drawer-link" @click="mobileDrawerOpen = false">
               <Icon icon="mdi:view-dashboard-outline" width="20" /> Visão Geral
             </router-link>
+            <span class="drawer-group-label">Conteúdo</span>
+            <router-link :to="{ name: 'CriarPostagem' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:plus-circle-outline" width="20" /> Nova publicação
+            </router-link>
+            <router-link :to="{ name: 'EditarPostagem' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:file-document-edit-outline" width="20" /> Editar publicação
+            </router-link>
+            <router-link :to="{ name: 'Rascunhos' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:file-clock-outline" width="20" /> Rascunhos
+            </router-link>
             <router-link :to="{ name: 'ContentManager' }" class="drawer-link" @click="mobileDrawerOpen = false">
-              <Icon icon="mdi:plus-circle-outline" width="20" /> Nova Análise
+              <Icon icon="mdi:playlist-plus" width="20" /> Nova Análise (legado)
             </router-link>
             <router-link :to="{ name: 'EditAnalysis' }" class="drawer-link" @click="mobileDrawerOpen = false">
-              <Icon icon="mdi:file-document-edit-outline" width="20" /> Gerenciar
+              <Icon icon="mdi:folder-cog-outline" width="20" /> Gerenciar (legado)
+            </router-link>
+            <router-link :to="{ name: 'Equipe' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:account-group-outline" width="20" /> Equipe
+            </router-link>
+            <router-link :to="{ name: 'Conta' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:account-circle-outline" width="20" /> Minha Conta
             </router-link>
             <router-link to="/" target="_blank" class="drawer-link" @click="mobileDrawerOpen = false">
               <Icon icon="mdi:open-in-new" width="20" /> Ver Site
@@ -304,7 +325,8 @@ const logout = async () => {
 }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
 .drawer-header button { background: none; border: none; color: var(--text-main); cursor: pointer; }
-.drawer-nav { display: flex; flex-direction: column; gap: 4px; }
+.drawer-nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.drawer-group-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); font-weight: 700; padding: 0 8px; margin: 10px 0 4px; }
 .drawer-link {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 12px; border-radius: 8px;
@@ -340,7 +362,5 @@ const logout = async () => {
 @media (max-width: 768px) {
   .admin-sidebar { display: none; }
   .mobile-topbar { display: flex; }
-  .bottom-nav { display: flex; }
-  .admin-main { padding-bottom: 60px; }
 }
 </style>

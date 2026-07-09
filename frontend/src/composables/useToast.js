@@ -5,6 +5,9 @@ const toasts = reactive([]);
 let nextId = 0;
 
 function push(message, type = 'info', duration = 5000) {
+  // Evita empilhar toasts idênticos (ex.: rajada de 401 na sessão única).
+  const dup = toasts.find(t => t.message === message && t.type === type);
+  if (dup) return dup.id;
   const id = nextId++;
   toasts.push({ id, message, type });
   if (duration > 0) setTimeout(() => remove(id), duration);

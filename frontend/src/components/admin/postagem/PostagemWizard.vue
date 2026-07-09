@@ -260,4 +260,16 @@ onBeforeUnmount(() => clearTimeout(t));
 :deep(.wz-input) { width: 100%; padding: 0.65rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-form); color: var(--text-main); font-size: 0.95rem; font-family: inherit; }
 :deep(.wz-input:focus) { outline: none; border-color: var(--brand-primary); }
 :deep(.wz-input.mono) { font-family: ui-monospace, monospace; font-size: 0.88rem; }
+
+@media (max-width: 640px) {
+  .wizard { padding: 0.75rem 0.75rem 3rem; }
+  .steps { gap: 0.25rem; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
+  .steps::-webkit-scrollbar { display: none; }
+  .steps li { flex: 0 0 auto; font-size: 0.72rem; padding: 4px 8px; }
+  .painel { padding: 1.1rem; border-radius: 12px; }
+  .painel-head h2 { font-size: 1.05rem; }
+  .acoes { flex-wrap: wrap; gap: 0.5rem; position: sticky; bottom: 0; background: var(--bg-card); padding-top: 0.75rem; margin-top: 1.25rem; }
+  .acoes .saved { order: -1; width: 100%; margin: 0 0 0.25rem; }
+  .acoes .btn { flex: 1 1 40%; justify-content: center; }
+}
 </style>
