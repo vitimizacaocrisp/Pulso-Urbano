@@ -14,7 +14,7 @@
       <!-- Foto de perfil -->
       <section class="card avatar-card">
         <div class="avatar-preview">
-          <img v-if="me.avatar_url" :src="me.avatar_url" alt="Foto de perfil" />
+          <img v-if="me.avatar_url" :src="mediaUrl(me.avatar_url)" alt="Foto de perfil" />
           <div v-else class="avatar-ph">{{ (me.nome || me.email || '?').charAt(0).toUpperCase() }}</div>
         </div>
         <div class="avatar-actions">
@@ -136,7 +136,7 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import api, { errorMessage } from '@/services/api';
+import api, { errorMessage, mediaUrl } from '@/services/api';
 import { useAuth } from '@/composables/useAuth';
 import { useToast } from '@/composables/useToast';
 import UploadProgress from '@/components/UploadProgress.vue';

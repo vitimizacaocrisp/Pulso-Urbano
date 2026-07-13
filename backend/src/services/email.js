@@ -1,91 +1,140 @@
 // ─────────────────────────────────────────────────────────────────────
-// E-mail transacional via Resend (doc 08).
-// No-op gracioso em dev (sem RESEND_API_KEY): loga o que enviaria e segue —
-// nunca derruba a request (exceto onde o e-mail é o produto, tratado no caller).
+// E-mail transacional via EmailJS (API REST server-side).
+//
+// EmailJS foi desenhado pro browser, mas expõe um endpoint REST que aceita a
+// PRIVATE KEY (accessToken) para chamadas de servidor. Requer habilitar em
+// Account → Security → "Allow EmailJS API for non-browser applications".
+//
+// Cada finalidade mapeia para UM template do EmailJS (id vindo de env var) e
+// monta os `template_params`. O template no painel deve usar essas variáveis:
+//   {{to_email}}  → destinatário (campo "To Email" nas Settings do template)
+//   {{subject}}   → assunto
+//   {{title}}     → título curto
+//   {{message}}   → corpo do texto
+//   {{link}}      → URL de ação (botão) — alias: {{action_url}}
+//   {{action_label}} → rótulo do botão
+//   {{nome}}      → nome do destinatário (quando houver)
+//
+// No-op gracioso (loga e segue) quando faltam credenciais ou o template daquela
+// finalidade ainda não foi configurado — assim o fluxo nunca derruba a request.
 // ─────────────────────────────────────────────────────────────────────
 require('dotenv').config();
 
-const API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.EMAIL_FROM || 'Pulso Urbano <nao-responda@pulsourbano.org>';
-const APP_URL = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+const EMAILJS_URL  = 'https://api.emailjs.com/api/v1.0/email/send';
+const SERVICE_ID   = process.env.EMAILJS_SERVICE_ID;
+const PUBLIC_KEY   = process.env.EMAILJS_PUBLIC_KEY;
+const PRIVATE_KEY  = process.env.EMAILJS_PRIVATE_KEY;
+const APP_URL      = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
 
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (m) => (
-  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+// Monta o link de ação (frontend). tipo=admin vai no query p/ a tela de reset
+// saber pra qual login voltar.
+const resetLink = (token, tipo) =>
+  `${APP_URL}/redefinir-senha?token=${token}${tipo === 'admin' ? '&tipo=admin' : ''}`;
 
-const layout = (titulo, corpoHtml) => `
-<div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1a242f">
-  <h2 style="color:#2f54eb">Pulso Urbano</h2>
-  <h3>${esc(titulo)}</h3>
-  ${corpoHtml}
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
-  <p style="font-size:12px;color:#64748b">
-    Observatório de Segurança Pública · CRISP/UFMG.
-    Se você não solicitou este e-mail, ignore-o — nenhuma ação será tomada.
-  </p>
-</div>`;
-
-// Templates: cada um devolve { subject, html }. Links absolutos via APP_URL.
-// E-mails de AVISO nunca contêm link de login (anti-phishing) — só instruem.
+// Cada finalidade → { templateId (env var), params(dados) => {...} }.
+// Só quem tiver EMAILJS_TEMPLATE_* definido no ambiente envia de verdade.
 const TEMPLATES = {
-  verificar_email: ({ nome, token }) => ({
-    subject: 'Confirme seu e-mail — Pulso Urbano',
-    html: layout('Confirme seu e-mail', `
-      <p>Olá${nome ? ', ' + esc(nome) : ''}. Confirme seu endereço para ativar a conta:</p>
-      <p><a href="${APP_URL}/verificar-email?token=${token}"
-         style="background:#2f54eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Confirmar e-mail</a></p>
-      <p style="font-size:12px;color:#64748b">O link expira em 24 horas.</p>`),
-  }),
-  reset_senha: ({ token, tipo }) => ({
-    subject: 'Redefinição de senha — Pulso Urbano',
-    html: layout('Redefinir senha', `
-      <p>Recebemos um pedido para redefinir sua senha.</p>
-      <p><a href="${APP_URL}/redefinir-senha?token=${token}${tipo === 'admin' ? '&tipo=admin' : ''}"
-         style="background:#2f54eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Redefinir senha</a></p>
-      <p style="font-size:12px;color:#64748b">O link expira em 1 hora. Se não foi você, ignore.</p>`),
-  }),
-  confirmar_novo_email: ({ token }) => ({
-    subject: 'Confirme seu novo e-mail — Pulso Urbano',
-    html: layout('Confirme o novo e-mail', `
-      <p>Confirme este endereço para concluir a troca de e-mail da sua conta:</p>
-      <p><a href="${APP_URL}/confirmar-email?token=${token}"
-         style="background:#2f54eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Confirmar</a></p>`),
-  }),
-  aviso_troca_email: ({ novoEmail }) => ({
-    subject: 'Solicitação de troca de e-mail — Pulso Urbano',
-    html: layout('Troca de e-mail solicitada', `
-      <p>Foi solicitada a troca do e-mail da sua conta para <strong>${esc(novoEmail)}</strong>.</p>
-      <p>Se <strong>não</strong> foi você, acesse o site e altere sua senha imediatamente,
-         e contate o suporte.</p>`),
-  }),
-  aviso_troca_senha: () => ({
-    subject: 'Sua senha foi alterada — Pulso Urbano',
-    html: layout('Senha alterada', `
-      <p>A senha da sua conta foi alterada. Todas as outras sessões foram encerradas.</p>
-      <p>Se não foi você, acesse o site e redefina sua senha agora mesmo.</p>`),
-  }),
-  convite_admin: ({ token }) => ({
-    subject: 'Convite de administrador — Pulso Urbano',
-    html: layout('Você foi convidado como administrador', `
-      <p>Defina sua senha para ativar o acesso administrativo:</p>
-      <p><a href="${APP_URL}/definir-senha?token=${token}"
-         style="background:#2f54eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Definir senha</a></p>`),
-  }),
+  reset_senha: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_RESET,
+    params: ({ token, tipo }) => {
+      const link = resetLink(token, tipo);
+      return {
+        subject: 'Redefinição de senha — Pulso Urbano',
+        title: 'Redefinir senha',
+        message: 'Recebemos um pedido para redefinir a senha da sua conta. Use o link abaixo para escolher uma nova senha. O link expira em 1 hora. Se não foi você, ignore este e-mail.',
+        link, action_url: link, action_label: 'Redefinir senha',
+      };
+    },
+  },
+
+  verificar_email: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_VERIFICAR,
+    params: ({ nome, token }) => {
+      const link = `${APP_URL}/verificar-email?token=${token}`;
+      return {
+        subject: 'Confirme seu e-mail — Pulso Urbano',
+        title: 'Confirme seu e-mail',
+        nome: nome || '',
+        message: 'Confirme seu endereço de e-mail para ativar sua conta. O link expira em 24 horas.',
+        link, action_url: link, action_label: 'Confirmar e-mail',
+      };
+    },
+  },
+
+  confirmar_novo_email: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_CONFIRMAR_EMAIL,
+    params: ({ token }) => {
+      const link = `${APP_URL}/confirmar-email?token=${token}`;
+      return {
+        subject: 'Confirme seu novo e-mail — Pulso Urbano',
+        title: 'Confirme o novo e-mail',
+        message: 'Confirme este endereço para concluir a troca de e-mail da sua conta.',
+        link, action_url: link, action_label: 'Confirmar',
+      };
+    },
+  },
+
+  aviso_troca_email: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_AVISO_EMAIL,
+    params: ({ novoEmail }) => ({
+      subject: 'Solicitação de troca de e-mail — Pulso Urbano',
+      title: 'Troca de e-mail solicitada',
+      message: `Foi solicitada a troca do e-mail da sua conta para ${novoEmail}. Se não foi você, altere sua senha imediatamente e contate o suporte.`,
+    }),
+  },
+
+  aviso_troca_senha: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_AVISO_SENHA,
+    params: () => ({
+      subject: 'Sua senha foi alterada — Pulso Urbano',
+      title: 'Senha alterada',
+      message: 'A senha da sua conta foi alterada e as outras sessões foram encerradas. Se não foi você, redefina sua senha agora mesmo.',
+    }),
+  },
+
+  convite_admin: {
+    templateId: () => process.env.EMAILJS_TEMPLATE_CONVITE,
+    params: ({ token }) => {
+      const link = `${APP_URL}/definir-senha?token=${token}`;
+      return {
+        subject: 'Convite de administrador — Pulso Urbano',
+        title: 'Você foi convidado como administrador',
+        message: 'Defina sua senha para ativar o acesso administrativo.',
+        link, action_url: link, action_label: 'Definir senha',
+      };
+    },
+  },
 };
 
 async function sendEmail({ to, template, dados = {} }) {
-  const build = TEMPLATES[template];
-  if (!build) throw new Error(`template desconhecido: ${template}`);
-  const { subject, html } = build(dados);
+  const def = TEMPLATES[template];
+  if (!def) throw new Error(`template desconhecido: ${template}`);
 
-  if (!API_KEY) {
-    console.log(JSON.stringify({ evt: 'email_noop', template, to, subject, motivo: 'RESEND_API_KEY ausente (dev)' }));
+  const templateId = def.templateId?.();
+  const params = def.params ? def.params(dados) : {};
+
+  // Sem credenciais OU sem template configurado p/ esta finalidade → no-op.
+  if (!SERVICE_ID || !PUBLIC_KEY || !PRIVATE_KEY || !templateId) {
+    const motivo = !templateId ? 'template EmailJS não configurado p/ esta finalidade'
+      : 'credenciais EmailJS ausentes (dev)';
+    console.log(JSON.stringify({ evt: 'email_noop', template, to, motivo }));
     return { ok: true, noop: true };
   }
+
   try {
-    const resp = await fetch('https://api.resend.com/emails', {
+    const resp = await fetch(EMAILJS_URL, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM, to, subject, html }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: SERVICE_ID,
+        template_id: templateId,
+        user_id: PUBLIC_KEY,
+        accessToken: PRIVATE_KEY,
+        // to_email/email = mesmo valor (aliases). EmailJS não tem convenção
+        // fixa de nome de variável entre templates — os templates padrão do
+        // próprio EmailJS usam {{email}}; os nossos usam {{to_email}}.
+        template_params: { to_email: to, email: to, ...params },
+      }),
     });
     if (!resp.ok) {
       const txt = await resp.text();
