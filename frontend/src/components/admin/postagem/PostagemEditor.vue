@@ -1,8 +1,12 @@
 <template>
   <div class="editor">
+    <header class="page-heading">
+      <div class="heading-mark"><Icon icon="mdi:file-document-edit-outline" /></div>
+      <div><span class="heading-kicker">Central editorial</span><h1>Gerenciar publicações</h1><p>Localize, revise e atualize conteúdos de todos os formatos.</p></div>
+    </header>
     <!-- Busca / seleção -->
     <div v-if="!sel" class="picker">
-      <h2>Editar publicação</h2>
+      <h2>Encontre a publicação</h2>
       <div class="busca-bar">
         <Icon icon="mdi:magnify" class="busca-icon" />
         <input class="wz-input busca-input" v-model="busca" placeholder="Buscar por título, resumo…" autofocus />
@@ -61,7 +65,7 @@
 import { ref, reactive, provide, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import api, { errorMessage } from '@/services/api';
+import api, { errorCode, errorMessage } from '@/services/api';
 import { useToast } from '@/composables/useToast';
 import { uploadToR2, MAX_UPLOAD_BYTES, formatBytes } from '@/utils/uploadR2.js';
 import FieldsIdentidade from './FieldsIdentidade.vue';
@@ -102,7 +106,7 @@ const anexos = ref([]);
 const form = reactive({
   titulo: '', subtitulo: '', resumo: '', conteudo: '',
   destaque: false, is_crisp: false, periodo_estudo: '', nacionalidade: '',
-  with_header: false, with_footer: false,
+  with_header: true, with_footer: true,
   categorias: [], tags: [], autores: [], fontes: [], ufs: [], municipios: [],
 });
 const sub = reactive({});
@@ -204,26 +208,46 @@ async function removerAnexo(id) {
   try { await api.delete(`/api/admin/anexos/${id}`); await recarregarAnexos(); toast.success('Anexo removido.'); }
   catch (e) { toast.error(errorMessage(e)); }
 }
+async function confirmarUpload(id) {
+  for (const delay of [0, 1200, 2500, 5000]) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    try { return await api.post(`/api/admin/anexos/${id}/confirmar`); }
+    catch (e) { if (errorCode(e) !== 'upload_pendente' || delay === 5000) throw e; }
+  }
+}
 async function subirAnexo({ file, tipo: t }) {
   if (file.size > MAX_UPLOAD_BYTES) {
     toast.error(`Arquivo muito grande (${formatBytes(file.size)}). Limite: 2 GB.`);
     return;
   }
   subindo.value = true; progresso.value = 0; nomeAtual.value = file.name;
+  let pendingId = null;
   try {
     const { data } = await api.post(`/api/admin/postagens/${sel.value}/anexos/presign`,
       { fileName: file.name, fileType: file.type, fileSize: file.size, tipo: t });
+    pendingId = data.data.anexoId;
     await uploadToR2(data.data.uploadUrl, file, { onProgress: (p) => { progresso.value = p; } });
+    await confirmarUpload(pendingId);
+    pendingId = null;
     await recarregarAnexos();
     toast.success('Arquivo enviado.');
-  } catch (e) { toast.error(errorMessage(e)); }
+  } catch (e) {
+    if (pendingId) await api.delete(`/api/admin/anexos/${pendingId}`).catch(() => {});
+    toast.error(errorMessage(e));
+  }
   finally { subindo.value = false; nomeAtual.value = ''; }
 }
 </script>
 
 <style scoped>
-.editor { max-width: 760px; margin: 0 auto; padding: 1rem 0.5rem 3rem; }
+.editor { max-width: 980px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+.page-heading { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 1rem; margin-bottom: 1.6rem; }
+.heading-mark { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; background: var(--brand-primary); color: #fff; font-size: 1.5rem; box-shadow: 0 10px 25px rgba(47,84,235,.2); }
+.heading-kicker { color: var(--brand-primary); font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.page-heading h1 { margin: .12rem 0 0; color: var(--text-main); font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.1; letter-spacing: -.025em; }
+.page-heading p { margin: .35rem 0 0; color: var(--text-muted); font-size: .86rem; }
 .picker h2 { font-size: 1.4rem; font-weight: 800; color: var(--text-main); margin: 0 0 1rem; }
+.picker { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 2rem; box-shadow: 0 16px 45px rgba(20,35,80,.06); }
 .busca-bar { position: relative; display: flex; align-items: center; margin-bottom: 1rem; }
 .busca-icon { position: absolute; left: 0.85rem; color: var(--text-muted); font-size: 1.1rem; pointer-events: none; }
 .busca-input { padding-left: 2.4rem !important; padding-right: 2.4rem !important; }
@@ -233,8 +257,8 @@ async function subirAnexo({ file, tipo: t }) {
 @keyframes bspin { to { transform: rotate(360deg); } }
 .vazio.dica { font-size: 0.88rem; }
 .res { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
-.res li { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); cursor: pointer; }
-.res li:hover { border-color: var(--brand-primary); }
+.res li { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 0.85rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-input-form); cursor: pointer; transition: border-color .16s, transform .16s; }
+.res li:hover { border-color: var(--brand-primary); transform: translateX(2px); }
 .res-tipo { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; min-width: 74px; }
 .res-tit { flex: 1; color: var(--text-main); font-weight: 600; }
 .res-status { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: var(--bg-hover); color: var(--text-secondary); }
@@ -247,7 +271,7 @@ async function subirAnexo({ file, tipo: t }) {
 .abas { display: flex; flex-wrap: wrap; gap: 0.3rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.25rem; }
 .abas button { background: none; border: none; padding: 0.55rem 0.9rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
 .abas button.active { color: var(--brand-primary); border-bottom-color: var(--brand-primary); }
-.painel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 1.75rem; }
+.painel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 2rem; box-shadow: 0 16px 45px rgba(20,35,80,.06); }
 .wz-erro { color: var(--sys-danger); display: flex; align-items: center; gap: 6px; margin: 1rem 0 0; font-size: 0.9rem; }
 .acoes { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; }
 .btn { background: var(--brand-primary); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
@@ -257,12 +281,14 @@ async function subirAnexo({ file, tipo: t }) {
 
 :deep(.wz-field) { display: flex; flex-direction: column; gap: 5px; margin-bottom: 1rem; }
 :deep(.wz-field > span) { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
-:deep(.wz-input) { width: 100%; padding: 0.65rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-form); color: var(--text-main); font-size: 0.95rem; font-family: inherit; }
-:deep(.wz-input:focus) { outline: none; border-color: var(--brand-primary); }
+:deep(.wz-input) { width: 100%; padding: 0.72rem 0.85rem; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-input-form); color: var(--text-main); font-size: 0.95rem; font-family: inherit; transition: border-color .16s, box-shadow .16s; }
+:deep(.wz-input:focus) { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 13%, transparent); }
 :deep(.wz-input.mono) { font-family: ui-monospace, monospace; font-size: 0.88rem; }
 
 @media (max-width: 640px) {
-  .editor { padding: 0.75rem 0.75rem 4rem; }
+  .editor { padding: 1rem 0.75rem 4rem; }
+  .page-heading { grid-template-columns: 42px 1fr; gap: .75rem; }
+  .heading-mark { width: 42px; height: 42px; border-radius: 12px; }
   .picker h2 { font-size: 1.2rem; }
   .topo { flex-wrap: wrap; gap: 0.5rem; }
   .tipo-fixo { font-size: 0.82rem; width: 100%; order: 3; }

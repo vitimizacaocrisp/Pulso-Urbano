@@ -67,7 +67,10 @@ async function patchPostagem(id, dados) {
     const subSets = []; const subVals = []; let j = 1;
     for (const col of PT_COLS[tipo]) {
       if (sub[col] !== undefined) {
-        const v = col === 'transcricao' ? sanitizeConteudo(sub[col]) : sub[col];
+        let v = col === 'transcricao' ? sanitizeConteudo(sub[col]) : sub[col];
+        // O wizard coleta indicadores como texto livre, enquanto a coluna é
+        // JSONB. Strings precisam chegar ao PostgreSQL como JSON válido.
+        if (col === 'indicadores' && typeof v === 'string') v = JSON.stringify(v);
         subSets.push(`${col} = $${j++}`); subVals.push(v);
       }
     }
@@ -172,6 +175,7 @@ const registrarView = (id) => q(
 // ── leitura ──────────────────────────────────────────────────────────
 // Regra de visibilidade pública (doc 02, aceite F3): publicado + não deletado.
 const VISIVEL = `p.status = 'publicado' AND p.deleted_at IS NULL`;
+const ANEXO_CONFIRMADO = `(ax.origem <> 'r2' OR ax.chave_r2 NOT LIKE 'postagens/%' OR ax.tamanho_bytes > 0)`;
 
 const SHAPE_ARRAYS = `
   (SELECT json_agg(json_build_object('id',c.id,'nome',c.nome,'slug',c.slug) ORDER BY c.nome)
@@ -187,7 +191,8 @@ const SHAPE_ARRAYS = `
   (SELECT json_agg(json_build_object('nome',m.nome,'uf',u2.sigla))
      FROM postagem_municipios pm JOIN municipios m ON m.id=pm.municipio_id
      LEFT JOIN ufs u2 ON u2.id=m.uf_id WHERE pm.postagem_id=p.id) AS municipios,
-  (SELECT json_build_object('id',ax.id,'url','/api/media/'||ax.id) FROM anexos ax WHERE ax.id=p.cover_anexo_id) AS cover`;
+  (SELECT json_build_object('id',ax.id,'url','/api/media/'||ax.id,'nome',ax.nome_arquivo)
+     FROM anexos ax WHERE ax.id=p.cover_anexo_id AND ${ANEXO_CONFIRMADO}) AS cover`;
 
 const LIST_COLS = `p.id, p.legado_id, p.tipo, p.slug, p.titulo, p.subtitulo, p.resumo,
   p.status, p.destaque, p.is_crisp, p.periodo_estudo, p.nacionalidade,
@@ -241,8 +246,8 @@ async function detalhe({ slug, legadoId, id, publico = true }) {
   const r = await q(
     `SELECT ${LIST_COLS}, p.conteudo, p.with_header, p.with_footer, ${SHAPE_ARRAYS},
       (SELECT json_agg(json_build_object('id',ax.id,'tipo',ax.tipo,'origem',ax.origem,
-        'nome',ax.nome_arquivo,'ordem',ax.ordem) ORDER BY ax.ordem)
-        FROM anexos ax WHERE ax.postagem_id=p.id AND ax.tipo <> 'cover') AS anexos
+        'nome',ax.nome_arquivo,'mime',ax.mime,'tamanho',ax.tamanho_bytes,'ordem',ax.ordem) ORDER BY ax.ordem)
+        FROM anexos ax WHERE ax.postagem_id=p.id AND ax.tipo <> 'cover' AND ${ANEXO_CONFIRMADO}) AS anexos
      FROM postagens p WHERE ${cond} AND ${where}`, [val]);
   if (!r.rows.length) return null;
   const post = r.rows[0];

@@ -1,7 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const crypto = require('crypto');
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 // --- VALIDAÇÃO DAS VARIÁVEIS DE AMBIENTE DO R2 (fail-fast) ---
@@ -58,7 +58,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 // Extensões permitidas (Mantido inalterado)
-const ALLOWED_EXTENSIONS = ['.ipynb', '.csv', '.R', '.py', '.sql', '.md'];
+const ALLOWED_EXTENSIONS = ['.ipynb', '.csv', '.r', '.py', '.sql', '.md'];
 
 // Tamanho máximo de upload (2 GB). Advisory: validado ao gerar a URL assinada.
 // Como o upload vai DIRETO do navegador pro R2 (presigned PUT), o limite de
@@ -84,10 +84,73 @@ const FOLDER_MAP = {
 
 function isAllowedFileType(mimeType, fileName) {
   const normalizedMime = (mimeType || '').toLowerCase();
-  if (normalizedMime && ALLOWED_MIME_TYPES.includes(normalizedMime)) return true;
+  // MIME informado nunca cai para a extensão: isso impediria, por exemplo,
+  // `text/html` renomeado para `.csv` de furar a allowlist.
+  if (normalizedMime) return ALLOWED_MIME_TYPES.includes(normalizedMime);
   const ext = path.extname(fileName || '').toLowerCase();
   if (ext && ALLOWED_EXTENSIONS.includes(ext)) return true;
   return false;
+}
+
+const MIME_PREFIX_BY_ATTACHMENT = {
+  cover: 'image/', imagem: 'image/', audio: 'audio/', video: 'video/',
+};
+const MIME_BY_ATTACHMENT = {
+  dado: new Set([
+    'text/csv', 'application/csv', 'text/x-csv', 'text/comma-separated-values',
+    'text/tab-separated-values', 'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/x-ipynb+json', 'application/json', 'text/json', 'application/geo+json',
+  ]),
+  documento: new Set([
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/rtf', 'text/plain', 'text/markdown',
+  ]),
+  codigo: new Set([
+    'text/plain', 'text/x-python', 'application/x-python-code', 'text/x-r-source',
+    'application/x-sql', 'application/x-sh', 'text/css', 'text/markdown',
+    'application/xml', 'text/xml', 'application/javascript', 'text/javascript',
+    'application/typescript', 'text/typescript', 'application/octet-stream',
+  ]),
+  notebook: new Set([
+    'application/x-ipynb+json', 'application/json', 'text/json', 'text/plain',
+    'application/octet-stream',
+  ]),
+};
+
+const EXT_BY_ATTACHMENT = {
+  codigo: new Set([
+    '.py', '.pyw', '.r', '.sql', '.js', '.jsx', '.ts', '.tsx', '.css', '.scss',
+    '.sh', '.bash', '.ps1', '.java', '.c', '.h', '.cpp', '.hpp', '.cs', '.go',
+    '.rs', '.rb', '.php', '.swift', '.kt', '.kts', '.lua', '.yaml', '.yml', '.toml',
+  ]),
+  notebook: new Set(['.ipynb']),
+  dado: new Set(['.db', '.sqlite', '.sqlite3', '.parquet']),
+};
+
+function isAllowedAttachmentType(tipo, mimeType, fileName) {
+  const normalizedMime = String(mimeType || '').toLowerCase();
+  const ext = path.extname(fileName || '').toLowerCase();
+  const categoryExts = EXT_BY_ATTACHMENT[tipo];
+  if (categoryExts?.has(ext)) {
+    if (tipo === 'dado') {
+      return !normalizedMime || [
+        'application/octet-stream', 'application/vnd.sqlite3', 'application/x-sqlite3',
+        'application/vnd.apache.parquet',
+      ].includes(normalizedMime);
+    }
+    return !normalizedMime || MIME_BY_ATTACHMENT[tipo].has(normalizedMime);
+  }
+  // Extensões reservadas não podem voltar para a categoria genérica por um
+  // MIME vazio. Isso mantém código, notebooks e bancos nas áreas próprias.
+  if (Object.values(EXT_BY_ATTACHMENT).some((extensions) => extensions.has(ext))) return false;
+  if (!isAllowedFileType(mimeType, fileName)) return false;
+  const prefix = MIME_PREFIX_BY_ATTACHMENT[tipo];
+  if (prefix) return String(mimeType || '').toLowerCase().startsWith(prefix);
+  const exact = MIME_BY_ATTACHMENT[tipo];
+  if (exact) return exact.has(String(mimeType || '').toLowerCase());
+  return true;
 }
 
 function generateUniqueFilename(originalName) {
@@ -208,17 +271,18 @@ async function generatePresignedUrls(filesMeta) {
  * Diferente do generatePresignedUrls legado (FOLDER_MAP): a linha em `anexos`
  * é criada pela rota chamadora com a `chave_r2` retornada aqui.
  */
-async function presignPostagemUpload({ postagemId, fileName, fileType, fileSize }) {
+async function presignPostagemUpload({ postagemId, fileName, fileType, fileSize, attachmentType }) {
   if (!postagemId) throw new Error('postagemId obrigatório.');
   if (!fileName) throw new Error('fileName obrigatório.');
-  if (!isAllowedFileType(fileType, fileName)) {
+  const permitido = attachmentType
+    ? isAllowedAttachmentType(attachmentType, fileType, fileName)
+    : isAllowedFileType(fileType, fileName);
+  if (!permitido) {
     throw new Error(`Tipo de arquivo não permitido: ${fileName} (${fileType || 'sem mime'}).`);
   }
-  if (fileSize != null) {
-    const size = Number(fileSize);
-    if (!Number.isFinite(size) || size <= 0) throw new Error(`Tamanho inválido: ${fileName}.`);
-    if (size > MAX_UPLOAD_BYTES) throw new Error(`Arquivo excede ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`);
-  }
+  const size = Number(fileSize);
+  if (!Number.isSafeInteger(size) || size <= 0) throw new Error(`Tamanho inválido: ${fileName}.`);
+  if (size > MAX_UPLOAD_BYTES) throw new Error(`Arquivo excede ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`);
   const key = `postagens/${postagemId}/${generateUniqueFilename(fileName)}`;
   const command = new PutObjectCommand({
     Bucket: process.env.STORAGE_BUCKET_NAME,
@@ -228,6 +292,39 @@ async function presignPostagemUpload({ postagemId, fileName, fileType, fileSize 
   // TTL longo (1h): um upload de 2 GB em conexão lenta pode demorar.
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
   return { uploadUrl, key };
+}
+
+/**
+ * Confirma no R2 o objeto enviado diretamente pelo navegador. A confirmação
+ * transforma a linha pendente em utilizável e revalida o tamanho real.
+ */
+async function confirmPostagemUpload({ key, expectedSize, expectedType }) {
+  if (!key || !String(key).startsWith('postagens/')) throw new Error('Chave de upload inválida.');
+  let head;
+  for (const delay of [0, 200, 600, 1200]) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      head = await s3Client.send(new HeadObjectCommand({ Bucket: process.env.STORAGE_BUCKET_NAME, Key: key }));
+      break;
+    } catch (e) {
+      const notFound = e?.name === 'NotFound' || e?.$metadata?.httpStatusCode === 404;
+      if (!notFound) throw e;
+      if (delay === 1200) {
+        const pending = new Error('O armazenamento ainda está processando o arquivo.');
+        pending.code = 'upload_pendente';
+        throw pending;
+      }
+    }
+  }
+  const size = Number(head.ContentLength);
+  const contentType = String(head.ContentType || '').toLowerCase();
+  const wantedType = String(expectedType || '').toLowerCase();
+  if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_UPLOAD_BYTES) {
+    throw new Error('O arquivo armazenado tem tamanho inválido ou excede o limite.');
+  }
+  if (size !== Number(expectedSize)) throw new Error('O tamanho enviado não corresponde ao arquivo autorizado.');
+  if (!wantedType || contentType !== wantedType) throw new Error('O tipo do arquivo enviado não corresponde ao autorizado.');
+  return { size, contentType, etag: head.ETag || null };
 }
 
 /**
@@ -277,9 +374,15 @@ async function uploadAvatarObject({ tipo, id, fileName, fileType, buffer }) {
  * TTL curto (default 5 min). Usada para downloads gated e para servir
  * imagens (capa/avatar) via redirect.
  */
-async function presignGetByKey(key, ttlSeconds = 300) {
+async function presignGetByKey(key, ttlSeconds = 300, { downloadName, inline = false, contentType } = {}) {
   if (!key) return null;
-  const command = new GetObjectCommand({ Bucket: process.env.STORAGE_BUCKET_NAME, Key: key });
+  const safeName = String(downloadName || 'arquivo').replace(/[\r\n"\\]/g, '_').slice(0, 180);
+  const command = new GetObjectCommand({
+    Bucket: process.env.STORAGE_BUCKET_NAME,
+    Key: key,
+    ResponseContentDisposition: inline ? 'inline' : `attachment; filename="${safeName}"`,
+    ...(contentType ? { ResponseContentType: contentType } : {}),
+  });
   return getSignedUrl(s3Client, command, { expiresIn: ttlSeconds });
 }
 
@@ -308,7 +411,9 @@ module.exports = {
   presignPostagemUpload,
   presignAvatarUpload,
   uploadAvatarObject,
+  confirmPostagemUpload,
   isAllowedFileType,
+  isAllowedAttachmentType,
   MAX_UPLOAD_BYTES,
   ALLOWED_MIME_TYPES
 };

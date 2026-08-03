@@ -25,7 +25,8 @@ onAuthError(({ code }) => {
       : 'Sua conta foi desativada.');
     // Login certo por tipo: admin volta pro painel, usuário pro /login.
     const eraAdmin = auth.state.me?.tipo === 'admin'
-      || router.currentRoute.value.path.startsWith('/admin');
+      || router.currentRoute.value.path.startsWith('/admin')
+      || window.location.pathname === '/login_admin';
     auth.limparSessao();
     const destino = eraAdmin ? 'AdminLogin' : 'Entrar';
     if (router.currentRoute.value.name !== destino) router.push({ name: destino });

@@ -16,7 +16,7 @@
 
     <div v-else-if="post" class="content-animate" :style="accentVars">
       <!-- Hero -->
-      <header v-if="!post.with_header" class="article-hero">
+      <header v-if="post.with_header !== false" class="article-hero">
         <div class="hero-bg" :style="heroBgStyle"></div>
         <div class="hero-overlay"></div>
         <div class="hero-grain"></div>
@@ -86,21 +86,39 @@
 
           <!-- Mídia (podcast/vídeo) -->
           <aside v-if="isMedia" class="media-card">
+            <header class="media-head">
+              <span class="media-head-icon"><Icon :icon="mediaKind === 'audio' ? 'mdi:waveform' : 'mdi:play'" /></span>
+              <span><small>Reprodução</small><strong>{{ mediaKind === 'audio' ? 'Ouça este episódio' : 'Assista ao vídeo' }}</strong></span>
+            </header>
             <iframe v-if="embedIsIframe" class="media-player" :src="embedSrc" frameborder="0"
               allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               loading="lazy" title="Player"></iframe>
-            <audio v-else-if="post.tipo === 'podcast' && rawMediaUrl" class="media-audio" controls :src="rawMediaUrl"></audio>
+            <audio v-else-if="mediaKind === 'audio' && rawMediaUrl" class="media-audio" controls :src="rawMediaUrl"></audio>
+            <video v-else-if="mediaKind === 'video' && rawMediaUrl" class="media-video" controls preload="metadata" :src="rawMediaUrl" :poster="post.cover?.url || undefined"></video>
             <a v-else-if="rawMediaUrl" :href="rawMediaUrl" target="_blank" rel="noopener noreferrer" class="pill-btn primary media-fallback">
               <Icon icon="mdi:play-circle-outline" /> Assistir no site original
             </a>
             <p v-else class="media-empty"><Icon icon="mdi:link-off" /> Mídia indisponível.</p>
           </aside>
 
+          <section v-if="inlineImages.length" class="visual-section">
+            <header class="section-title-row">
+              <div><span class="section-eyebrow">Galeria</span><h3>Imagens da publicação</h3></div>
+              <span class="section-count">{{ inlineImages.length }}</span>
+            </header>
+            <div class="visual-grid">
+              <figure v-for="image in inlineImages" :key="image.id" class="visual-card">
+                <img :src="image.url" :alt="image.nome || 'Imagem da publicação'" loading="lazy" />
+                <figcaption><Icon icon="mdi:image-outline" /> {{ image.nome || 'Imagem' }}</figcaption>
+              </figure>
+            </div>
+          </section>
+
           <!-- CTA de conta (anônimo) -->
           <div v-if="post.previa" class="cta-conta">
             <Icon icon="mdi:lock-outline" class="cta-ico" />
             <h3>Conteúdo completo para membros</h3>
-            <p>Crie uma conta gratuita para ler esta publicação na íntegra{{ temAnexos ? ' e baixar os arquivos' : '' }}.</p>
+            <p>Crie uma conta gratuita para ler esta publicação na íntegra{{ temDownloads ? ' e baixar os arquivos' : '' }}.</p>
             <div class="cta-actions">
               <router-link :to="{ name: 'Cadastro' }" class="pill-btn primary">Criar conta grátis</router-link>
               <router-link :to="{ name: 'Entrar', query: { redirect: $route.fullPath } }" class="pill-btn">Já tenho conta</router-link>
@@ -113,17 +131,115 @@
             <IsolatedRenderer :content="renderedContent" />
           </div>
 
+          <!-- Laboratório de código e notebooks -->
+          <section v-if="codeFiles.length" class="resource-section code-lab">
+            <header class="section-title-row resource-head">
+              <div><span class="section-eyebrow">Reprodutibilidade</span><h3><Icon icon="mdi:code-braces" /> Código e notebooks</h3></div>
+              <div class="section-actions"><span class="section-count">{{ codeFiles.length }}</span><button v-if="!post.previa" class="resource-btn" :disabled="baixandoTodos === 'code'" @click="baixarTodos(codeFiles, 'code')"><Icon :icon="baixandoTodos === 'code' ? 'mdi:loading' : 'mdi:download-multiple'" :class="{ spin: baixandoTodos === 'code' }" /> Baixar todos</button></div>
+            </header>
+            <p class="attachments-intro">Fontes executáveis ficam isoladas da biblioteca geral. A prévia nunca executa o código.</p>
+            <div v-if="post.previa" class="resource-locked"><Icon icon="mdi:lock-outline" /> Entre na sua conta para abrir e baixar os arquivos.</div>
+            <div v-else class="resource-workbench">
+              <nav class="resource-list" aria-label="Arquivos de código">
+                <button v-for="file in codeFiles" :key="file.id" type="button" :class="{ active: selectedCode?.id === file.id }" @click="selecionarRecurso(file, 'code')">
+                  <span class="resource-file-icon"><Icon :icon="attachmentGroup(file) === 'notebook' ? 'mdi:notebook-outline' : 'mdi:code-tags'" /></span>
+                  <span><strong>{{ file.nome }}</strong><small>{{ attachmentGroup(file) === 'notebook' ? 'Notebook Python' : 'Código-fonte' }}<template v-if="file.tamanho"> · {{ formatBytes(file.tamanho) }}</template></small></span>
+                  <Icon icon="mdi:chevron-right" />
+                </button>
+              </nav>
+              <div v-if="selectedCode" class="resource-preview">
+                <div class="preview-toolbar">
+                  <div><span>{{ attachmentGroup(selectedCode) === 'notebook' ? 'Notebook' : 'Fonte' }}</span><strong>{{ selectedCode.nome }}</strong></div>
+                  <div class="preview-actions">
+                    <a v-if="attachmentGroup(selectedCode) === 'notebook'" :href="nbviewerUrl(resourceUrl(selectedCode))" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:open-in-new" /> NBViewer</a>
+                    <button v-if="attachmentGroup(selectedCode) === 'notebook'" type="button" @click="abrirEditorExterno(selectedCode, 'colab')"><Icon icon="mdi:google" /> Editar no Colab</button>
+                    <button v-else type="button" @click="abrirEditorExterno(selectedCode, 'vscode')"><Icon icon="mdi:microsoft-visual-studio-code" /> VS Code Web</button>
+                    <button type="button" @click="baixar(selectedCode)"><Icon icon="mdi:download" /> Baixar</button>
+                  </div>
+                </div>
+                <div v-if="!canPreviewInMemory(selectedCode)" class="preview-limit"><Icon icon="mdi:database-lock-outline" /> Arquivo grande demais para carregar na memória do navegador. Use o download ou um ambiente externo.</div>
+                <CodeNotebookViewer v-else :url="resourceUrl(selectedCode)" :kind="attachmentGroup(selectedCode) === 'notebook' ? 'notebook' : 'code'" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Laboratório de dados -->
+          <section v-if="dataFiles.length" class="resource-section data-lab">
+            <header class="section-title-row resource-head">
+              <div><span class="section-eyebrow">Exploração</span><h3><Icon icon="mdi:database-eye-outline" /> Dados e planilhas</h3></div>
+              <div class="section-actions"><span class="section-count">{{ dataFiles.length }}</span><button v-if="!post.previa" class="resource-btn" :disabled="baixandoTodos === 'data'" @click="baixarTodos(dataFiles, 'data')"><Icon :icon="baixandoTodos === 'data' ? 'mdi:loading' : 'mdi:download-multiple'" :class="{ spin: baixandoTodos === 'data' }" /> Baixar todos</button></div>
+            </header>
+            <p class="attachments-intro">CSV, Excel, JSON e bancos SQLite podem ser inspecionados sem sair da publicação.</p>
+            <div v-if="post.previa" class="resource-locked"><Icon icon="mdi:lock-outline" /> Entre na sua conta para explorar e baixar os dados.</div>
+            <div v-else class="resource-workbench">
+              <nav class="resource-list" aria-label="Arquivos de dados">
+                <button v-for="file in dataFiles" :key="file.id" type="button" :class="{ active: selectedData?.id === file.id }" @click="selecionarRecurso(file, 'data')">
+                  <span class="resource-file-icon"><Icon icon="mdi:file-table-outline" /></span>
+                  <span><strong>{{ file.nome }}</strong><small>{{ fileExtension(file).toUpperCase() || 'Dados' }}<template v-if="file.tamanho"> · {{ formatBytes(file.tamanho) }}</template></small></span>
+                  <Icon icon="mdi:chevron-right" />
+                </button>
+              </nav>
+              <div v-if="selectedData" class="resource-preview">
+                <div class="preview-toolbar">
+                  <div><span>Conjunto selecionado</span><strong>{{ selectedData.nome }}</strong></div>
+                  <div class="preview-actions">
+                    <a :href="googleViewerUrl(resourceUrl(selectedData))" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:google-spreadsheet" /> Google</a>
+                    <a href="https://colab.research.google.com/#create=true" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:chart-box-outline" /> Colab</a>
+                    <button type="button" @click="baixar(selectedData)"><Icon icon="mdi:download" /> Baixar</button>
+                  </div>
+                </div>
+                <div v-if="!canPreviewInMemory(selectedData)" class="preview-limit"><Icon icon="mdi:database-lock-outline" /> Para proteger o navegador, arquivos acima de 32 MB não são carregados automaticamente. O download completo continua disponível.</div>
+                <ResourceDataViewer v-else :url="resourceUrl(selectedData)" :file="selectedData" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Leitor de documentos -->
+          <section v-if="documentFiles.length" class="resource-section document-lab">
+            <header class="section-title-row resource-head">
+              <div><span class="section-eyebrow">Leitura</span><h3><Icon icon="mdi:file-document-multiple-outline" /> Documentos</h3></div>
+              <div class="section-actions"><span class="section-count">{{ documentFiles.length }}</span><button v-if="!post.previa" class="resource-btn" :disabled="baixandoTodos === 'documents'" @click="baixarTodos(documentFiles, 'documents')"><Icon :icon="baixandoTodos === 'documents' ? 'mdi:loading' : 'mdi:download-multiple'" :class="{ spin: baixandoTodos === 'documents' }" /> Baixar todos</button></div>
+            </header>
+            <p class="attachments-intro">PDF, Word, texto e Markdown têm leitura rápida e atalhos para ferramentas externas.</p>
+            <div v-if="post.previa" class="resource-locked"><Icon icon="mdi:lock-outline" /> Entre na sua conta para ler e baixar os documentos.</div>
+            <div v-else class="resource-workbench">
+              <nav class="resource-list" aria-label="Documentos">
+                <button v-for="file in documentFiles" :key="file.id" type="button" :class="{ active: selectedDocument?.id === file.id }" @click="selecionarRecurso(file, 'document')">
+                  <span class="resource-file-icon"><Icon icon="mdi:file-document-outline" /></span>
+                  <span><strong>{{ file.nome }}</strong><small>{{ fileExtension(file).toUpperCase() || 'Documento' }}<template v-if="file.tamanho"> · {{ formatBytes(file.tamanho) }}</template></small></span>
+                  <Icon icon="mdi:chevron-right" />
+                </button>
+              </nav>
+              <div v-if="selectedDocument" class="resource-preview">
+                <div class="preview-toolbar">
+                  <div><span>Documento selecionado</span><strong>{{ selectedDocument.nome }}</strong></div>
+                  <div class="preview-actions">
+                    <a :href="documentExternalUrl(selectedDocument)" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:open-in-new" /> Abrir externamente</a>
+                    <button type="button" @click="abrirEditorExterno(selectedDocument, 'docs')"><Icon icon="mdi:google-drive" /> Editar no Google Docs</button>
+                    <button type="button" @click="baixar(selectedDocument)"><Icon icon="mdi:download" /> Baixar</button>
+                  </div>
+                </div>
+                <DocumentMiniReader :url="resourceUrl(selectedDocument)" :file="selectedDocument" />
+              </div>
+            </div>
+          </section>
+
           <!-- Anexos -->
           <section v-if="temAnexos" class="attachments-section">
-            <h3 class="section-heading"><Icon icon="mdi:paperclip" /> Arquivos e Anexos</h3>
+            <header class="section-title-row attachments-head">
+              <div><span class="section-eyebrow">Biblioteca</span><h3><Icon icon="mdi:paperclip" /> Arquivos para consulta</h3></div>
+              <span class="section-count">{{ genericAttachments.length }}</span>
+            </header>
+            <p class="attachments-intro">Materiais complementares organizados por formato. Os links são protegidos e gerados no momento do download.</p>
             <ul class="attach-list">
-              <li v-for="ax in post.anexos" :key="ax.id">
+              <li v-for="ax in genericAttachments" :key="ax.id" class="attach-item">
                 <template v-if="post.previa">
-                  <span class="attach-locked"><Icon :icon="anexoIcon(ax)" width="18" /> {{ ax.nome || 'Arquivo' }} — <router-link :to="{ name: 'Entrar', query: { redirect: $route.fullPath } }">entre para baixar</router-link></span>
+                  <span class="attach-locked"><span class="attach-icon"><Icon :icon="anexoIcon(ax)" /></span><span class="attach-copy"><strong>{{ ax.nome || 'Arquivo' }}</strong><small>{{ anexoLabel(ax) }} · entre para baixar</small></span><Icon icon="mdi:lock-outline" class="attach-action" /></span>
                 </template>
                 <a v-else href="#" @click.prevent="baixar(ax)" :class="{ baixando: baixandoId === ax.id }">
-                  <Icon :icon="baixandoId === ax.id ? 'mdi:loading' : anexoIcon(ax)" :class="{ spin: baixandoId === ax.id }" width="18" /> {{ ax.nome || 'Baixar arquivo' }}
-                  <Icon icon="mdi:download" width="15" class="attach-dl-ico" />
+                  <span class="attach-icon"><Icon :icon="baixandoId === ax.id ? 'mdi:loading' : anexoIcon(ax)" :class="{ spin: baixandoId === ax.id }" /></span>
+                  <span class="attach-copy"><strong>{{ ax.nome || 'Baixar arquivo' }}</strong><small>{{ anexoLabel(ax) }}<template v-if="ax.tamanho"> · {{ formatBytes(ax.tamanho) }}</template></small></span>
+                  <Icon icon="mdi:download" class="attach-action" />
                 </a>
               </li>
             </ul>
@@ -132,7 +248,7 @@
       </article>
     </div>
   </div>
-  <MeuFooter />
+  <MeuFooter v-if="!post || post.with_footer !== false" />
 </template>
 
 <script setup>
@@ -143,35 +259,117 @@ import api, { API_BASE_URL, errorMessage } from '@/services/api';
 import MeuHeader from '@/components/MeuHeader.vue';
 import MeuFooter from '@/components/MeuFooter.vue';
 import IsolatedRenderer from '@/components/IsolatedRenderer.vue';
+import CodeNotebookViewer from '@/components/postagens/CodeNotebookViewer.vue';
+import ResourceDataViewer from '@/components/postagens/ResourceDataViewer.vue';
+import DocumentMiniReader from '@/components/postagens/DocumentMiniReader.vue';
 import { coverSvgDataUri } from '@/utils/coverUtils.js';
 import { coverModel, TIPO_LABEL } from '@/utils/postagemV2.js';
 import { mediaEmbedUrl } from '@/utils/analysisUtils.js';
+import { formatBytes } from '@/utils/uploadR2.js';
 import { useAuth } from '@/composables/useAuth';
+import { useToast } from '@/composables/useToast';
+import {
+  attachmentGroup, canPreviewInMemory, fileExtension, nbviewerUrl, partitionAttachments,
+} from '@/utils/attachmentResources';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuth();
+const toast = useToast();
 
 const post = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
 const baixandoId = ref(null);
+const baixandoTodos = ref('');
+const signedMediaUrl = ref('');
+const inlineImages = ref([]);
+const resourceUrls = ref({});
+const selectedCode = ref(null);
+const selectedData = ref(null);
+const selectedDocument = ref(null);
 
 // Download: pede uma URL assinada (TTL curto) ao backend e abre. O bucket é
 // privado, então o link vem do endpoint autenticado, não do payload.
 async function baixar(ax) {
-  if (baixandoId.value) return;
+  if (baixandoId.value && baixandoId.value !== ax.id) return false;
   baixandoId.value = ax.id;
   try {
     const { data } = await api.get(`/api/postagens/${encodeURIComponent(post.value.slug)}/anexos/${ax.id}/url`);
-    if (data?.data?.url) window.open(data.data.url, '_blank', 'noopener');
-    else throw new Error('Arquivo indisponível.');
+    if (!data?.data?.url) throw new Error('Arquivo indisponível.');
+    const link = document.createElement('a');
+    link.href = data.data.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return true;
   } catch (e) {
     error.value = null; // não derruba a página
-    alert(errorMessage(e));
+    toast.error(errorMessage(e));
+    return false;
   } finally {
     baixandoId.value = null;
   }
+}
+
+async function baixarTodos(files, group) {
+  if (baixandoTodos.value || !files.length) return;
+  baixandoTodos.value = group;
+  let ok = 0;
+  for (const file of files) {
+    if (await baixar(file)) ok += 1;
+    await new Promise((resolve) => setTimeout(resolve, 180));
+  }
+  baixandoTodos.value = '';
+  if (ok) toast.success(`${ok} arquivo${ok > 1 ? 's' : ''} preparado${ok > 1 ? 's' : ''} para download.`);
+}
+
+async function assinarRecurso(file) {
+  if (!file || post.value?.previa) return '';
+  if (resourceUrls.value[file.id]) return resourceUrls.value[file.id];
+  try {
+    const { data } = await api.get(
+      `/api/postagens/${encodeURIComponent(post.value.slug)}/anexos/${file.id}/url?inline=1`);
+    const url = data?.data?.url || '';
+    resourceUrls.value = { ...resourceUrls.value, [file.id]: url };
+    return url;
+  } catch (err) {
+    toast.error(errorMessage(err));
+    return '';
+  }
+}
+
+const resourceUrl = (file) => file ? (resourceUrls.value[file.id] || '') : '';
+
+async function selecionarRecurso(file, group) {
+  if (group === 'code') selectedCode.value = file;
+  else if (group === 'data') selectedData.value = file;
+  else selectedDocument.value = file;
+  await assinarRecurso(file);
+}
+
+const googleViewerUrl = (url) => url
+  ? `https://docs.google.com/gview?embedded=0&url=${encodeURIComponent(url)}`
+  : 'https://drive.google.com/';
+const officeViewerUrl = (url) => url
+  ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+  : 'https://www.microsoft365.com/';
+const documentExternalUrl = (file) => {
+  const url = resourceUrl(file);
+  return ['doc', 'docx', 'rtf'].includes(fileExtension(file)) ? officeViewerUrl(url) : (url || '#');
+};
+
+function abrirEditorExterno(file, editor) {
+  const destinations = {
+    colab: 'https://colab.research.google.com/#create=true',
+    vscode: 'https://vscode.dev/',
+    docs: 'https://drive.google.com/drive/u/0/my-drive',
+  };
+  window.open(destinations[editor], '_blank', 'noopener');
+  baixar(file);
+  toast.info('O arquivo foi baixado. Importe-o no editor que acabou de abrir.');
 }
 
 // ── Identidade visual por tipo (ícone + cor de destaque do dossiê) ────
@@ -191,7 +389,15 @@ const accent = computed(() => TIPO_ACCENT[post.value?.tipo] || 'var(--brand-prim
 const accentVars = computed(() => ({ '--accent': accent.value }));
 const autorPrincipal = computed(() => post.value?.autores?.[0]?.nome || post.value?.fontes?.[0]?.nome || null);
 const isMedia = computed(() => ['podcast', 'video'].includes(post.value?.tipo));
-const temAnexos = computed(() => (post.value?.anexos?.length || 0) > 0);
+const mediaKind = computed(() =>
+  post.value?.tipo === 'video' || post.value?.subtipo?.formato_midia === 'video' ? 'video' : 'audio');
+const resourceGroups = computed(() => partitionAttachments(post.value?.anexos || []));
+const codeFiles = computed(() => [...resourceGroups.value.notebooks, ...resourceGroups.value.code]);
+const dataFiles = computed(() => resourceGroups.value.data);
+const documentFiles = computed(() => resourceGroups.value.documents);
+const genericAttachments = computed(() => resourceGroups.value.attachments);
+const temAnexos = computed(() => genericAttachments.value.length > 0);
+const temDownloads = computed(() => (post.value?.anexos?.length || 0) > 0);
 
 // Embed: só vira <iframe> se a plataforma for reconhecida (Spotify/Apple/
 // YouTube/Vimeo); um link direto (mp3/rss/mp4) NUNCA foi feito pra <iframe> —
@@ -203,7 +409,46 @@ const embedIsIframe = computed(() => {
   catch { return false; }
 });
 const embedSrc = computed(() => (embedIsIframe.value ? mediaEmbedUrl(rawEmbedUrl.value) : ''));
-const rawMediaUrl = computed(() => (!embedIsIframe.value ? rawEmbedUrl.value : ''));
+const rawMediaUrl = computed(() => signedMediaUrl.value || (!embedIsIframe.value ? rawEmbedUrl.value : ''));
+
+async function carregarMidiaPropria() {
+  signedMediaUrl.value = '';
+  inlineImages.value = [];
+  if (!post.value || post.value.previa) return;
+
+  const imagens = (post.value.anexos || []).filter((a) => a.tipo === 'imagem').slice(0, 12);
+  inlineImages.value = (await Promise.all(imagens.map(async (image) => {
+    try {
+      const { data } = await api.get(
+        `/api/postagens/${encodeURIComponent(post.value.slug)}/anexos/${image.id}/url?inline=1`);
+      return data?.data?.url ? { ...image, url: data.data.url } : null;
+    } catch { return null; }
+  }))).filter(Boolean);
+
+  if (rawEmbedUrl.value) return;
+  const formato = post.value.tipo === 'video' || post.value.subtipo?.formato_midia === 'video' ? 'video' : 'audio';
+  const anexo = post.value.anexos?.find((a) => a.tipo === formato)
+    || post.value.anexos?.find((a) => ['audio', 'video'].includes(a.tipo));
+  if (!anexo) return;
+  try {
+    const { data } = await api.get(
+      `/api/postagens/${encodeURIComponent(post.value.slug)}/anexos/${anexo.id}/url?inline=1`);
+    signedMediaUrl.value = data?.data?.url || '';
+  } catch { /* o cartÃ£o exibe o fallback de indisponibilidade */ }
+}
+
+async function carregarRecursos() {
+  resourceUrls.value = {};
+  selectedCode.value = codeFiles.value[0] || null;
+  selectedData.value = dataFiles.value[0] || null;
+  selectedDocument.value = documentFiles.value[0] || null;
+  if (post.value?.previa) return;
+  await Promise.all([
+    assinarRecurso(selectedCode.value),
+    assinarRecurso(selectedData.value),
+    assinarRecurso(selectedDocument.value),
+  ]);
+}
 
 const legendasHref = computed(() => post.value?.subtipo?.legendas_url || '');
 
@@ -289,10 +534,16 @@ const dossieProse = computed(() => {
 });
 
 const ANEXO_ICON = {
-  documento: 'mdi:file-document-outline', dado: 'mdi:file-table-outline', audio: 'mdi:file-music-outline',
-  video: 'mdi:file-video-outline', imagem: 'mdi:file-image-outline', anexo: 'mdi:file-outline',
+  documento: 'mdi:file-document-outline', dado: 'mdi:file-table-outline', codigo: 'mdi:code-tags',
+  notebook: 'mdi:notebook-outline', audio: 'mdi:file-music-outline', video: 'mdi:file-video-outline',
+  imagem: 'mdi:file-image-outline', anexo: 'mdi:file-outline',
 };
 const anexoIcon = (ax) => ANEXO_ICON[ax?.tipo] || 'mdi:file-outline';
+const ANEXO_LABEL = {
+  documento: 'Documento', dado: 'Planilha ou dados', codigo: 'Código-fonte', notebook: 'Notebook Python',
+  audio: 'Áudio', video: 'Vídeo', imagem: 'Imagem', anexo: 'Outro arquivo',
+};
+const anexoLabel = (ax) => ANEXO_LABEL[ax?.tipo] || 'Arquivo';
 
 // Tempo estimado de leitura (200 palavras/min) a partir do HTML de conteúdo —
 // só faz sentido pra tipos com texto longo (analise/academico/dado).
@@ -353,6 +604,7 @@ async function carregar(param) {
     if (!auth.state.carregado) await auth.fetchMe();
     const { data } = await api.get(`/api/postagens/${encodeURIComponent(slug)}`);
     post.value = data.data;
+    await Promise.all([carregarMidiaPropria(), carregarRecursos()]);
     beacon(post.value.id);
   } catch (err) {
     error.value = err?.response?.status === 404 ? 'Publicação não encontrada.' : errorMessage(err);
@@ -363,7 +615,7 @@ async function carregar(param) {
 
 onMounted(() => carregar(route.params.id));
 watch(() => route.params.id, (novo, antigo) => {
-  if (novo && novo !== antigo) { carregar(novo); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  if (novo && novo !== antigo) { window.scrollTo({ top: 0, behavior: 'auto' }); carregar(novo); }
 });
 // Reage a login/logout na mesma página (recarrega p/ prévia↔completo).
 watch(() => auth.state.me, (n, o) => {
@@ -428,9 +680,15 @@ watch(() => auth.state.me, (n, o) => {
 .dossie-prose p { margin: 0; color: var(--text-secondary); line-height: 1.65; white-space: pre-line; }
 .dossie-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1.35rem; }
 
-.media-card { margin: 1.5rem 0; padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; }
+.media-card { margin: 2rem 0; padding: 1.25rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 16px 40px rgba(2, 6, 23, .08); }
+.media-head { display: flex; align-items: center; gap: .8rem; margin-bottom: 1rem; }
+.media-head-icon { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: color-mix(in srgb, var(--accent, var(--brand-primary)) 14%, transparent); color: var(--accent, var(--brand-primary)); font-size: 1.2rem; }
+.media-head span:last-child { display: flex; flex-direction: column; }
+.media-head small, .section-eyebrow { color: var(--text-muted); font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.media-head strong { color: var(--text-main); font-size: 1rem; }
 .media-player { width: 100%; height: 240px; border-radius: 8px; border: none; display: block; }
-.media-audio { width: 100%; display: block; }
+.media-audio, .media-video { width: 100%; display: block; }
+.media-video { max-height: 70vh; border-radius: 8px; background: #020617; }
 .media-fallback { width: 100%; justify-content: center; padding: 1rem; }
 .media-empty { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); margin: 0; padding: 0.5rem; }
 
@@ -444,14 +702,55 @@ watch(() => auth.state.me, (n, o) => {
 .cta-conta p { color: var(--text-secondary); margin: 0 0 1.25rem; }
 .cta-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
 
-.attachments-section { margin-top: 3rem; background: var(--bg-surface); border-radius: 12px; padding: 1.75rem; border: 1px solid var(--border-color); }
+.section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.section-title-row h3 { display: flex; align-items: center; gap: .5rem; margin: .2rem 0 0; color: var(--text-main); font-size: 1.2rem; }
+.section-count { min-width: 34px; height: 34px; padding: 0 .6rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: color-mix(in srgb, var(--accent, var(--brand-primary)) 12%, transparent); color: var(--accent, var(--brand-primary)); font-size: .78rem; font-weight: 800; }
+.visual-section { margin: 2.4rem 0; }
+.visual-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.visual-card { margin: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-surface); }
+.visual-card img { width: 100%; max-height: 520px; object-fit: cover; display: block; background: var(--bg-input-form); }
+.visual-card figcaption { display: flex; align-items: center; gap: .45rem; padding: .75rem .9rem; color: var(--text-secondary); font-size: .82rem; font-weight: 650; }
+
+.resource-section { margin: 3rem 0 0; padding: 1.35rem; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-surface); box-shadow: 0 18px 55px rgba(2, 6, 23, .06); }
+.resource-section.code-lab { border-top: 3px solid #5f72e8; }
+.resource-section.data-lab { border-top: 3px solid #1a8a6a; }
+.resource-section.document-lab { border-top: 3px solid #b46a35; }
+.resource-head { align-items: flex-start; }
+.section-actions, .preview-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.resource-btn, .preview-actions a, .preview-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .38rem; min-height: 34px; padding: .42rem .7rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-form); color: var(--text-secondary); font: inherit; font-size: .72rem; font-weight: 750; text-decoration: none; cursor: pointer; }
+.resource-btn:hover, .preview-actions a:hover, .preview-actions button:hover { border-color: var(--accent, var(--brand-primary)); color: var(--accent, var(--brand-primary)); }
+.resource-btn:disabled { opacity: .55; cursor: wait; }
+.resource-workbench { display: grid; grid-template-columns: minmax(210px, 250px) minmax(0, 1fr); gap: .85rem; align-items: start; }
+.resource-list { display: grid; gap: .45rem; }
+.resource-list > button { width: 100%; min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: .55rem; padding: .65rem; border: 1px solid var(--border-color); border-radius: 11px; background: var(--bg-input-form); color: var(--text-main); text-align: left; cursor: pointer; }
+.resource-list > button:hover, .resource-list > button.active { border-color: var(--accent, var(--brand-primary)); background: color-mix(in srgb, var(--accent, var(--brand-primary)) 7%, var(--bg-input-form)); }
+.resource-list > button.active { box-shadow: inset 3px 0 0 var(--accent, var(--brand-primary)); }
+.resource-file-icon { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: color-mix(in srgb, var(--accent, var(--brand-primary)) 12%, transparent); color: var(--accent, var(--brand-primary)); }
+.resource-list strong, .resource-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-list strong { font-size: .78rem; }
+.resource-list small { margin-top: .1rem; color: var(--text-muted); font-size: .66rem; }
+.resource-preview { min-width: 0; }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .55rem; padding: .55rem .65rem; border-radius: 10px; background: var(--bg-input-form); }
+.preview-toolbar > div:first-child { min-width: 0; }
+.preview-toolbar > div:first-child span, .preview-toolbar > div:first-child strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-toolbar > div:first-child span { color: var(--text-muted); font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.preview-toolbar > div:first-child strong { margin-top: .08rem; color: var(--text-main); font-size: .78rem; }
+.preview-limit, .resource-locked { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: .55rem; padding: 1.5rem; border: 1px dashed var(--border-color); border-radius: 13px; background: var(--bg-input-form); color: var(--text-muted); font-size: .82rem; line-height: 1.5; text-align: center; }
+
+.attachments-section { margin-top: 3rem; background: var(--bg-surface); border-radius: 14px; padding: 1.75rem; border: 1px solid var(--border-color); }
+.attachments-intro { max-width: 650px; margin: .65rem 0 1.35rem; color: var(--text-muted); font-size: .88rem; line-height: 1.55; }
 .section-heading { font-size: 1.2rem; color: var(--text-main); margin: 0 0 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
-.attach-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.attach-list a { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--accent, var(--brand-primary)); font-weight: 600; padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--accent, var(--brand-primary)); background: color-mix(in srgb, var(--accent, var(--brand-primary)) 7%, transparent); }
-.attach-list a:hover { background: var(--accent, var(--brand-primary)); color: #fff; }
-.attach-dl-ico { margin-left: auto; opacity: 0.7; }
-.attach-locked { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.92rem; }
-.attach-locked a { color: var(--accent, var(--brand-primary)); }
+.attach-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.attach-item { min-width: 0; }
+.attach-list a, .attach-locked { width: 100%; min-width: 0; display: flex; align-items: center; gap: .75rem; text-decoration: none; padding: .78rem; border-radius: 11px; border: 1px solid var(--border-color); background: var(--bg-input-form); transition: border-color .18s, transform .18s, background .18s; }
+.attach-list a { color: var(--text-main); }
+.attach-list a:hover { border-color: var(--accent, var(--brand-primary)); background: color-mix(in srgb, var(--accent, var(--brand-primary)) 7%, var(--bg-input-form)); transform: translateY(-1px); }
+.attach-icon { flex: 0 0 38px; width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: color-mix(in srgb, var(--accent, var(--brand-primary)) 12%, transparent); color: var(--accent, var(--brand-primary)); font-size: 1.15rem; }
+.attach-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.attach-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .86rem; }
+.attach-copy small { margin-top: .12rem; color: var(--text-muted); font-size: .72rem; }
+.attach-action { flex: 0 0 auto; color: var(--accent, var(--brand-primary)); opacity: .8; }
+.attach-locked { color: var(--text-muted); }
 .attach-list a.baixando { opacity: 0.7; pointer-events: none; }
 .spin { animation: spin 0.8s linear infinite; }
 
@@ -461,5 +760,19 @@ watch(() => auth.state.me, (n, o) => {
   .resumo { font-size: 1.15rem; }
   .dossie-card { padding: 1.25rem 1.25rem 1.4rem; }
   .dossie-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.9rem 1.1rem; }
+  .attachments-section { padding: 1.25rem; }
+  .attach-list { grid-template-columns: 1fr; }
+  .visual-grid { grid-template-columns: 1fr; }
+  .resource-workbench { grid-template-columns: 1fr; }
+  .resource-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .preview-toolbar { align-items: flex-start; flex-direction: column; }
+  .preview-actions { width: 100%; }
+  .preview-actions a, .preview-actions button { flex: 1 1 auto; }
+}
+@media (max-width: 520px) {
+  .resource-section { padding: 1rem; }
+  .resource-head { flex-direction: column; }
+  .section-actions { width: 100%; justify-content: space-between; }
+  .resource-list { grid-template-columns: 1fr; }
 }
 </style>

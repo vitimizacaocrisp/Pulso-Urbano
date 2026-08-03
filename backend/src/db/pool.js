@@ -25,15 +25,18 @@ if (!V2_URL) {
 
 // Neon exige TLS; Docker local não tem. Detecta pelo host.
 const needsSsl = /neon\.tech|\bsslmode=require\b/.test(V2_URL || '');
+const connectionString = needsSsl
+  ? (V2_URL || '').replace(/([?&])sslmode=(prefer|require|verify-ca)(?=&|$)/i, '$1sslmode=verify-full')
+  : V2_URL;
 
 let pool = null;
 function getPool() {
   if (!pool) {
     pool = new Pool({
-      connectionString: V2_URL,
+      connectionString,
       max: 5,                       // serverless: pouca concorrência por instância
       idleTimeoutMillis: 30_000,
-      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+      ssl: needsSsl ? { rejectUnauthorized: true } : undefined,
     });
   }
   return pool;

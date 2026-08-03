@@ -1,19 +1,12 @@
-// ─────────────────────────────────────────────────────────────────────
-// Rate limiting para o login admin, usando Upstash Redis.
-//
-// Em ambiente serverless (Vercel) a memória do processo não persiste entre
-// invocações, então o controle precisa de um store externo. O Upstash é um
-// Redis serverless acessado via REST.
-//
-// Degradação graciosa: se as variáveis de ambiente não estiverem
-// configuradas (ex.: dev local), o middleware vira um no-op e apenas loga
-// um aviso — o login continua funcionando, só sem rate limiting.
-// ─────────────────────────────────────────────────────────────────────
+// Distributed rate limiting via Upstash with a safe in-memory fallback.
+// The fallback protects each instance (weaker in serverless), but avoids
+// leaving login, registration, and uploads completely unbounded when Redis
+// is absent or temporarily unavailable.
 require('dotenv').config();
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
 
-const url   = process.env.UPSTASH_REDIS_REST_URL;
+const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 let ratelimit = null;
@@ -21,17 +14,44 @@ let ratelimit = null;
 if (url && token) {
   ratelimit = new Ratelimit({
     redis: new Redis({ url, token }),
-    // 5 tentativas a cada 15 minutos por IP (janela deslizante)
     limiter: Ratelimit.slidingWindow(5, '15 m'),
     prefix: 'ratelimit:admin-auth',
   });
 } else {
-  console.warn('⚠️  Rate limiting DESATIVADO: UPSTASH_REDIS_REST_URL/TOKEN não configurados.');
+  console.warn('Upstash ausente: rate limiting usando fallback em memoria por instancia.');
 }
 
-// IP confiável: prioriza x-real-ip (setado pela Vercel, não forjável pelo
-// cliente); x-forwarded-for primeiro-valor é spoofável (doc 07) e fica como
-// último recurso. Requer app.set('trust proxy', 1) para req.ip fazer sentido.
+function windowMs(janela) {
+  const match = String(janela || '').trim().match(/^(\d+)\s*([smhd])$/i);
+  if (!match) throw new Error(`Janela de rate limit invalida: ${janela}`);
+  const unit = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[match[2].toLowerCase()];
+  return Number(match[1]) * unit;
+}
+
+function memoryLimit({ tokens, janela }) {
+  const max = Number(tokens);
+  const ttl = windowMs(janela);
+  const buckets = new Map();
+
+  return (key) => {
+    const now = Date.now();
+    let bucket = buckets.get(key);
+    if (!bucket || bucket.resetAt <= now) bucket = { count: 0, resetAt: now + ttl };
+    bucket.count += 1;
+    buckets.set(key, bucket);
+
+    // Limpeza oportunista impede crescimento ilimitado sob ataque com muitos IPs.
+    if (buckets.size > 10_000) {
+      for (const [bucketKey, value] of buckets) {
+        if (value.resetAt <= now) buckets.delete(bucketKey);
+      }
+      while (buckets.size > 10_000) buckets.delete(buckets.keys().next().value);
+    }
+    return bucket.count <= max;
+  };
+}
+
+// Trusted client IP: prefer x-real-ip, which is set by the hosting proxy.
 function getClientIp(req) {
   const real = req.headers['x-real-ip'];
   if (real) return String(real).trim();
@@ -41,51 +61,50 @@ function getClientIp(req) {
   return 'unknown';
 }
 
+const loginMemoryLimit = memoryLimit({ tokens: 5, janela: '15 m' });
+const loginLimited = (res) => res.status(429).json({
+  success: false,
+  message: 'Muitas tentativas de login. Tente novamente em alguns minutos.',
+});
+
 const loginRateLimiter = async (req, res, next) => {
-  if (!ratelimit) return next(); // no-op se não configurado
+  const key = getClientIp(req);
+  const fallbackSuccess = loginMemoryLimit(key);
+  if (!ratelimit) return fallbackSuccess ? next() : loginLimited(res);
 
   try {
-    const { success } = await ratelimit.limit(getClientIp(req));
-    if (!success) {
-      return res.status(429).json({
-        success: false,
-        message: 'Muitas tentativas de login. Tente novamente em alguns minutos.',
-      });
-    }
-    next();
+    const { success } = await ratelimit.limit(key);
+    return success ? next() : loginLimited(res);
   } catch (err) {
-    // Se o Redis falhar, não bloqueia o login (fail-open) — apenas loga.
     console.error('Erro no rate limiter:', err.message);
-    next();
+    return fallbackSuccess ? next() : loginLimited(res);
   }
 };
 
-// Factory genérica (matriz de limites — doc 07). Mesmo comportamento do login:
-// no-op sem Upstash, fail-open em erro de Redis (rate limit não é revogação de
-// sessão; para sessão o doc 04 exige fail-closed — implementado no middleware v2).
-// `chave` opcional: função (req) → string p/ dimensionar o limite (ex.: por
-// admin em vez de por IP). Default = IP confiável.
 function makeRateLimiter({ prefix, tokens, janela, mensagem, chave }) {
-  if (!url || !token) return (req, res, next) => next();
-  const rl = new Ratelimit({
+  const keyOf = typeof chave === 'function' ? chave : getClientIp;
+  const fallback = memoryLimit({ tokens, janela });
+  const rl = url && token ? new Ratelimit({
     redis: new Redis({ url, token }),
     limiter: Ratelimit.slidingWindow(tokens, janela),
     prefix: `ratelimit:${prefix}`,
+  }) : null;
+  const limited = (res) => res.status(429).json({
+    success: false,
+    error: { code: 'rate_limited', message: mensagem || 'Muitas requisi\u00e7\u00f5es. Tente mais tarde.' },
   });
-  const keyOf = typeof chave === 'function' ? chave : getClientIp;
+
   return async (req, res, next) => {
+    const key = keyOf(req);
+    const fallbackSuccess = fallback(key);
+    if (!rl) return fallbackSuccess ? next() : limited(res);
+
     try {
-      const { success } = await rl.limit(keyOf(req));
-      if (!success) {
-        return res.status(429).json({
-          success: false,
-          error: { code: 'rate_limited', message: mensagem || 'Muitas requisições. Tente mais tarde.' },
-        });
-      }
-      next();
+      const { success } = await rl.limit(key);
+      return success ? next() : limited(res);
     } catch (err) {
       console.error(`Rate limiter ${prefix}:`, err.message);
-      next();
+      return fallbackSuccess ? next() : limited(res);
     }
   };
 }

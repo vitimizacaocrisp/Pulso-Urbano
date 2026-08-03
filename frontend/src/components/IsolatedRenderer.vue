@@ -3,7 +3,7 @@
     ref="frame"
     class="isolated-frame"
     title="Conteúdo da análise"
-    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+    sandbox="allow-scripts allow-popups"
     :srcdoc="compiledHtml"
     @load="onIframeLoad"
   ></iframe>
@@ -11,6 +11,28 @@
 
 <script>
 import { useTheme } from '@/composables/useTheme';
+import DOMPurify from 'dompurify';
+
+const EMBED_HOSTS = new Set([
+  'open.spotify.com', 'www.youtube.com', 'www.youtube-nocookie.com',
+  'player.vimeo.com', 'podcasts.apple.com', 'www.google.com',
+]);
+
+function sanitizeRenderedContent(html) {
+  const clean = DOMPurify.sanitize(html, {
+    ADD_TAGS: ['iframe'],
+    ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'loading', 'target'],
+  });
+  const doc = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');
+  doc.querySelectorAll('iframe').forEach((frame) => {
+    try {
+      const url = new URL(frame.getAttribute('src') || '');
+      if (url.protocol !== 'https:' || !EMBED_HOSTS.has(url.hostname)) frame.remove();
+    } catch { frame.remove(); }
+  });
+  doc.querySelectorAll('a[target="_blank"]').forEach((link) => link.setAttribute('rel', 'noopener noreferrer'));
+  return doc.body.innerHTML;
+}
 
 export default {
   name: "IsolatedRenderer",
@@ -46,7 +68,9 @@ export default {
         html = textarea.value
       }
       
-      return html.trim()
+      // Defesa em profundidade: conteúdo legado pode estar codificado e só
+      // virar uma tag depois da sanitização do servidor.
+      return sanitizeRenderedContent(html.trim())
     },
 
     iframeId() {
@@ -60,7 +84,9 @@ export default {
       // transparente e mostra o wrapper já tematizado).
       const t = this.theme
       const textColor = t === 'dark' ? '#d4d4d4' : t === 'comfort' ? '#4a3b29' : '#333'
-      const linkColor = t === 'comfort' ? '#2f6db0' : '#2563eb'
+      const linkColor = t === 'dark' ? '#8eacff' : t === 'comfort' ? '#2f6db0' : '#2563eb'
+      const softSurface = t === 'dark' ? 'rgba(255,255,255,.055)' : t === 'comfort' ? 'rgba(106,76,43,.07)' : 'rgba(37,99,235,.055)'
+      const ruleColor = t === 'dark' ? 'rgba(255,255,255,.16)' : 'rgba(15,23,42,.14)'
 
       // eslint-disable-next-line no-useless-escape
       const scriptEnd = '<\/script>'
@@ -82,10 +108,41 @@ html, body {
   height: auto;
   overflow: visible;
   background: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  line-height: 1.6;
   color: ${textColor};
 }
+body {
+  padding: 2px 1px 8px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.78;
+}
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.55em 0 .55em;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  color: ${textColor};
+}
+h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
+h2 { font-size: 1.65em; }
+h3 { font-size: 1.25em; }
+p { margin: 0 0 1.1em; }
+ul, ol { margin: 0 0 1.25em; padding-left: 1.45em; }
+li + li { margin-top: .32em; }
+blockquote {
+  margin: 1.5em 0;
+  padding: 1em 1.15em 1em 1.35em;
+  border-left: 4px solid ${linkColor};
+  border-radius: 0 10px 10px 0;
+  background: ${softSurface};
+  font-size: 1.05em;
+  font-style: italic;
+}
+table { width: 100%; margin: 1.4em 0; border-collapse: collapse; font-family: ui-sans-serif, system-ui, sans-serif; font-size: .93em; }
+th, td { padding: .72em .8em; border: 1px solid ${ruleColor}; text-align: left; }
+th { background: ${softSurface}; font-weight: 750; }
+hr { margin: 2em 0; border: 0; border-top: 1px solid ${ruleColor}; }
+code { padding: .12em .32em; border-radius: 4px; background: ${softSurface}; font-size: .88em; }
 a {
   color: ${linkColor};
   font-weight: 600;
@@ -239,7 +296,7 @@ ${content}
       if (!event.data || event.data.type !== 'iframe-height') return
       
       const iframe = this.$refs.frame
-      if (!iframe || !event.data.height) return
+      if (!iframe || event.source !== iframe.contentWindow || !event.data.height) return
       
       const newHeight = parseInt(event.data.height)
       
@@ -281,11 +338,11 @@ ${content}
 <style scoped>
 .isolated-frame {
   width: 100%;
-  min-height: 300px;
+  min-height: 120px;
   height: auto;
   border: none;
   display: block;
-  background: white;
+  background: transparent;
   overflow: hidden;
 }
 </style>

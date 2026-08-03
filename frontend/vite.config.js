@@ -15,10 +15,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'monaco-editor': ['monaco-editor'],
-          'chart': ['chart.js', 'vue-chartjs'],
-          'xlsx': ['xlsx'],
+        manualChunks(id) {
+          if (id.includes('node_modules/monaco-editor')) return 'monaco-editor'
+          if (id.includes('node_modules/chart.js') || id.includes('node_modules/vue-chartjs')) return 'chart'
+          if (id.includes('node_modules/xlsx')) return 'xlsx'
         }
       }
     }

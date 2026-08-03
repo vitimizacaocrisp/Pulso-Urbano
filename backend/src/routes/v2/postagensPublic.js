@@ -104,18 +104,32 @@ router.get('/api/postagens/:slug/anexos/:anexoId/url', requireAuth, asyncHandler
     return res.status(400).json({ success: false, error: { code: 'validacao_falhou', message: 'anexo inválido.' } });
   }
   const r = await q(
-    `SELECT ax.origem, ax.chave_r2, ax.url_r2, ax.nome_arquivo
+    `SELECT ax.tipo, ax.origem, ax.chave_r2, ax.url_r2, ax.nome_arquivo, ax.mime
        FROM anexos ax JOIN postagens p ON p.id = ax.postagem_id
       WHERE ax.id = $1 AND p.slug = $2 AND ax.tipo <> 'cover'
+        AND (ax.origem <> 'r2' OR ax.chave_r2 NOT LIKE 'postagens/%' OR ax.tamanho_bytes > 0)
         AND p.status = 'publicado' AND p.deleted_at IS NULL`,
     [anexoId, req.params.slug]);
   if (!r.rows.length) {
     return res.status(404).json({ success: false, error: { code: 'nao_encontrado', message: 'Arquivo não encontrado.' } });
   }
   const a = r.rows[0];
+  // Players de Ã¡udio/vÃ­deo precisam de Content-Disposition inline. Mantemos
+  // todos os demais tipos como download para que HTML/SVG e documentos ativos
+  // nunca sejam renderizados pelo navegador a partir deste endpoint.
+  const inline = req.query.inline === '1'
+    && ['audio', 'video', 'imagem', 'dado', 'documento', 'codigo', 'notebook'].includes(a.tipo);
+  // Fontes e notebooks são sempre entregues como texto puro. Mesmo que um
+  // navegador informe MIME executável, a URL assinada nunca os executa.
+  const safeText = ['codigo', 'notebook'].includes(a.tipo)
+    || /\.(txt|md|csv|tsv|json|geojson)$/i.test(a.nome_arquivo || '');
   // Bucket privado: gera URL assinada de GET (TTL curto). Externo/legado: url direta.
-  const url = a.origem === 'r2' ? await presignGetByKey(a.chave_r2, 300) : a.url_r2;
-  res.json({ success: true, data: { url, nome: a.nome_arquivo } });
+  const url = a.origem === 'r2'
+    ? await presignGetByKey(a.chave_r2, inline ? 3600 : 300,
+      inline ? { inline: true, contentType: safeText ? 'text/plain; charset=utf-8' : undefined }
+        : { downloadName: a.nome_arquivo })
+    : a.url_r2;
+  res.json({ success: true, data: { url, nome: a.nome_arquivo, mime: a.mime, inline } });
 }));
 
 // ── proxy de imagem pública (capa/avatar) — bucket privado ───────────
@@ -124,11 +138,19 @@ router.get('/api/postagens/:slug/anexos/:anexoId/url', requireAuth, asyncHandler
 router.get('/api/media/:anexoId', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.anexoId, 10);
   if (!Number.isInteger(id)) return res.status(400).end();
-  const r = await q(`SELECT tipo, origem, chave_r2, url_r2 FROM anexos WHERE id = $1`, [id]);
+  const r = await q(
+    `SELECT ax.tipo, ax.origem, ax.chave_r2, ax.url_r2
+       FROM anexos ax
+       LEFT JOIN postagens p ON p.id=ax.postagem_id
+      WHERE ax.id=$1 AND (
+        ax.tipo='avatar'
+        OR (ax.tipo='cover' AND p.status='publicado' AND p.deleted_at IS NULL
+            AND (ax.origem <> 'r2' OR ax.chave_r2 NOT LIKE 'postagens/%' OR ax.tamanho_bytes > 0))
+      )`, [id]);
   const a = r.rows[0];
   if (!a || !['cover', 'avatar'].includes(a.tipo)) return res.status(404).end();
   if (a.origem === 'r2' && a.chave_r2) {
-    const url = await presignGetByKey(a.chave_r2, 300);
+    const url = await presignGetByKey(a.chave_r2, 300, { inline: true });
     res.set('Cache-Control', 'private, max-age=240'); // < TTL da URL assinada
     return res.redirect(302, url);
   }

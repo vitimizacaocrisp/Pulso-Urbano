@@ -10,7 +10,8 @@
     "test": "node --test",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "echo \"No build step defined\""
+    "build": "echo \"No build step defined\"",
+    "storage:cors": "node scripts/configure_r2_cors.js"
   },
   "repository": {
     "type": "git",

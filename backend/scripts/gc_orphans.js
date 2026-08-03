@@ -41,8 +41,15 @@ async function listar(prefix) {
 
 (async () => {
   const corte = Date.now() - DAYS * 24 * 60 * 60 * 1000;
-  // Conjunto de chaves referenciadas em anexos (fonte da verdade).
-  const ref = new Set((await q(`SELECT chave_r2 FROM anexos WHERE chave_r2 IS NOT NULL`)).rows.map((r) => r.chave_r2));
+  // Uploads v2 pendentes usam tamanho negativo. Depois da janela, a linha não
+  // deve proteger o objeto do GC (upload abandonado/falho).
+  const pendentes = await q(
+    `SELECT id, chave_r2 FROM anexos
+      WHERE origem='r2' AND chave_r2 LIKE 'postagens/%' AND tamanho_bytes < 0
+        AND created_at < NOW() - ($1::text || ' days')::interval`, [DAYS]);
+  const pendingKeys = new Set(pendentes.rows.map((r) => r.chave_r2));
+  const ref = new Set((await q(`SELECT chave_r2 FROM anexos WHERE chave_r2 IS NOT NULL`)).rows
+    .map((r) => r.chave_r2).filter((key) => !pendingKeys.has(key)));
 
   let candidatos = [];
   for (const p of PREFIXOS) {
@@ -55,7 +62,7 @@ async function listar(prefix) {
   }
 
   console.log(`GC órfãos — bucket=${bucket} prefixos=[${PREFIXOS.join(', ')}] janela=${DAYS}d modo=${APPLY ? 'APPLY' : 'DRY-RUN'}`);
-  console.log(`anexos referenciados: ${ref.size} | candidatos órfãos: ${candidatos.length}`);
+  console.log(`anexos referenciados: ${ref.size} | uploads pendentes vencidos: ${pendentes.rows.length} | candidatos órfãos: ${candidatos.length}`);
   candidatos.forEach((c) => console.log(`  ${APPLY ? 'DEL ' : '(dry) '}${c.key}  ${(c.size / 1024).toFixed(1)}KB  ${new Date(c.mod).toISOString()}`));
 
   if (APPLY && candidatos.length) {
@@ -65,6 +72,10 @@ async function listar(prefix) {
     console.log(`Removidos: ${candidatos.length}`);
   } else if (!APPLY && candidatos.length) {
     console.log('Nada removido (dry-run). Rode com --apply para deletar.');
+  }
+  if (APPLY && pendentes.rows.length) {
+    await q(`DELETE FROM anexos WHERE id = ANY($1::int[])`, [pendentes.rows.map((r) => r.id)]);
+    console.log(`Linhas pendentes removidas: ${pendentes.rows.length}`);
   }
   await closePool();
 })().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });

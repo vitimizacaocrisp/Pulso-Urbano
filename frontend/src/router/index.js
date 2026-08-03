@@ -178,7 +178,12 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // Links entre páginas começam sempre no topo. Ao usar Voltar/Avançar,
+  // preservamos a posição registrada pelo navegador.
+  scrollBehavior(_to, _from, savedPosition) {
+    return savedPosition || { left: 0, top: 0 };
+  },
 });
 
 // Guarda de Rota Global. Auth v2 via cookie httpOnly (o JS não lê o cookie):

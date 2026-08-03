@@ -69,11 +69,11 @@
         <ThemeToggle />
         <div class="footer-divider"></div>
         <div class="user-row">
-          <div class="user-avatar">A</div>
+          <div class="user-avatar">{{ adminInitial }}</div>
           <transition name="brand-text">
             <div v-if="!sidebarCollapsed" class="user-meta">
-              <span class="user-name">Administrador</span>
-              <span class="user-role">Super Admin</span>
+              <span class="user-name">{{ adminName }}</span>
+              <span class="user-role">{{ adminRole }}</span>
             </div>
           </transition>
           <button @click="logout" class="logout-btn" title="Sair">
@@ -155,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
@@ -165,6 +165,9 @@ const router = useRouter();
 const auth = useAuth();
 const sidebarCollapsed = ref(false);
 const mobileDrawerOpen = ref(false);
+const adminName = computed(() => auth.state.me?.nome || auth.state.me?.name || 'Administrador');
+const adminRole = computed(() => auth.state.me?.role === 'superadmin' ? 'Superadministrador' : 'Administrador');
+const adminInitial = computed(() => adminName.value.trim().charAt(0).toUpperCase() || 'A');
 
 onMounted(() => { if (!auth.state.carregado) auth.fetchMe(); });
 

@@ -108,16 +108,18 @@ function validaPatch(tipo, body) {
 // Mínimo para PUBLICAR (doc 05 passo 7).
 function validaPublicacao(postagemCompleta) {
   const falta = [];
+  const anexos = postagemCompleta.anexos || [];
+  const temAnexo = (tipo) => anexos.some((a) => a.tipo === tipo);
   if (!postagemCompleta.titulo?.trim()) falta.push('titulo');
   if (!postagemCompleta.resumo?.trim()) falta.push('resumo');
   const precisaConteudo = ['analise', 'academico', 'livro', 'dado'].includes(postagemCompleta.tipo);
   if (precisaConteudo && !postagemCompleta.conteudo?.trim()) falta.push('conteudo');
   if (postagemCompleta.tipo === 'podcast' && !postagemCompleta.subtipo?.embed_url
-      && !postagemCompleta.subtipo?.audio_anexo_id && !postagemCompleta.subtipo?.video_anexo_id) {
+      && !temAnexo('audio') && !temAnexo('video')) {
     falta.push('subtipo.embed_url (ou upload de mídia)');
   }
   if (postagemCompleta.tipo === 'video' && !postagemCompleta.subtipo?.embed_url
-      && !postagemCompleta.subtipo?.video_anexo_id) {
+      && !temAnexo('video')) {
     falta.push('subtipo.embed_url (ou upload de vídeo)');
   }
   return falta.length
