@@ -78,6 +78,13 @@ const routes = [
     component: () => import("../views/postagens/PostagensDetailView.vue")
   },
   {
+    // Página montada no Editor Alpha. Pública, mas o backend só entrega
+    // documento com status 'publicado' — rascunho nunca vaza por aqui.
+    path: '/p/:slug',
+    name: 'PaginaStudio',
+    component: () => import('@/views/PaginaStudioView.vue'),
+  },
+  {
     // Login de ADMIN (equipe CRISP). Contas de usuário usam /login.
     path: '/login_admin',
     name: 'AdminLogin',
@@ -154,6 +161,20 @@ const routes = [
         path: 'rascunhos',
         name: 'Rascunhos',
         component: () => import('../views/admin/RascunhosView.vue'),
+      },
+      {
+        // Editor visual experimental. Fica sob /admin de propósito: herda o
+        // guard `requiresAdmin` do pai, então só administrador abre.
+        path: 'editor-alpha',
+        name: 'EditorAlpha',
+        component: () => import('../views/admin/EditorAlphaView.vue'),
+      },
+      {
+        // Renderiza o rascunho do editor como ele sairia publicado. Também sob
+        // /admin: o rascunho é material interno enquanto o editor for Alpha.
+        path: 'editor-alpha/preview',
+        name: 'EditorAlphaPreview',
+        component: () => import('../views/admin/EditorAlphaPreviewView.vue'),
       },
       {
         path: 'equipe',

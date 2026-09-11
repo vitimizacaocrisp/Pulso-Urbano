@@ -47,6 +47,11 @@
             <span class="nav-icon"><Icon icon="mdi:folder-cog-outline" width="20" /></span>
             <span v-if="!sidebarCollapsed" class="nav-text">Gerenciar (legado)</span>
           </router-link>
+          <router-link :to="{ name: 'EditorAlpha' }" class="nav-link" :title="sidebarCollapsed ? 'Editor Alpha (teste)' : ''">
+            <span class="nav-icon"><Icon icon="mdi:flask-outline" width="20" /></span>
+            <span v-if="!sidebarCollapsed" class="nav-text">Editor Alpha</span>
+            <span v-if="!sidebarCollapsed" class="nav-tag">alpha</span>
+          </router-link>
           <router-link :to="{ name: 'Equipe' }" class="nav-link" :title="sidebarCollapsed ? 'Equipe' : ''">
             <span class="nav-icon"><Icon icon="mdi:account-group-outline" width="20" /></span>
             <span v-if="!sidebarCollapsed" class="nav-text">Equipe</span>
@@ -124,6 +129,10 @@
             </router-link>
             <router-link :to="{ name: 'EditAnalysis' }" class="drawer-link" @click="mobileDrawerOpen = false">
               <Icon icon="mdi:folder-cog-outline" width="20" /> Gerenciar (legado)
+            </router-link>
+            <router-link :to="{ name: 'EditorAlpha' }" class="drawer-link" @click="mobileDrawerOpen = false">
+              <Icon icon="mdi:flask-outline" width="20" /> Editor Alpha
+              <span class="nav-tag">alpha</span>
             </router-link>
             <router-link :to="{ name: 'Equipe' }" class="drawer-link" @click="mobileDrawerOpen = false">
               <Icon icon="mdi:account-group-outline" width="20" /> Equipe
@@ -261,6 +270,19 @@ const logout = async () => {
 }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-text { white-space: nowrap; }
+
+/* Selo do editor experimental: deixa claro que não é a ferramenta oficial. */
+.nav-tag {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  background: color-mix(in srgb, #f59e0b 22%, transparent);
+  color: #b45309;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .nav-external { opacity: 0.75; }
 .nav-external:hover { opacity: 1; }
 
