@@ -42,7 +42,7 @@ import { ref, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { GraphicStudioRenderer } from '@/studio/renderer';
-import { parseGraphicStudioDocument } from '@/studio/core';
+import { parseGraphicStudioDocument, syncComponentInstances } from '@/studio/core';
 // Direto do catálogo, não de '@/studio/editor': importar o índice traria o
 // editor inteiro para o chunk desta tela, que só renderiza.
 import { googleFontsStylesheetUrl } from '@/studio/editor/catalog';
@@ -64,7 +64,9 @@ function carregar() {
   erro.value = '';
   try {
     const salvo = window.localStorage.getItem(ALPHA_STORAGE_KEY);
-    documento.value = salvo ? parseGraphicStudioDocument(JSON.parse(salvo)) : null;
+    // Sincroniza as cópias de componente: um rascunho importado e ainda não
+    // editado chega aqui com as cópias sem os filhos materializados.
+    documento.value = salvo ? syncComponentInstances(parseGraphicStudioDocument(JSON.parse(salvo))) : null;
   } catch {
     documento.value = null;
     erro.value = 'O rascunho salvo não é um documento válido.';

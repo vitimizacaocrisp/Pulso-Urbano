@@ -200,7 +200,8 @@ export const GraphicStudioEditor = defineComponent({
     // Sem alternador de tema próprio aqui: quem monta o editor (a view do admin)
     // é que espelha o tema do app na raiz do documento. Dois controles disputando
     // o mesmo estado dessincronizam.
-    const workingDocument = shallowRef(parseGraphicStudioDocument(props.document))
+    // Sincronizado desde o primeiro render, pelo mesmo motivo do watch abaixo.
+    const workingDocument = shallowRef(syncComponentInstances(parseGraphicStudioDocument(props.document)))
     const history = shallowRef(createEditorHistory<GraphicStudioDocument>())
     const selectedNodeId = ref<string | null>(null)
     const selectedNodeIds = ref<string[]>([])
@@ -247,7 +248,10 @@ export const GraphicStudioEditor = defineComponent({
     watch(
       () => props.document,
       (document) => {
-        const parsed = parseGraphicStudioDocument(document)
+        // Sincroniza já na entrada: um documento importado ou aberto do servidor
+        // pode trazer cópias de componente ainda sem os filhos materializados,
+        // e elas apareceriam vazias até a primeira edição.
+        const parsed = syncComponentInstances(parseGraphicStudioDocument(document))
         // Só zera o histórico quando o documento vem DE FORA (troca de arquivo).
         // `lastEmittedDocument` não é limpo aqui de propósito: este watcher é
         // `deep` e pode rodar mais de uma vez para o mesmo documento emitido —
@@ -526,6 +530,9 @@ export const GraphicStudioEditor = defineComponent({
      */
     function commit(command: GraphicStudioCommand, record = true, coalesceKey?: string) {
       if (record) {
+        // Edição de verdade do usuário: a medição automática volta a ter
+        // crédito para se ajustar ao que mudou.
+        passadasSemEdicao = 0
         const now = Date.now()
         const continuingSameEdit = coalesceKey !== undefined
           && coalescing?.key === coalesceKey
@@ -895,14 +902,35 @@ export const GraphicStudioEditor = defineComponent({
      * Vai para o histórico como `record: false`: reconciliar não é uma ação do
      * usuário e não deve virar um passo de desfazer.
      */
+    /**
+     * Passadas seguidas em que a medição mudou algo sem nenhuma edição do
+     * usuário no meio. Uma ou duas são normais (a fonte carrega, o texto
+     * quebra de outro jeito); dezenas significam dois mecanismos brigando.
+     */
+    let passadasSemEdicao = 0
+    const LIMITE_PASSADAS = 8
+
     function reconcileAutoSizes() {
       const canvas = canvasElement.value
       // Durante um arraste ou uma edição de texto o tamanho ainda está mudando:
       // gravar agora brigaria com o que o usuário está fazendo.
       if (!canvas || activeInteraction || editingNodeId.value) return
+      // Trava de segurança: sem ela, qualquer par medição/derivação que se
+      // desfaça mutuamente congela a aba num laço de microtarefas, sem nunca
+      // devolver o controle ao navegador.
+      if (passadasSemEdicao >= LIMITE_PASSADAS) {
+        console.warn('[GraphicStudio] medição automática interrompida: tamanhos não estabilizaram.')
+        return
+      }
       let changed = false
       for (const node of Object.values(workingDocument.value.nodes)) {
         if (node.frame.autoResize === 'none' || node.hidden) continue
+        // Cópias de componente têm geometria derivada do mestre: a próxima
+        // sincronização sobrescreve o que for gravado aqui. Medir e gravar
+        // nelas criava um laço infinito — a medição gravava, a sincronização
+        // revertia, o documento mudava, a medição rodava de novo. Quem é medido
+        // é o mestre, e o tamanho dele chega às cópias pela sincronização.
+        if (instanceRootOf(workingDocument.value, node.id)) continue
         const element = canvas.querySelector<HTMLElement>(`[data-gs-node-id="${node.id}"]`)
         if (!element) continue
         const width = node.frame.autoResize === 'width-and-height'
@@ -917,6 +945,7 @@ export const GraphicStudioEditor = defineComponent({
         }, false)
         changed = true
       }
+      passadasSemEdicao = changed ? passadasSemEdicao + 1 : 0
       return changed
     }
 
@@ -2687,7 +2716,9 @@ export const GraphicStudioEditor = defineComponent({
     ) {
       const boundToken = current && 'token' in current ? current.token : ''
       const tokens = themeTokens.value
-      return h('label', { class: 'gs-field' }, [
+      // Largo de propósito: seletor de cor e lista de tokens lado a lado não cabem
+      // em meia coluna da grade, e invadiam o campo vizinho.
+      return h('label', { class: 'gs-field gs-field--wide' }, [
         h('span', label),
         h('div', { class: 'gs-color-field' }, [
           h('input', {

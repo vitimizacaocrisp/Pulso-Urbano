@@ -783,7 +783,8 @@ body.has-studio-open {
 .gs-html-preview {
   display: block;
   overflow-x: auto;
-  margin-top: 0.35rem;
+  /* Mesmo recuo lateral dos campos: a seção em volta não tem padding próprio. */
+  margin: 0.35rem 0.8rem 0.2rem;
   color: var(--studio-muted);
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.68rem;
@@ -1974,6 +1975,11 @@ body.has-studio-open {
 
 .gs-style-grid .gs-field {
   padding: 0;
+}
+
+/* Campo que precisa da linha inteira da grade (cor + token lado a lado). */
+.gs-style-grid .gs-field--wide {
+  grid-column: 1 / -1;
 }
 
 .gs-style-grid.is-four .gs-field > span {

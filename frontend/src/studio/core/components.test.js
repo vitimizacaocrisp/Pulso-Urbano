@@ -89,6 +89,24 @@ describe('syncComponentInstances', () => {
     expect(saida.nodes.mestre_titulo.content.text).toBe('Título do mestre');
   });
 
+  it('reverte qualquer geometria gravada direto num filho de cópia', () => {
+    // É o fato que causava o congelamento do editor: a medição automática
+    // gravava altura num filho de cópia, a sincronização revertia para a do
+    // mestre, o documento mudava e a medição rodava de novo, sem fim. Por isso
+    // o editor não mede filhos de cópia — este teste fixa o motivo.
+    const sincronizado = syncComponentInstances(documento());
+    const filho = Object.values(sincronizado.nodes).find((n) => n.parentId === 'copia');
+    const alterado = parseGraphicStudioDocument({
+      ...sincronizado,
+      nodes: {
+        ...sincronizado.nodes,
+        [filho.id]: { ...filho, frame: { ...filho.frame, height: 999 } },
+      },
+    });
+    const denovo = syncComponentInstances(alterado);
+    expect(denovo.nodes[filho.id].frame.height).toBe(sincronizado.nodes.mestre_titulo.frame.height);
+  });
+
   it('devolve o mesmo documento quando não há componentes', () => {
     const base = documento();
     const semComponentes = parseGraphicStudioDocument({

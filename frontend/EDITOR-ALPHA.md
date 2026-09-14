@@ -34,7 +34,7 @@ src/studio/
               rotação/resize/escala)  history.ts  clipboard.ts  layout.ts
               catalog.ts  assets.ts  index.ts
   renderer/   GraphicStudioRenderer.ts (JSON -> DOM)  index.ts
-  seedDocument.ts   documento inicial de teste
+  seedDocument.ts   documento inicial: a análise de exemplo (exemploAnalise.json)
   exportHtml.ts     empacota o render num HTML autossuficiente
   alphaStorage.js   chave do rascunho, compartilhada pelas duas telas
 src/assets/css/studio.css          estilo do editor (tema escuro + claro)
@@ -244,7 +244,8 @@ Rode `npm run dev`, entre como administrador e abra `/admin/editor-alpha`.
 - [ ] O painel de camadas mostra a hierarquia em árvore e reordena frente/trás.
 - [ ] O limite de passos guardados é configurável na barra superior e o contador
       (`n/limite`) acompanha.
-- [ ] "Recomeçar" pede confirmação e volta ao documento inicial.
+- [ ] "Recomeçar" pede confirmação e volta ao documento inicial, a análise de
+      exemplo com os três cartões de indicador.
 - [ ] O botão Preview abre a aba nova já logado e mostra o documento renderizado.
 - [ ] Em **Baixar HTML**, o arquivo salvo abre no navegador com o desenho igual ao
       do preview, e encolhe ao estreitar a janela.

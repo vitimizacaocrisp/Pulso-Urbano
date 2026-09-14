@@ -20,7 +20,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import { GraphicStudioRenderer } from '@/studio/renderer';
-import { parseGraphicStudioDocument } from '@/studio/core';
+import { parseGraphicStudioDocument, syncComponentInstances } from '@/studio/core';
 import { googleFontsStylesheetUrl } from '@/studio/editor/catalog';
 import api, { errorMessage } from '@/services/api';
 import '@/assets/css/studio-render.css';
@@ -58,7 +58,9 @@ onMounted(async () => {
   carregarFontes();
   try {
     const { data } = await api.get(`/api/studio/${encodeURIComponent(route.params.slug)}`);
-    documento.value = parseGraphicStudioDocument(data.data.documento);
+    // Cópias de componente materializadas antes de exibir, mesmo que o documento
+    // tenha sido publicado sem nenhuma edição depois de importado.
+    documento.value = syncComponentInstances(parseGraphicStudioDocument(data.data.documento));
     document.title = data.data.titulo;
   } catch (requisicaoFalhou) {
     erro.value = errorMessage(requisicaoFalhou) || 'Página não encontrada.';
