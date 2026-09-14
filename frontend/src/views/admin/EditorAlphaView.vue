@@ -80,10 +80,31 @@ function sincronizarTema() {
   document.documentElement.classList.toggle('dark', !claro);
 }
 
+/**
+ * O rascunho salvo é só o conteúdo inicial antigo, sem nenhuma edição?
+ *
+ * Quem abriu o editor antes da análise de exemplo virar o conteúdo inicial ficou
+ * com a tela "Comece a editar por aqui." gravada no navegador, e continuaria
+ * vendo ela para sempre. Esse rascunho pode ser trocado sem perda: ninguém
+ * escreveu nada nele. A comparação é pelo conteúdo, e não pela geometria, porque
+ * a medição automática de altura altera os tamanhos logo ao abrir.
+ */
+function ehConteudoInicialAntigo(doc) {
+  const ids = Object.keys(doc.nodes ?? {}).sort().join(',');
+  return doc.documentId === 'doc_alpha_pulso'
+    && ids === 'node_root,node_texto,node_titulo'
+    && doc.nodes.node_titulo?.content?.text === 'Comece a editar por aqui.'
+    && doc.nodes.node_texto?.content?.text === 'Duplo clique edita o texto no canvas. Botão direito abre as ações.';
+}
+
 function carregarRascunho() {
   try {
     const salvo = window.localStorage.getItem(STORAGE_KEY);
-    if (salvo) documento.value = parseGraphicStudioDocument(JSON.parse(salvo));
+    if (!salvo) return;
+    const rascunho = parseGraphicStudioDocument(JSON.parse(salvo));
+    // Rascunho com edições de verdade é mantido; o exemplo continua a um clique
+    // de distância, no botão Recomeçar.
+    documento.value = ehConteudoInicialAntigo(rascunho) ? createSeedDocument() : rascunho;
   } catch {
     // Rascunho corrompido ou de uma versão antiga do schema: recomeça limpo em
     // vez de deixar a tela quebrada.
