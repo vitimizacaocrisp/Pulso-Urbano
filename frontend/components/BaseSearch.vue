@@ -1,0 +1,109 @@
+<template>
+  <div class="base-search-wrapper" @focusout="handleFocusOut">
+    <slot
+      :query="query"
+      :results="filteredResults"
+      :is-loading="isLoading"
+      :is-open="isOpen"
+      :update-query="updateQuery"
+      :handle-focus="handleFocus"
+      :handle-enter="handleEnter"
+      :select-item="selectItem"
+    ></slot>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRouter } from '#imports'
+import api from '@/services/api'
+import { fetchWithCache, CacheKeys, TTL } from '@/utils/apiCache'
+import { v2ToCard } from '@/utils/postagemV2'
+
+const emit = defineEmits<{ select: [item: any] }>()
+const router = useRouter()
+
+const query       = ref('')
+const allAnalyses = ref<any[]>([])
+const isLoading   = ref(false)
+const isOpen      = ref(false)
+
+// Usa a rota leve /autocomplete (id, title, author, tag, category)
+// O cache compartilhado garante que múltiplos componentes não disparam chamadas duplicadas.
+const fetchAllData = async () => {
+  if (allAnalyses.value.length > 0) return
+  isLoading.value = true
+  try {
+    // API v2 pública: lista enxuta p/ autocomplete client-side (id=slug).
+    const data = await fetchWithCache(
+      CacheKeys.autocomplete,
+      () => api
+        .get('/api/postagens', { params: { limit: 100, page: 1 } })
+        .then(r => (r.data?.data?.itens || []).map(v2ToCard)),
+      TTL.META // 10 min
+    )
+
+    allAnalyses.value = data
+  } catch (err) {
+    console.error('Erro ao carregar autocomplete:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Campos como tag/category podem vir como array (JSONB) — normaliza para texto
+// antes de filtrar, evitando TypeError que quebraria a busca ao vivo.
+const norm = (v: unknown): string => {
+  if (v == null) return ''
+  // minúsculas + remove acentos ("violência" → "violencia") p/ casar sem diacríticos.
+  return (Array.isArray(v) ? v.join(' ') : String(v))
+    .toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+}
+
+const filteredResults = computed(() => {
+  if (!query.value.trim()) return []
+  const q = norm(query.value)
+  return allAnalyses.value.filter(a =>
+    norm(a.title).includes(q)  ||
+    norm(a.tag).includes(q)    ||
+    norm(a.author).includes(q) ||
+    norm(a.category).includes(q)
+  ).slice(0, 8)
+})
+
+const updateQuery = (val: string) => {
+  query.value  = val
+  isOpen.value = true
+  fetchAllData()
+}
+
+const handleFocus = () => {
+  fetchAllData()
+  if (query.value.trim()) isOpen.value = true
+}
+
+const handleFocusOut = (event: FocusEvent) => {
+  if (!(event.currentTarget as HTMLElement)?.contains(event.relatedTarget as Node)) isOpen.value = false
+}
+
+const selectItem = (item: any) => {
+  query.value  = ''
+  isOpen.value = false
+  emit('select', item)
+  // Abre a análise diretamente, em vez de "pesquisar pelo id".
+  if (item?.id) router.push({ name: 'AnalysisDetail', params: { id: item.id } })
+}
+
+const handleEnter = () => {
+  const q = query.value.trim()
+  if (!q) return
+  isOpen.value = false
+  emit('select', null)
+  router.push({ name: 'Pesquisa', query: { q } })
+  query.value = ''
+}
+</script>
+
+<style scoped>
+.base-search-wrapper { position: relative; width: 100%; }
+</style>

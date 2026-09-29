@@ -2,16 +2,19 @@
   "name": "pulso-urbano",
   "version": "1.0.0",
   "description": "**Pulso Urbano** é uma plataforma digital de dados, análises e previsões desenvolvida em parceria com o [CRISP/UFMG](https://www.crisp.ufmg.br), com o objetivo de tornar acessível o conhecimento produzido em pesquisas acadêmicas e sociais sobre segurança pública, criminalidade, juventude e urbanismo.",
-  "main": "index.js",
+  "main": "src/index.ts",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "test": "node --test",
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "build": "echo \"No build step defined\"",
-    "storage:cors": "node scripts/configure_r2_cors.js"
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "db:local:up": "docker compose -f ../database/docker-compose.yml up -d",
+    "db:local:setup": "tsx scripts/setup_local_db.ts",
+    "storage:cors": "tsx scripts/configure_r2_cors.ts"
   },
   "repository": {
     "type": "git",
@@ -39,7 +42,6 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
-    "node-fetch": "^2.7.0",
     "pg": "^8.22.0",
     "qrcode": "^1.5.4",
     "sanitize-html": "^2.17.5",
@@ -47,6 +49,17 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/sanitize-html": "^2.16.1",
+    "@types/speakeasy": "^2.0.10",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

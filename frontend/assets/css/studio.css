@@ -1,0 +1,2707 @@
+/* Sem `@layer` aqui de propósito: no Pulso os estilos globais (style.css,
+   variables.css) não usam camadas, e regra sem camada vence regra em camada na
+   cascata. Envolver este arquivo faria os resets globais de button/input/a
+   passarem por cima do editor inteiro. */
+body.has-studio-open {
+  overflow: hidden;
+  background: #080d17;
+}
+
+:root.light body.has-studio-open {
+  background: #eef1f8;
+}
+
+.studio-page {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.gs-editor {
+  --studio-bg: #0b111d;
+  --studio-panel: #101824;
+  --studio-panel-alt: #0d1521;
+  --studio-border: #223047;
+  --studio-text: #e8eef7;
+  --studio-muted: #78879d;
+  --studio-accent: #00dc82;
+  /* Fundo recuado de inputs/cartões estáticos (antes: ~20 tons de azul-marinho
+     quase idênticos espalhados pelo arquivo, um por componente). */
+  --studio-well: #0a111d;
+  /* Fundo de :hover / .is-active neutro (sem ser o selo de cor do preset). */
+  --studio-hover: #172235;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+  color: var(--studio-text);
+  background: var(--studio-bg);
+  font-family: "Manrope", "Aptos", sans-serif;
+}
+
+/*
+ * Tema claro. O canvas (a página renderizada) e a caixa de seleção azul ficam
+ * de fora de propósito — são "papel branco + seleção azul", iguais nos dois
+ * temas, como no Figma. Só o CROMO do editor muda.
+ */
+:root.light .gs-editor {
+  color-scheme: light;
+  --studio-bg: #eef1f8;
+  --studio-panel: #ffffff;
+  --studio-panel-alt: #f7f9fc;
+  --studio-border: #d7dee9;
+  --studio-text: #16202f;
+  --studio-muted: #64748b;
+  --studio-well: #eef2f8;
+  --studio-hover: #e4eaf5;
+  /* Redeclarados explicitamente: alguns motores de navegador não recomputam
+     `background: var(--studio-bg)` quando só a custom property muda numa
+     regra à parte, mesmo com especificidade maior. */
+  color: var(--studio-text);
+  background: var(--studio-bg);
+}
+
+:root.light .gs-editor__topbar {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+:root.light .gs-editor__stage-bar {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+:root.light .gs-editor__rail,
+:root.light .gs-editor__viewport,
+:root.light .gs-history-actions,
+:root.light .gs-zoom-control,
+:root.light .gs-snap-toggle {
+  background: var(--studio-panel-alt);
+}
+
+:root.light .gs-multi-toolbar {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 35px rgba(16, 24, 40, 0.14);
+}
+
+:root.light .gs-editor__stage {
+  background:
+    radial-gradient(circle, #c7cfdc 0.7px, transparent 0.7px) 0 0 / 18px 18px,
+    #dde3ee;
+}
+
+:root.light .gs-editor__library,
+:root.light .gs-editor__inspector {
+  scrollbar-color: #c3ccdc transparent;
+}
+
+:root.light .gs-editor__stage {
+  scrollbar-color: #b7c1d4 transparent;
+}
+
+:root.light .gs-editor__back:hover {
+  color: var(--studio-text);
+}
+
+.gs-editor button,
+.gs-editor input,
+.gs-editor select,
+.gs-editor textarea {
+  border-radius: 6px;
+}
+
+.gs-editor button {
+  color: inherit;
+  cursor: pointer;
+}
+
+.gs-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.gs-editor__topbar {
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid var(--studio-border);
+  padding: 0 0.8rem;
+  background: rgba(9, 15, 26, 0.96);
+}
+
+.gs-editor__identity,
+.gs-editor__top-actions,
+.gs-editor__viewport {
+  display: flex;
+  align-items: center;
+}
+
+.gs-editor__identity {
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.gs-editor__identity > div {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.gs-editor__identity strong {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-editor__identity small,
+.gs-editor__top-actions span {
+  color: var(--studio-muted);
+  font-size: 0.55rem;
+}
+
+.gs-editor__back,
+.gs-editor__mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.gs-editor__back {
+  border: 1px solid var(--studio-border);
+  /* Virou <button> (era <a>) pro voltar poder confirmar alterações não salvas
+     antes de navegar — zera o estilo nativo de botão do navegador. */
+  background: none;
+  font: inherit;
+  color: var(--studio-muted);
+  text-decoration: none;
+}
+
+.gs-editor__back:hover {
+  color: #fff;
+  background: var(--studio-hover);
+}
+
+.gs-editor__back svg {
+  width: 14px;
+}
+
+.gs-editor__mark {
+  border-radius: 8px;
+  color: #00180e;
+  background: var(--studio-accent);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.gs-editor__viewport {
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  background: var(--studio-well);
+}
+
+.gs-editor__viewport button {
+  display: grid;
+  width: 32px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  color: var(--studio-muted);
+  background: transparent;
+}
+
+.gs-editor__viewport button.is-active {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+  box-shadow: inset 0 0 0 1px rgba(0, 220, 130, 0.22);
+}
+
+.gs-editor__viewport svg {
+  width: 13px;
+}
+
+.gs-editor__top-actions {
+  gap: 0.65rem;
+  justify-self: end;
+}
+
+.gs-editor__top-actions span {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--studio-muted);
+}
+
+.gs-editor__top-actions span i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--studio-accent);
+}
+
+.gs-editor__top-actions button,
+.gs-editor__top-actions .gs-preview-link {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid var(--studio-border);
+  padding: 0 0.65rem;
+  background: var(--studio-well);
+  font-size: 0.6rem;
+}
+
+.gs-editor__top-actions .gs-preview-link {
+  color: var(--studio-text);
+  text-decoration: none;
+  background: var(--studio-hover);
+  border-color: rgba(0, 220, 130, 0.35);
+}
+
+.gs-editor__top-actions svg {
+  width: 12px;
+}
+
+.gs-theme-toggle {
+  display: grid;
+  width: 32px;
+  min-height: 32px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-theme-toggle:hover {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-theme-toggle svg {
+  width: 14px;
+}
+
+.gs-history-actions,
+.gs-zoom-control {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  background: var(--studio-well);
+}
+
+.gs-history-actions button,
+.gs-zoom-control button {
+  display: grid;
+  width: 30px;
+  min-height: 28px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--studio-border);
+  border-radius: 0;
+  padding: 0;
+  color: var(--studio-muted);
+  background: transparent;
+}
+
+.gs-history-actions button:last-child,
+.gs-zoom-control button:last-child {
+  border-right: 0;
+}
+
+.gs-history-actions button:not(:disabled):hover,
+.gs-zoom-control button:not(:disabled):hover {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-editor__workspace {
+  display: grid;
+  grid-template-columns: 68px 280px minmax(350px, 1fr) 290px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gs-editor__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-right: 1px solid var(--studio-border);
+  padding: 0.6rem 0.45rem;
+  background: var(--studio-well);
+}
+
+.gs-editor__rail button {
+  display: grid;
+  gap: 0.3rem;
+  min-height: 53px;
+  place-items: center;
+  border: 0;
+  color: var(--studio-muted);
+  background: transparent;
+  font-size: 0.48rem;
+}
+
+.gs-editor__rail button:hover,
+.gs-editor__rail button.is-active {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-editor__rail button.is-active {
+  box-shadow: inset 2px 0 var(--studio-accent);
+}
+
+.gs-editor__rail svg {
+  width: 17px;
+  height: 17px;
+}
+
+.gs-editor__rail-spacer {
+  flex: 1;
+}
+
+.gs-editor__library,
+.gs-editor__inspector {
+  min-width: 0;
+  overflow: auto;
+  background: var(--studio-panel-alt);
+  scrollbar-color: #2a3a52 transparent;
+  scrollbar-width: thin;
+}
+
+.gs-editor__library {
+  border-right: 1px solid var(--studio-border);
+}
+
+.gs-editor__inspector {
+  border-left: 1px solid var(--studio-border);
+}
+
+.gs-library__content,
+.gs-inspector__content {
+  padding-bottom: 2rem;
+}
+
+.gs-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 47px;
+  padding: 0 0.85rem;
+  border-bottom: 1px solid var(--studio-border);
+}
+
+.gs-panel-heading strong {
+  font-size: 0.68rem;
+}
+
+.gs-panel-heading small {
+  color: var(--studio-muted);
+  font-size: 0.52rem;
+}
+
+.gs-tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  padding: 0.85rem;
+}
+
+.gs-tool-grid button {
+  display: grid;
+  gap: 0.65rem;
+  min-height: 92px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  padding: 0.8rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  font-size: 0.58rem;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.gs-tool-grid button:hover {
+  border-color: rgba(0, 220, 130, 0.5);
+  color: var(--studio-text);
+  background: var(--studio-hover);
+  transform: translateY(-2px);
+}
+
+.gs-tool-grid svg {
+  width: 22px;
+  height: 22px;
+  color: var(--studio-accent);
+}
+
+/* Linhas de apoio do arraste. Ficam abaixo da caixa de seleção e não capturam
+   ponteiro: são puramente informativas. */
+.gs-alignment-guide {
+  position: absolute;
+  z-index: 25;
+  background: #ff3d8b;
+  pointer-events: none;
+}
+
+.gs-fit-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  color: var(--studio-muted);
+  background: var(--studio-panel-alt);
+  cursor: pointer;
+}
+
+.gs-fit-button:hover:not(:disabled) {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-fit-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Timeline de quadros-chave ── */
+
+.gs-keyframes {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+  overflow-x: auto;
+}
+
+.gs-keyframes__head,
+.gs-keyframes__row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(44px, 1fr)) 24px;
+  gap: 0.25rem;
+  align-items: center;
+  min-width: 320px;
+}
+
+.gs-keyframes__head span {
+  color: var(--studio-muted);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gs-keyframes__row input {
+  min-width: 0;
+  padding: 0.25rem 0.3rem;
+  font-size: 0.7rem;
+}
+
+.gs-keyframes__remove {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-keyframes__remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gs-keyframes__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.gs-keyframes__actions button,
+.gs-replay-button {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  color: var(--studio-text);
+  background: var(--studio-hover);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.gs-replay-button {
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+/* ── Painel Tema (tokens de cor compartilhados) ── */
+
+.gs-token-new {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px auto;
+  gap: 0.4rem;
+  margin: 0.2rem 0.85rem 0.6rem;
+}
+
+.gs-token-new input[type="text"],
+.gs-token-new input:not([type]) {
+  min-width: 0;
+}
+
+.gs-token-new button {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  padding: 0 0.6rem;
+  color: var(--studio-text);
+  background: var(--studio-hover);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.gs-token-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.85rem;
+  list-style: none;
+}
+
+.gs-token-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  background: var(--studio-well);
+}
+
+.gs-token-list code {
+  overflow: hidden;
+  color: var(--studio-text);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-token-actions {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.gs-token-actions button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-token-actions button:hover:not(:disabled) {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-token-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gs-component-create {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.gs-token-list li > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--studio-accent);
+}
+
+/* ── Título e endereço do documento, na barra superior ── */
+
+.gs-editor__title {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.gs-document-title {
+  width: min(280px, 34vw);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.1rem 0.3rem;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.gs-document-title:hover,
+.gs-document-title:focus {
+  border-color: var(--studio-border);
+  background: var(--studio-well);
+  outline: none;
+}
+
+.gs-document-slug {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+}
+
+.gs-document-slug input {
+  width: min(220px, 28vw);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0.05rem 0.25rem;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+
+.gs-document-slug input:hover,
+.gs-document-slug input:focus {
+  border-color: var(--studio-border);
+  background: var(--studio-well);
+  outline: none;
+}
+
+.gs-document-error {
+  color: #ffb347;
+  font-size: 0.66rem;
+}
+
+/* ── Lista de atalhos ── */
+
+.gs-shortcuts {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  inset: 0;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 9, 18, 0.6);
+}
+
+.gs-shortcuts__panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(560px, 100%);
+  max-height: min(80vh, 640px);
+  border: 1px solid var(--studio-border);
+  border-radius: 14px;
+  color: var(--studio-text);
+  background: var(--studio-panel);
+  box-shadow: 0 24px 60px rgba(4, 9, 18, 0.45);
+}
+
+.gs-shortcuts__panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--studio-border);
+}
+
+.gs-shortcuts__panel header button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-shortcuts__panel dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem 1rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.9rem 1rem 1.1rem;
+}
+
+.gs-shortcuts__panel dt {
+  white-space: nowrap;
+}
+
+.gs-shortcuts__panel dd {
+  margin: 0;
+  color: var(--studio-muted);
+  font-size: 0.78rem;
+}
+
+.gs-shortcuts__panel kbd {
+  display: inline-block;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+  background: var(--studio-well);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+}
+
+.gs-shortcuts-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-shortcuts-button:hover {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-html-preview {
+  display: block;
+  overflow-x: auto;
+  /* Mesmo recuo lateral dos campos: a seção em volta não tem padding próprio. */
+  margin: 0.35rem 0.8rem 0.2rem;
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.gs-instance-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.gs-detach-button {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  margin-top: 0.4rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  color: var(--studio-text);
+  background: var(--studio-hover);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.gs-panel-status {
+  margin: 0 0.85rem 0.5rem;
+  color: #ffb347;
+  font-size: 0.72rem;
+}
+
+/* Cor avulsa + vínculo a token, lado a lado no inspetor. */
+.gs-color-field {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.gs-color-field input[type="color"]:disabled {
+  opacity: 0.55;
+}
+
+.gs-panel-callout {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0.2rem 0.85rem;
+  padding: 0.8rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-panel-callout svg {
+  width: 15px;
+  flex: 0 0 auto;
+  color: var(--studio-muted);
+}
+
+.gs-panel-callout p {
+  margin: 0;
+  font-size: 0.55rem;
+  line-height: 1.5;
+}
+
+.gs-layer-list {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.55rem;
+}
+
+.gs-layer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  border-radius: 6px;
+}
+
+.gs-layer-row:hover,
+.gs-layer-row.is-selected {
+  background: var(--studio-hover);
+}
+
+.gs-layer-row.is-selected {
+  box-shadow: inset 2px 0 var(--studio-accent);
+}
+
+.gs-layer-row button {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+
+.gs-layer-row__select {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  overflow: hidden;
+  min-height: 34px;
+  padding: 0 0.55rem;
+  color: var(--studio-muted);
+  font-size: 0.56rem;
+  text-align: left;
+}
+
+.gs-layer-row__select span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-layer-row__select svg,
+.gs-layer-row__visibility svg,
+.gs-layer-row__lock svg {
+  width: 12px;
+  flex: 0 0 auto;
+}
+
+.gs-layer-row.is-selected .gs-layer-row__select {
+  color: var(--studio-text);
+}
+
+.gs-layer-row__visibility,
+.gs-layer-row__lock {
+  display: grid;
+  place-items: center;
+  color: var(--studio-muted);
+}
+
+.gs-layer-row__lock[aria-pressed="true"] {
+  color: #f7b955;
+}
+
+/* Linha de artboard: é o "cabeçalho" do grupo de camadas abaixo dela. */
+.gs-layer-row.is-artboard {
+  margin-top: 0.35rem;
+}
+
+.gs-layer-row.is-artboard .gs-layer-row__select {
+  color: var(--studio-text);
+  font-weight: 700;
+}
+
+.gs-layer-row.is-artboard:first-child {
+  margin-top: 0;
+}
+
+.gs-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0.8rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.6rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  background: var(--studio-well);
+}
+
+.gs-search > svg {
+  width: 13px;
+  color: var(--studio-muted);
+}
+
+.gs-search input {
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.58rem;
+}
+
+.gs-search button {
+  height: 30px;
+  border: 0;
+  padding: 0 0.65rem;
+  color: #00170d;
+  background: var(--studio-accent);
+  font-size: 0.52rem;
+  font-weight: 750;
+}
+
+.gs-catalog-status {
+  margin: 0 0.85rem 0.75rem;
+  color: var(--studio-muted);
+  font-size: 0.52rem;
+  line-height: 1.4;
+}
+
+.gs-image-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  padding: 0 0.8rem;
+}
+
+.gs-image-results button {
+  display: grid;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--studio-border);
+  padding: 0;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  text-align: left;
+}
+
+.gs-image-results button:hover {
+  border-color: var(--studio-accent);
+}
+
+.gs-image-results img {
+  width: 100%;
+  height: 95px;
+  object-fit: cover;
+}
+
+.gs-image-results span,
+.gs-image-results small {
+  overflow: hidden;
+  margin: 0.45rem 0.5rem 0;
+  font-size: 0.52rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-image-results small {
+  margin-top: 0.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--studio-muted);
+  font-size: 0.44rem;
+}
+
+.gs-icon-results {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  padding: 0 0.8rem;
+}
+
+.gs-icon-results button {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 66px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  padding: 0.45rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-icon-results button:hover {
+  border-color: var(--studio-accent);
+  color: var(--studio-text);
+}
+
+.gs-icon-results svg {
+  width: 21px;
+  height: 21px;
+}
+
+.gs-icon-results span {
+  overflow: hidden;
+  width: 100%;
+  font-size: 0.42rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-file-drop {
+  display: grid;
+  gap: 0.35rem;
+  place-items: center;
+  margin: 0.85rem;
+  min-height: 118px;
+  border: 1px dashed var(--studio-border);
+  border-radius: 9px;
+  padding: 1rem;
+  color: var(--studio-muted);
+  background: linear-gradient(145deg, rgba(0, 220, 130, 0.05), rgba(13, 24, 40, 0.8));
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.gs-asset-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0 0.8rem 0.65rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  padding: 0 0.55rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-asset-search svg { width: 13px; }
+
+.gs-asset-search input {
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  outline: 0;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.54rem;
+}
+
+.gs-file-drop:hover {
+  border-color: var(--studio-accent);
+  background: rgba(0, 220, 130, 0.08);
+}
+
+.gs-file-drop > svg {
+  width: 24px;
+  color: var(--studio-accent);
+}
+
+.gs-file-drop strong {
+  font-size: 0.64rem;
+}
+
+.gs-file-drop span {
+  color: var(--studio-muted);
+  font-size: 0.5rem;
+  line-height: 1.45;
+}
+
+.gs-file-drop input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.gs-asset-filters {
+  display: flex;
+  gap: 0.3rem;
+  overflow-x: auto;
+  padding: 0 0.85rem 0.7rem;
+}
+
+.gs-asset-filters button {
+  min-height: 27px;
+  flex: 0 0 auto;
+  border: 1px solid var(--studio-border);
+  padding: 0 0.55rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  font-size: 0.48rem;
+}
+
+.gs-asset-filters button.is-active {
+  border-color: rgba(0, 220, 130, 0.4);
+  color: var(--studio-accent);
+  background: rgba(0, 220, 130, 0.07);
+}
+
+.gs-assets-empty {
+  display: grid;
+  gap: 0.6rem;
+  min-height: 160px;
+  place-items: center;
+  align-content: center;
+  color: var(--studio-muted);
+  font-size: 0.54rem;
+}
+
+.gs-assets-empty svg {
+  width: 25px;
+}
+
+.gs-asset-list {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0 0.8rem;
+}
+
+.gs-asset-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  min-height: 70px;
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  background: var(--studio-well);
+}
+
+.gs-asset-card__preview {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-asset-card__preview.is-video { color: #38bdf8; }
+.gs-asset-card__preview.is-audio { color: #f0abfc; }
+.gs-asset-card__preview.is-pdf { color: #fb7185; }
+.gs-asset-card__preview.is-code { color: #c8ff3d; }
+.gs-asset-card__preview.is-data { color: #4ade80; }
+.gs-asset-card__preview.is-notebook { color: #fbbf24; }
+
+.gs-asset-card__preview {
+  position: relative;
+}
+
+.gs-asset-card__status {
+  position: absolute;
+  inset: auto 2px 2px auto;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--studio-text);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.gs-asset-card__status svg {
+  width: 10px;
+}
+
+.gs-asset-card__status.is-error {
+  color: #fecaca;
+}
+
+.gs-spin {
+  animation: gs-spin 1s linear infinite;
+}
+
+@keyframes gs-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gs-asset-card__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gs-asset-card__preview svg {
+  width: 20px;
+}
+
+.gs-asset-card__body {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.55rem;
+}
+
+.gs-asset-card__body > strong,
+.gs-asset-card__body > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-asset-card__body > strong {
+  font-size: 0.54rem;
+}
+
+.gs-asset-card__body > small {
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.42rem;
+}
+
+.gs-asset-card__body > div {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: auto;
+}
+
+.gs-asset-card__body button {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  min-height: 25px;
+  border: 1px solid var(--studio-border);
+  padding: 0 0.45rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  font-size: 0.45rem;
+}
+
+.gs-asset-card__body button:first-child {
+  color: #00190f;
+  background: var(--studio-accent);
+  border-color: var(--studio-accent);
+}
+
+.gs-asset-card__body button svg {
+  width: 10px;
+}
+
+.gs-editor__stage {
+  position: relative;
+  min-width: 0;
+  overflow: auto;
+  padding: 62px 54px 80px;
+  background:
+    radial-gradient(circle, #354257 0.7px, transparent 0.7px) 0 0 / 18px 18px,
+    #1b2535;
+  scrollbar-color: #45536a transparent;
+  scrollbar-width: thin;
+}
+
+/* Ferramenta mão: espaço segurado, e "agarrado" enquanto arrasta. */
+.gs-editor__stage.is-hand { cursor: grab; }
+.gs-editor__stage.is-panning { cursor: grabbing; }
+
+/* ----- menu de contexto (botão direito) ----- */
+
+.gs-context-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  min-width: 232px;
+  flex-direction: column;
+  border: 1px solid var(--studio-border);
+  border-radius: 10px;
+  padding: 5px;
+  background: var(--studio-panel);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+}
+
+.gs-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.42rem 0.55rem;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.gs-context-menu__item:hover:not(:disabled) { background: var(--studio-hover); }
+.gs-context-menu__item:disabled { color: var(--studio-muted); cursor: not-allowed; opacity: 0.5; }
+.gs-context-menu__item span { flex: 1; }
+
+.gs-context-menu__item kbd {
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62rem;
+}
+
+.gs-context-menu__divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--studio-border);
+}
+
+/* ----- barra de telas (artboards) ----- */
+
+.gs-artboard-bar {
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.gs-artboard-chip {
+  display: flex;
+  overflow: hidden;
+  align-items: stretch;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  background: var(--studio-panel);
+}
+
+.gs-artboard-chip.is-active {
+  border-color: var(--studio-accent);
+}
+
+.gs-artboard-chip__select {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  padding: 0.32rem 0.6rem;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.gs-artboard-chip__select small {
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+
+.gs-artboard-chip__rename {
+  width: 130px;
+  border: 0;
+  padding: 0 0.5rem;
+  color: var(--studio-text);
+  background: var(--studio-well);
+  font-size: 0.72rem;
+}
+
+.gs-artboard-chip__remove {
+  display: grid;
+  border: 0;
+  border-left: 1px solid var(--studio-border);
+  padding: 0 0.4rem;
+  color: var(--studio-muted);
+  background: transparent;
+  place-items: center;
+}
+
+.gs-artboard-chip__remove:hover { color: #ff6b6b; }
+
+.gs-artboard-add {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px dashed var(--studio-border);
+  border-radius: 8px;
+  padding: 0.32rem 0.7rem;
+  color: var(--studio-muted);
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.gs-artboard-add:hover { border-color: var(--studio-accent); color: var(--studio-accent); }
+
+/* ----- limite do histórico ----- */
+
+.gs-history-limit {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  padding: 0.16rem 0.4rem;
+  color: var(--studio-muted);
+}
+
+.gs-history-limit input {
+  width: 48px;
+  border: 0;
+  color: var(--studio-text);
+  background: transparent;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+}
+
+.gs-history-limit small {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.56rem;
+}
+
+.gs-editor__stage-fixed-bars {
+  position: sticky;
+  z-index: 6;
+  top: 0;
+}
+
+.gs-editor__stage-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 35px;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--studio-border);
+  color: var(--studio-muted);
+  background: rgba(18, 27, 41, 0.9);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.5rem;
+  backdrop-filter: blur(8px);
+}
+
+.gs-stage-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.gs-canvas-size {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.gs-canvas-size label {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  color: var(--studio-muted);
+}
+
+.gs-canvas-size input {
+  width: 68px;
+  height: 25px;
+  border: 1px solid var(--studio-border);
+  padding: 0 0.35rem;
+  color: var(--studio-text);
+  background: var(--studio-well);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.48rem;
+}
+
+.gs-canvas-size input[type="color"] {
+  width: 28px;
+  padding: 2px;
+}
+
+.gs-snap-toggle {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid var(--studio-border);
+  padding: 0 0.5rem;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.45rem;
+}
+
+.gs-snap-toggle.is-active {
+  border-color: rgba(0, 220, 130, 0.45);
+  color: var(--studio-text);
+  background: rgba(0, 220, 130, 0.1);
+}
+
+.gs-snap-toggle svg {
+  width: 11px;
+}
+
+.gs-multi-toolbar {
+  z-index: 40;
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
+  border-radius: 9px;
+  padding: 0.35rem;
+  color: var(--studio-muted);
+  background: rgba(8, 15, 26, 0.96);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.gs-editor__stage > .gs-multi-toolbar {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.gs-multi-toolbar > span {
+  padding: 0 0.45rem;
+  color: var(--studio-text);
+  font-size: 0.5rem;
+  white-space: nowrap;
+}
+
+.gs-multi-toolbar > div {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+}
+
+.gs-multi-toolbar button {
+  display: grid;
+  width: 28px;
+  height: 27px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--studio-border);
+  border-radius: 0;
+  padding: 0;
+  color: var(--studio-muted);
+  background: var(--studio-well);
+}
+
+.gs-multi-toolbar button:last-child { border-right: 0; }
+.gs-multi-toolbar button:not(:disabled):hover { color: var(--studio-text); background: var(--studio-hover); }
+.gs-multi-toolbar button svg { width: 12px; }
+
+.gs-zoom-control button.gs-zoom-control__value {
+  width: 48px;
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.48rem;
+}
+
+.gs-editor__canvas-shell {
+  min-width: 240px;
+  max-width: none;
+  margin: 0 auto;
+  transform-origin: top center;
+  transition: width 240ms cubic-bezier(0.2, 0.75, 0.2, 1), transform 180ms ease;
+}
+
+.gs-editor__canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  /* Visível: um objeto com a ponta para fora da página continua aparecendo. */
+  overflow: visible;
+  border: 1px solid #0b111c;
+  background: #fff;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.32);
+}
+
+/*
+ * Um iframe é outro documento: cliques que caem dentro dele nunca chegam ao
+ * onClickCapture do canvas (selectFromCanvas), nem mesmo quando o iframe só
+ * mostra a página de erro nativa do navegador (PDF/embed/documento do Office
+ * que falhou ao carregar). Sem isto o nó fica impossível de selecionar,
+ * mover ou apagar -- o clique é "engolido" pelo iframe. No editor nada é
+ * interativo por clique direto mesmo (texto só edita com duplo clique);
+ * testar a interação de verdade é o que a página de Preview é para. Não
+ * afeta a página publicada: lá o wrapper é outro
+ * ([data-graphicstudio-document], ver studio-render.css), não esta classe.
+ */
+.gs-editor__canvas iframe {
+  pointer-events: none;
+}
+
+/*
+ * Nenhuma regra de layout daqui para baixo: desde a v2 a posição e o tamanho de
+ * cada nó vêm do documento. O CSS do editor cuida só do "cromo" (hover, seleção).
+ */
+.gs-editor__canvas [data-graphicstudio-document] main {
+  color: #07111f;
+  background:
+    radial-gradient(circle at 85% 10%, rgba(0, 220, 130, 0.12), transparent 15rem),
+    #f8fafc;
+}
+
+.gs-editor__canvas [data-gs-node-id] {
+  cursor: default;
+}
+
+.gs-editor__canvas [data-gs-node-id]:hover,
+.gs-editor__canvas [data-gs-selected] {
+  outline: 2px solid #008cff;
+  outline-offset: 5px;
+}
+
+.gs-editor__canvas h1,
+.gs-editor__canvas h2,
+.gs-editor__canvas p,
+.gs-editor__canvas figure {
+  margin: 0;
+}
+
+.gs-editor__canvas a {
+  text-decoration: none;
+}
+
+.gs-editor__canvas .gs-rendered-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: inherit;
+}
+
+.gs-editor__canvas .gs-rendered-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+.gs-editor__canvas .gs-rendered-image {
+  overflow: hidden;
+}
+
+.gs-editor__canvas .gs-rendered-image img {
+  display: block;
+  width: 100%;
+  height: calc(100% - 26px);
+}
+
+.gs-editor__canvas .gs-rendered-image figcaption {
+  padding: 0.35rem 0;
+  color: #687589;
+  font-size: 0.55rem;
+}
+
+.gs-editor__canvas .gs-rendered-video {
+  overflow: hidden;
+  margin: 0;
+  background: #07111f;
+}
+
+.gs-editor__canvas .gs-rendered-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gs-editor__canvas .gs-rendered-audio {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 0.6rem;
+  background: #07111f;
+}
+
+.gs-editor__canvas .gs-rendered-audio audio {
+  width: 100%;
+}
+
+.gs-editor__canvas .gs-rendered-file-preview {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+/* Os leitores reaproveitados (ResourceDataViewer, CodeNotebookViewer,
+   DocumentMiniReader) foram feitos pra viver no fluxo normal da página, com
+   `min-height` própria. Dentro de um nó do editor a altura é a do frame — o
+   leitor preenche o espaço em vez de forçar um tamanho mínimo por cima dele. */
+.gs-editor__canvas .gs-rendered-file-preview .data-viewer,
+.gs-editor__canvas .gs-rendered-file-preview .code-viewer,
+.gs-editor__canvas .gs-rendered-file-preview .document-reader {
+  height: 100%;
+  min-height: 0;
+}
+
+.gs-editor__canvas .gs-rendered-chart {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.gs-editor__canvas .gs-rendered-chart .chart-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.gs-editor__canvas .gs-missing-asset {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.gs-editor__canvas .gs-rendered-file {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.25rem 0.8rem;
+  align-items: center;
+  min-width: 240px;
+  border: 1px solid #d5dce5;
+  padding: 0.8rem 1rem;
+  color: #111827;
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.08);
+}
+
+.gs-editor__canvas .gs-rendered-file > span {
+  grid-row: span 2;
+  color: #008f57;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.gs-editor__canvas .gs-rendered-file strong {
+  overflow: hidden;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-editor__canvas .gs-rendered-file small {
+  color: #64748b;
+  font-size: 0.5rem;
+}
+
+.gs-selection-box {
+  position: absolute;
+  z-index: 30;
+  border: 1px solid #008cff;
+  outline: 1px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 1px;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+.gs-selection-box:focus-visible {
+  outline: 2px solid #c8ff3d;
+  outline-offset: 3px;
+}
+
+.gs-selection-box.is-locked {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.gs-selection-box__label {
+  position: absolute;
+  top: -25px;
+  left: -1px;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px 4px 0 0;
+  color: #fff;
+  background: #0878d1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.46rem;
+  white-space: nowrap;
+}
+
+.gs-resize-handle {
+  position: absolute;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #0878d1;
+  border-radius: 2px;
+  padding: 0;
+  background: #fff;
+  touch-action: none;
+  /* Compensa o `scale(zoom)` da prancheta (ver --gs-zoom-inverse no inline
+     style da caixa de seleção) para o alvo de clique ficar de tamanho
+     constante na tela, em vez de encolher a ponto de ficar impossível de
+     acertar em zooms baixos. */
+  transform: scale(var(--gs-zoom-inverse, 1));
+}
+
+/*
+ * Alças de rotação: quadrados invisíveis POR FORA de cada canto, como no Figma.
+ * z-index menor que o das alças de redimensionar, para o canto continuar
+ * redimensionando e só a área externa girar.
+ */
+.gs-rotate-handle {
+  position: absolute;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  /* Mesma compensação de zoom das alças de redimensionar. */
+  transform: scale(var(--gs-zoom-inverse, 1));
+}
+
+.gs-rotate-handle:active { cursor: grabbing; }
+/* transform-origin em cada canto: o `scale` acima cresce a partir do canto
+   real da caixa, então a alça não desliza pra longe do lugar ao ampliar. */
+.gs-rotate-handle.is-nw { top: -16px; left: -16px; transform-origin: top left; }
+.gs-rotate-handle.is-ne { top: -16px; right: -16px; transform-origin: top right; }
+.gs-rotate-handle.is-se { right: -16px; bottom: -16px; transform-origin: bottom right; }
+.gs-rotate-handle.is-sw { bottom: -16px; left: -16px; transform-origin: bottom left; }
+
+/* Editando texto no canvas: a caixa some do caminho do cursor. */
+.gs-selection-box.is-editing {
+  pointer-events: none;
+  border-style: dashed;
+}
+
+.gs-editor__canvas [contenteditable="plaintext-only"] {
+  cursor: text;
+  outline: 2px solid #008cff;
+  outline-offset: 4px;
+}
+
+/* Caixa que envolve toda a multi-seleção. */
+.gs-selection-box.is-multi {
+  border-style: dashed;
+  pointer-events: none;
+}
+
+/* Scale tool (K) ativa: sinaliza que o conteúdo escala junto. */
+.gs-selection-box.is-scaling {
+  border-color: #b45309;
+}
+
+.gs-selection-box.is-scaling .gs-resize-handle {
+  border-color: #b45309;
+}
+
+.gs-resize-handle.is-nw { top: -5px; left: -5px; cursor: nwse-resize; transform-origin: top left; }
+.gs-resize-handle.is-n { top: -5px; left: calc(50% - 5px); cursor: ns-resize; transform-origin: top center; }
+.gs-resize-handle.is-ne { top: -5px; right: -5px; cursor: nesw-resize; transform-origin: top right; }
+.gs-resize-handle.is-e { top: calc(50% - 5px); right: -5px; cursor: ew-resize; transform-origin: center right; }
+.gs-resize-handle.is-se { right: -5px; bottom: -5px; cursor: nwse-resize; transform-origin: bottom right; }
+.gs-resize-handle.is-s { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; transform-origin: bottom center; }
+.gs-resize-handle.is-sw { bottom: -5px; left: -5px; cursor: nesw-resize; transform-origin: bottom left; }
+.gs-resize-handle.is-w { top: calc(50% - 5px); left: -5px; cursor: ew-resize; transform-origin: center left; }
+
+.gs-inspector__empty {
+  display: grid;
+  min-height: 330px;
+  place-items: center;
+  align-content: center;
+  padding: 2rem;
+  color: var(--studio-muted);
+  text-align: center;
+}
+
+.gs-inspector__empty svg {
+  width: 30px;
+  height: 30px;
+}
+
+.gs-inspector__empty strong {
+  margin-top: 0.9rem;
+  color: var(--studio-muted);
+  font-size: 0.68rem;
+}
+
+.gs-inspector__empty p {
+  margin: 0.45rem 0 0;
+  font-size: 0.55rem;
+  line-height: 1.5;
+}
+
+.gs-inspector__multi > p {
+  margin: 0;
+  padding: 0.9rem;
+  color: var(--studio-muted);
+  font-size: 0.52rem;
+  line-height: 1.6;
+}
+
+.gs-inspector__multi .gs-multi-toolbar {
+  flex-wrap: wrap;
+  margin: 0 0.8rem;
+  box-shadow: none;
+}
+
+.gs-inspector__multi .gs-multi-toolbar > span {
+  width: 100%;
+}
+
+.gs-selection-summary {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.85rem;
+  border-bottom: 1px solid var(--studio-border);
+}
+
+.gs-selection-summary > svg {
+  width: 24px;
+  height: 24px;
+  color: var(--studio-accent);
+}
+
+.gs-selection-summary div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.gs-selection-summary strong,
+.gs-selection-summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-selection-summary strong {
+  font-size: 0.62rem;
+}
+
+.gs-selection-summary small {
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.46rem;
+}
+
+.gs-field {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: start;
+  padding: 0.55rem 0.8rem;
+}
+
+.gs-field > span {
+  padding-top: 0.48rem;
+  color: var(--studio-muted);
+  font-size: 0.52rem;
+}
+
+.gs-field input,
+.gs-field select,
+.gs-field textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--studio-border);
+  padding: 0.48rem 0.55rem;
+  color: var(--studio-text);
+  background: var(--studio-well);
+  font-size: 0.55rem;
+  outline: 0;
+}
+
+.gs-field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.gs-field input:focus,
+.gs-field select:focus,
+.gs-field textarea:focus {
+  border-color: var(--studio-accent);
+}
+
+.gs-field input[type="color"] {
+  height: 31px;
+  padding: 3px;
+}
+
+.gs-input-unit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  background: var(--studio-well);
+}
+
+.gs-input-unit input {
+  border: 0;
+}
+
+.gs-input-unit span {
+  padding-right: 0.5rem;
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.45rem;
+}
+
+/* ── Preenchimento (sólido/gradiente) do "Fundo" ── */
+
+.gs-fill-tabs {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.75rem 0.8rem 0;
+}
+
+.gs-fill-tab {
+  flex: 1;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.48rem;
+}
+
+.gs-fill-tab:hover:not(.is-active) {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-fill-tab.is-active {
+  border-color: rgba(0, 140, 255, 0.45);
+  color: #0878d1;
+  background: rgba(0, 140, 255, 0.1);
+}
+
+.gs-gradient-stop {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.4rem 0.8rem 0;
+}
+
+.gs-gradient-stop input[type="color"] {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--studio-border);
+  border-radius: 5px;
+  background: var(--studio-well);
+}
+
+.gs-gradient-stop .gs-input-unit {
+  flex: 1;
+}
+
+.gs-format-toolbar {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.8rem 0.8rem 0;
+}
+
+.gs-format-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.55rem;
+}
+
+.gs-format-button:hover {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-format-button em { font-style: italic; }
+
+
+.gs-inspector__section {
+  display: grid;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--studio-border);
+  border-bottom: 1px solid var(--studio-border);
+}
+
+.gs-inspector__section > strong {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.8rem 0.55rem;
+  font-size: 0.58rem;
+}
+
+.gs-inspector__section > strong svg {
+  width: 12px;
+  color: var(--studio-accent);
+}
+
+.gs-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.75rem 0.8rem 0;
+}
+
+.gs-style-grid.is-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gs-style-grid .gs-field {
+  padding: 0;
+}
+
+/* Campo que precisa da linha inteira da grade (cor + token lado a lado). */
+.gs-style-grid .gs-field--wide {
+  grid-column: 1 / -1;
+}
+
+.gs-style-grid.is-four .gs-field > span {
+  overflow: hidden;
+  font-size: 0.44rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-section-label {
+  display: block;
+  padding: 0.8rem 0.8rem 0;
+  color: var(--studio-muted);
+  font-size: 0.48rem;
+  line-height: 1.45;
+}
+
+.gs-toggle-field {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.8rem 0.8rem 0;
+  color: var(--studio-muted);
+  font-size: 0.52rem;
+}
+
+.gs-toggle-field.is-compact {
+  align-self: end;
+  padding: 0 0 0.5rem;
+}
+
+.gs-toggle-field input {
+  accent-color: var(--studio-accent);
+}
+
+/* Linha de rótulo de seção com um botão de ação encostado (cadeado de cantos,
+   adicionar sombra) — mesma indentação do .gs-section-label sozinho. */
+.gs-section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.8rem 0.8rem 0;
+}
+
+.gs-section-label-row .gs-section-label {
+  padding: 0;
+}
+
+.gs-link-corners {
+  display: grid;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-link-corners svg { width: 11px; }
+
+.gs-link-corners:hover {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-link-corners.is-active {
+  border-color: rgba(0, 140, 255, 0.45);
+  color: #0878d1;
+  background: rgba(0, 140, 255, 0.1);
+}
+
+.gs-add-shadow {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  align-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.46rem;
+  white-space: nowrap;
+}
+
+.gs-add-shadow svg { width: 10px; }
+
+.gs-add-shadow:hover:not(:disabled) {
+  color: var(--studio-text);
+  background: var(--studio-hover);
+}
+
+.gs-add-shadow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Cada sombra empilhada vira uma faixa com borda própria, pra não confundir
+   com a de baixo quando há duas ou mais — e o X de remover sempre no mesmo
+   canto, previsível como o resto do inspector. */
+.gs-shadow-row {
+  position: relative;
+  margin: 0.5rem 0.8rem 0;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  padding-bottom: 0.5rem;
+}
+
+.gs-shadow-row .gs-style-grid {
+  padding: 0.55rem 0.55rem 0;
+}
+
+.gs-remove-shadow {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--studio-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gs-remove-shadow svg { width: 10px; }
+
+.gs-remove-shadow:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.gs-asset-reference {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin: 0.7rem 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  background: var(--studio-well);
+}
+
+.gs-asset-reference > svg {
+  width: 20px;
+  color: var(--studio-accent);
+}
+
+.gs-asset-reference > div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.gs-asset-reference strong,
+.gs-asset-reference small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-asset-reference strong { font-size: 0.55rem; }
+.gs-asset-reference small { color: var(--studio-muted); font-family: "IBM Plex Mono", monospace; font-size: 0.42rem; }
+
+.gs-geometry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0 0.8rem;
+}
+
+.gs-geometry-grid label {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid var(--studio-border);
+  border-radius: 6px;
+  background: var(--studio-well);
+}
+
+.gs-geometry-grid span {
+  color: var(--studio-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.45rem;
+  text-align: center;
+}
+
+.gs-geometry-grid input {
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  color: var(--studio-text);
+  background: transparent;
+  font-size: 0.52rem;
+}
+
+.gs-geometry-hint {
+  margin: 0.6rem 0.8rem 0;
+  color: var(--studio-muted);
+  font-size: 0.48rem;
+  line-height: 1.5;
+}
+
+.gs-layer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0.8rem;
+}
+
+.gs-layer-actions button,
+.gs-delete-button {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid var(--studio-border);
+  background: var(--studio-well);
+  font-size: 0.52rem;
+}
+
+.gs-layer-actions svg,
+.gs-delete-button svg {
+  width: 11px;
+}
+
+.gs-delete-button {
+  width: calc(100% - 1.6rem);
+  margin: 0 0.8rem;
+  border-color: #563342;
+  color: #f28a9d;
+  background: #241520;
+}
+
+.gs-delete-button:hover {
+  border-color: #df5b75;
+}
+
+.gs-ungroup-button {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin: 0.8rem;
+  border: 1px solid var(--studio-border);
+  color: var(--studio-muted);
+  background: var(--studio-well);
+  font-size: 0.52rem;
+}
+
+.gs-ungroup-button svg { width: 12px; }
+
+.gs-mobile-only {
+  display: none;
+}
+
+.gs-image-results > *,
+.gs-asset-list > * {
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
+}
+
+@media (max-width: 1250px) {
+  .gs-editor__top-actions > span {
+    display: none;
+  }
+
+  .gs-editor__workspace {
+    grid-template-columns: 62px 240px minmax(350px, 1fr) 260px;
+  }
+}
+
+@media (max-width: 980px) {
+  .studio-page {
+    overflow: hidden;
+  }
+
+  .gs-editor {
+    min-width: 0;
+    grid-template-rows: 52px minmax(0, 1fr);
+  }
+
+  .gs-mobile-only {
+    display: grid;
+  }
+
+  .gs-editor__topbar {
+    grid-template-columns: auto 1fr auto;
+    padding: 0 0.55rem;
+  }
+
+  .gs-editor__identity > div,
+  .gs-editor__identity .gs-editor__mark,
+  .gs-editor__top-actions > span,
+  .gs-editor__top-actions > button {
+    display: none;
+  }
+
+  .gs-editor__top-actions > .gs-preview-link {
+    display: grid;
+    width: 32px;
+    min-height: 30px;
+    place-items: center;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .gs-editor__viewport {
+    justify-self: center;
+  }
+
+  .gs-editor__top-actions {
+    gap: 0;
+  }
+
+  .gs-editor__workspace {
+    position: relative;
+    display: block;
+    overflow: hidden;
+  }
+
+  .gs-editor__stage {
+    position: absolute;
+    inset: 0 0 62px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 48px 12px 42px;
+    background:
+      radial-gradient(circle, #354257 0.65px, transparent 0.65px) 0 0 / 20px 20px,
+      #1b2535;
+  }
+
+  .gs-editor__stage-bar {
+    min-height: 38px;
+    padding: 0 0.55rem;
+    overflow-x: auto;
+    backdrop-filter: none;
+  }
+
+  .gs-editor__stage-bar > span {
+    display: none;
+  }
+
+  .gs-canvas-size,
+  .gs-stage-actions {
+    flex: 0 0 auto;
+  }
+
+  .gs-canvas-size input {
+    width: 55px;
+    font-size: 11px;
+  }
+
+  .gs-editor__rail {
+    position: absolute;
+    z-index: 70;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    height: 62px;
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    border-top: 1px solid var(--studio-border);
+    border-right: 0;
+    padding: 0.25rem;
+    background: var(--studio-well);
+    scrollbar-width: none;
+  }
+
+  .gs-editor__rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gs-editor__rail button {
+    min-width: 64px;
+    min-height: 52px;
+    flex: 1 0 64px;
+    font-size: 0.48rem;
+  }
+
+  .gs-editor__rail button.is-active {
+    box-shadow: inset 0 -2px var(--studio-accent);
+  }
+
+  .gs-editor__rail-spacer {
+    display: none;
+  }
+
+  .gs-mobile-backdrop {
+    position: absolute;
+    z-index: 75;
+    inset: 0 0 62px;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: rgba(2, 7, 13, 0.54);
+  }
+
+  .gs-editor__library,
+  .gs-editor__inspector {
+    position: absolute;
+    z-index: 80;
+    right: 0;
+    bottom: 62px;
+    left: 0;
+    display: block;
+    width: auto;
+    height: min(58dvh, 480px);
+    max-height: calc(100% - 74px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--studio-border);
+    border-width: 1px 0 0;
+    border-radius: 16px 16px 0 0;
+    background: var(--studio-well);
+    box-shadow: 0 -22px 60px rgba(0, 0, 0, 0.42);
+    transform: translateY(calc(100% + 70px));
+    transition: transform 180ms cubic-bezier(0.2, 0.75, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .gs-editor__library.is-mobile-open,
+  .gs-editor__inspector.is-mobile-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .gs-mobile-sheet-close {
+    position: sticky;
+    z-index: 3;
+    top: 8px;
+    float: right;
+    width: 38px;
+    height: 38px;
+    margin: 7px 8px -45px 0;
+    place-items: center;
+    border: 1px solid var(--studio-border);
+    border-radius: 50%;
+    color: var(--studio-muted);
+    background: var(--studio-well);
+  }
+
+  .gs-mobile-sheet-close svg {
+    width: 15px;
+  }
+
+  .gs-panel-heading {
+    padding-right: 3.4rem;
+  }
+
+  .gs-editor__canvas-shell {
+    min-width: 0;
+    transition: none;
+  }
+
+  .gs-editor__canvas {
+    min-height: 0;
+  }
+
+  .gs-editor__stage > .gs-multi-toolbar {
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    overflow-x: auto;
+    transform: none;
+    scrollbar-width: none;
+  }
+
+  .gs-editor__stage > .gs-multi-toolbar > span {
+    display: none;
+  }
+
+  .gs-editor input,
+  .gs-editor select,
+  .gs-editor textarea {
+    font-size: 16px;
+  }
+
+  .gs-layer-row {
+    grid-template-columns: minmax(0, 1fr) 42px 42px;
+  }
+
+  .gs-layer-row__select,
+  .gs-layer-row__visibility,
+  .gs-layer-row__lock {
+    min-height: 44px;
+  }
+
+  .gs-tool-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gs-tool-grid button {
+    min-height: 82px;
+  }
+
+  .gs-layer-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gs-style-grid.is-four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gs-selection-box,
+  .gs-resize-handle {
+    touch-action: none;
+  }
+
+  .gs-resize-handle {
+    width: 18px;
+    height: 18px;
+  }
+
+  .gs-multi-toolbar,
+  .gs-editor__stage-bar {
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-editor *,
+  .gs-editor *::before,
+  .gs-editor *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}

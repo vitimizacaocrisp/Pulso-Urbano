@@ -6,8 +6,12 @@
 .backend/src/api/
 *node_modules/
 *docs/
-*database/
-*test/
+
+# database/ (schema.sql, migrations, docker-compose.yml) e backend/test/ eram
+# ignorados por regras *database/ e *test/ que existiam aqui — nunca tinham
+# sido versionados. Isso quebrava silenciosamente o passo "Aplicar schema v2"
+# do CI (arquivo de migração ausente no checkout) e fazia o "npm test" do
+# backend rodar sobre um diretório vazio (0 testes, sempre verde).
 
 
 # User-specific files

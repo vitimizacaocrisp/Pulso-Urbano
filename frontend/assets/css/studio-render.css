@@ -1,0 +1,215 @@
+/*
+ * Estilo mínimo do documento renderizado — o que o `GraphicStudioRenderer`
+ * precisa e não consegue emitir como estilo inline.
+ *
+ * Vive separado de `studio.css` (que é a interface do editor) porque também é
+ * embutido no HTML exportado, onde o editor não existe. As regras ficam presas a
+ * `[data-graphicstudio-document]`, a raiz que o renderer cria, para não vazar
+ * para o resto do painel admin.
+ *
+ * Posição e tamanho NÃO estão aqui: desde o schema v2 vêm do documento, como
+ * estilo inline. Reintroduzir layout aqui causaria layout duplo.
+ */
+
+[data-graphicstudio-document] .gs-rendered-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: inherit;
+}
+
+[data-graphicstudio-document] .gs-rendered-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+[data-graphicstudio-document] .gs-rendered-image {
+  overflow: hidden;
+  margin: 0;
+}
+
+[data-graphicstudio-document] .gs-rendered-image img {
+  display: block;
+  width: 100%;
+  height: calc(100% - 26px);
+  object-fit: cover;
+}
+
+[data-graphicstudio-document] .gs-rendered-image figcaption {
+  padding: 0.35rem 0;
+  color: #687589;
+  font-size: 0.72rem;
+}
+
+[data-graphicstudio-document] .gs-rendered-list {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+[data-graphicstudio-document] .gs-rendered-quote {
+  margin: 0;
+}
+
+[data-graphicstudio-document] .gs-rendered-quote p {
+  margin: 0 0 0.4em;
+}
+
+[data-graphicstudio-document] .gs-rendered-quote cite {
+  opacity: 0.7;
+  font-size: 0.85em;
+  font-style: normal;
+}
+
+[data-graphicstudio-document] .gs-rendered-embed {
+  display: block;
+  border: 0;
+}
+
+/* A linha é um retângulo fino: sem preenchimento próprio ela sumiria, então
+   herda uma cor até que o documento defina a dela. */
+[data-graphicstudio-document] .gs-shape-line {
+  background: currentColor;
+}
+
+[data-graphicstudio-document] .gs-rendered-video {
+  overflow: hidden;
+  margin: 0;
+  background: #07111f;
+}
+
+[data-graphicstudio-document] .gs-rendered-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+[data-graphicstudio-document] .gs-rendered-audio {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 0.75rem;
+  background: #07111f;
+}
+
+[data-graphicstudio-document] .gs-rendered-audio audio {
+  width: 100%;
+}
+
+[data-graphicstudio-document] .gs-rendered-file-preview {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+/* Mesmo motivo do studio.css (editor): os leitores reaproveitados têm
+   min-height própria pro fluxo normal da página; aqui preenchem o frame. */
+[data-graphicstudio-document] .gs-rendered-file-preview .data-viewer,
+[data-graphicstudio-document] .gs-rendered-file-preview .code-viewer,
+[data-graphicstudio-document] .gs-rendered-file-preview .document-reader {
+  height: 100%;
+  min-height: 0;
+}
+
+[data-graphicstudio-document] .gs-rendered-chart {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+[data-graphicstudio-document] .gs-rendered-chart .chart-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+[data-graphicstudio-document] .gs-missing-asset {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+[data-graphicstudio-document] .gs-rendered-file {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.25rem 0.8rem;
+  align-items: center;
+  border: 1px solid #d5dce5;
+  padding: 0.8rem 1rem;
+  color: #111827;
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.08);
+  text-decoration: none;
+}
+
+[data-graphicstudio-document] .gs-rendered-file > span {
+  grid-row: span 2;
+  color: #008f57;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+[data-graphicstudio-document] .gs-rendered-file strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-graphicstudio-document] .gs-rendered-file small {
+  color: #64748b;
+}
+
+/*
+ * Animações de entrada do renderer (`ANIMATION_PRESETS`).
+ *
+ * Usam as propriedades individuais `translate` e `scale` de propósito, nunca
+ * `transform`: o nó pode ter a própria rotação em `transform`, e animar
+ * `transform` aqui a apagaria. As individuais compõem com ela.
+ */
+@keyframes gs-fade-up {
+  from { opacity: 0; translate: 0 28px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes gs-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gs-scale-in {
+  from { opacity: 0; scale: 0.88; }
+  to { opacity: 1; scale: 1; }
+}
+
+@keyframes gs-slide-left {
+  from { opacity: 0; translate: 42px 0; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes gs-bounce-soft {
+  from { opacity: 0; translate: 0 18px; }
+  60% { opacity: 1; translate: 0 -7px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* Gradiente animado (style.backgroundColor.animated): desloca o degradê
+ * numa caixa 2x maior (ver background-size em backgroundValue, renderer) —
+ * anima de forma confiável em qualquer navegador, sem interpolar cor. */
+@keyframes gs-gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-graphicstudio-document] *,
+  [data-graphicstudio-document] *::before,
+  [data-graphicstudio-document] *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}

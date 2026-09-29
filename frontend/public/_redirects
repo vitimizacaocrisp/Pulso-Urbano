@@ -1,5 +1,0 @@
-# O frontend chama o backend diretamente pela URL em VITE_API_URL
-# (cross-domain via header Authorization). Não há proxy de /api aqui.
-
-# Fallback SPA: toda rota do Vue Router cai no index.html.
-/*    /index.html    200
