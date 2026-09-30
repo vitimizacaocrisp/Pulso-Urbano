@@ -18,7 +18,7 @@ import { requireAdmin } from '../../middleware/authV2';
 import { asyncHandler } from '../../middleware/middlewares';
 import { q } from '../../db/pool';
 import * as audit from '../../services/audit';
-import { presignGetByKey } from '../../services/storage';
+import { getObjectStream } from '../../services/storage';
 
 import type { NextFunction, Response } from 'express';
 import type { Req } from '../../types/http';
@@ -287,10 +287,25 @@ publico.get('/api/studio-media/*chave', asyncHandler(async (req: Req, res: Respo
   const partes = (req.params as unknown as { chave: string[] }).chave;
   const key = Array.isArray(partes) ? partes.join('/') : String(partes || '');
   if (!STUDIO_UPLOAD_KEY.test(key)) return res.status(404).end();
-  const url = await presignGetByKey(key, 300, { inline: true });
-  if (!url) return res.status(404).end();
-  res.set('Cache-Control', 'public, max-age=240'); // menor que o TTL da URL assinada
-  res.redirect(302, url as string);
+  // Proxy (não redirect): fetch() do navegador reaplica CORS na resposta
+  // pós-redirect e o R2 não expõe Access-Control-Allow-Origin nesse hop --
+  // ver comentário em getObjectStream (storage.ts). <img>/<video>/<iframe>
+  // não passam por CORS e funcionariam com redirect, mas CSV/código/notebook
+  // do Editor Alpha usam fetch() pra ler o conteúdo, então precisam do proxy.
+  let obj;
+  try {
+    obj = await getObjectStream(key, req.headers.range as string | undefined);
+  } catch (e: any) {
+    if (e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404) return res.status(404).end();
+    throw e;
+  }
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.set('Accept-Ranges', 'bytes');
+  if (obj.contentType) res.set('Content-Type', obj.contentType);
+  if (obj.contentLength != null) res.set('Content-Length', String(obj.contentLength));
+  if (obj.contentRange) res.set('Content-Range', obj.contentRange);
+  res.status(obj.statusCode);
+  (obj.body as NodeJS.ReadableStream).pipe(res);
 }));
 
 export { router as admin, publico };

@@ -629,8 +629,43 @@ export const GraphicStudioEditor = defineComponent({
       setSelection(selectedNodeIds.value.filter((nodeId) => Boolean(step.value?.nodes[nodeId])))
     }
 
+    /**
+     * Muda o zoom mantendo o ponto central da viewport fixo.
+     *
+     * O shell da prancheta (`.gs-editor__canvas-shell`) tem `width`/`height`
+     * iguais ao tamanho NÃO escalado (`boardExtent`) e só aplica
+     * `transform: scale()` visualmente -- então o scroll do stage opera
+     * sobre o tamanho não escalado, enquanto o conteúdo pintado dentro dele
+     * está escalado a partir de `transform-origin: top center`. Sem
+     * recalcular o scroll ao trocar o zoom, a posição rolada deixa de
+     * corresponder ao conteúdo visual e ele "some" da viewport ao afastar
+     * (fica mais visível em documentos altos, como o exemplo, com vários
+     * artboards). `fitToArea` já faz essa conta pra Enquadrar; aqui é a
+     * mesma ideia, mas preservando o centro da viewport atual em vez de
+     * enquadrar uma área nova.
+     */
     function setZoom(nextZoom: number) {
-      zoom.value = Math.min(200, Math.max(25, Math.round(nextZoom / 25) * 25))
+      const stage = stageElement.value
+      const previous = zoom.value
+      const target = Math.min(200, Math.max(25, Math.round(nextZoom / 25) * 25))
+      if (target === previous) return
+      if (!stage) { zoom.value = target; return }
+      const width = boardExtent.value.width
+      const oldScale = previous / 100
+      const newScale = target / 100
+      const visualXOld = stage.scrollLeft + stage.clientWidth / 2
+      const visualYOld = stage.scrollTop + stage.clientHeight / 2
+      const x = width / 2 + (visualXOld - width / 2) / oldScale
+      const y = visualYOld / oldScale
+      zoom.value = target
+      void nextTick(() => {
+        const visualXNew = width / 2 + (x - width / 2) * newScale
+        const visualYNew = y * newScale
+        stage.scrollTo({
+          left: visualXNew - stage.clientWidth / 2,
+          top: visualYNew - stage.clientHeight / 2,
+        })
+      })
     }
 
     /**

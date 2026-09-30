@@ -388,6 +388,32 @@ async function presignGetByKey(key: any, ttlSeconds = 300, { downloadName, inlin
 }
 
 /**
+ * Lê um objeto do R2 direto (sem redirect) pra servir via proxy do backend.
+ * Evita o hop cross-origin (backend -> R2) que quebra CORS em fetch() do
+ * navegador quando o objeto é consumido via JS (CSV/código/notebook do
+ * Editor Alpha) -- redirect funciona em <img>/<video>/<iframe> (não passam
+ * por CORS), mas fetch() reaplica a checagem de CORS na resposta pós-redirect
+ * e o R2 não expõe Access-Control-Allow-Origin nesse hop. Repassa Range pra
+ * manter seek de vídeo/PDF funcionando.
+ */
+async function getObjectStream(key: any, range?: string) {
+  const command = new GetObjectCommand({
+    Bucket: process.env.STORAGE_BUCKET_NAME,
+    Key: key,
+    ...(range ? { Range: range } : {}),
+  });
+  const out = await s3Client.send(command);
+  return {
+    body: out.Body,
+    contentType: out.ContentType,
+    contentLength: out.ContentLength,
+    contentRange: out.ContentRange,
+    acceptRanges: out.AcceptRanges,
+    statusCode: out.ContentRange ? 206 : 200,
+  };
+}
+
+/**
  * Deleta um objeto do R2 pela CHAVE (nunca por URL do cliente). Fonte da
  * verdade = anexos.chave_r2. Retorna true/false.
  */
@@ -404,6 +430,7 @@ async function deleteByKey(key: any) {
 
 export {
   s3Client,
+  getObjectStream,
   testConnectionData,
   deleteFileFromS3,
   deleteByKey,
